@@ -62,10 +62,12 @@ T8 → T9
 
 ## Task Breakdown
 
-### T1: Configure foundation packages
+### T1: Configure foundation packages ✅
 
 **What**: Add the approved runtime, persistence, generation, and test dependencies.
-**Where**: `pubspec.yaml`, `pubspec.lock`
+**Where**: `pubspec.yaml`, `pubspec.lock`,
+`linux/flutter/generated_plugins.cmake`,
+`windows/flutter/generated_plugins.cmake`
 **Depends on**: None
 **Reuses**: Existing Flutter SDK and `flutter_lints` configuration.
 **Requirement**: FND-01, FND-02, FND-03, FND-04
