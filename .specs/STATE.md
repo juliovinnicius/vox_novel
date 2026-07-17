@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: foundation / `.specs/features/foundation`
-- **Phase / Task**: Execute — batch 1, T1 through T5
-- **Completed**: project baseline, feature specification, gray-area context, approved design
+- **Phase / Task**: Execute — batch 2, T6 through T9
+- **Completed**: project baseline, specification, context, design, T1, T2, T3, T4, T5
 - **In-progress** (file:line): none
-- **Next step**: execute batch 1 and require all task gates and commits before batch 2
+- **Next step**: execute batch 2 and dispatch the independent Verifier after T9
 - **Blockers**: none
 - **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/tasks.md`
 - **Branch**: `main`
