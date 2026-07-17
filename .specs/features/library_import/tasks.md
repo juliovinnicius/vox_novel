@@ -580,11 +580,11 @@ the row/files when cleanup fails.
 
 **Done when**:
 
-- [ ] Cleanup failure returns `Não foi possível excluir o livro`.
-- [ ] Cleanup failure restores the exact database record and every remaining quarantined owned file.
-- [ ] Successful deletion leaves no PDF, cover, active row, or quarantined file.
-- [ ] Restart assertions distinguish durable success from compensated failure.
-- [ ] Full gate passes.
+- [x] Cleanup failure returns `Não foi possível excluir o livro`.
+- [x] Cleanup failure restores the exact database record and every remaining quarantined owned file.
+- [x] Successful deletion leaves no PDF, cover, active row, or quarantined file.
+- [x] Restart assertions distinguish durable success from compensated failure.
+- [x] Full gate passes.
 
 **Tests**: unit/integration/widget
 **Gate**: build

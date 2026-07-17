@@ -134,9 +134,10 @@ void main() {
   });
 
   test(
-    'post-commit cleanup failure keeps successful durable deletion',
+    'cleanup failure restores exact record and every quarantined file',
     () async {
-      final repository = FakeLibraryRepository(book: fixture());
+      final original = fixture();
+      final repository = FakeLibraryRepository(book: original);
       final storage = FakeLibraryStorage(failDiscard: true);
       final service = LibraryService(
         repository: repository,
@@ -144,11 +145,16 @@ void main() {
         clock: () => now,
       );
 
-      final result = await service.deleteBook(fixture());
+      final result = await service.deleteBook(original);
 
-      expect(result.success, isTrue);
-      expect(repository.book, isNull);
-      expect(storage.quarantined, isTrue);
+      expect(result.success, isFalse);
+      expect(result.message, 'Não foi possível excluir o livro');
+      expect(repository.book, original);
+      expect(storage.restoredFiles, [
+        original.coverPath,
+        original.storedFilePath,
+      ]);
+      expect(storage.quarantined, isFalse);
     },
   );
 }
@@ -162,6 +168,7 @@ final class FakeLibraryStorage implements BookFileStorage {
   bool quarantined = false;
   bool restored = false;
   bool externalRemoved = false;
+  final restoredFiles = <String>[];
 
   @override
   Future<QuarantinedBookFiles> quarantineOwnedFiles({
@@ -188,6 +195,9 @@ final class FakeLibraryStorage implements BookFileStorage {
   @override
   Future<void> restoreQuarantine(QuarantinedBookFiles quarantine) async {
     restored = true;
+    restoredFiles.addAll(
+      quarantine.files.reversed.map((file) => file.originalPath),
+    );
     quarantined = false;
   }
 

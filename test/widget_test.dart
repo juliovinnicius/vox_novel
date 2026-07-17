@@ -12,9 +12,13 @@ import 'package:vox_novel/app/app_state.dart';
 import 'package:vox_novel/app/dependency_injection/configure_dependencies.dart';
 import 'package:vox_novel/app/router/app_router.dart';
 import 'package:vox_novel/core/database/app_database.dart';
+import 'package:vox_novel/features/import_book/data/services/local_book_file_storage.dart';
 import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
 import 'package:vox_novel/features/import_book/presentation/cubit/import_book_cubit.dart';
+import 'package:vox_novel/features/library/data/repositories/drift_book_repository.dart';
+import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
+import 'package:vox_novel/features/library/domain/services/library_service.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
 import 'package:vox_novel/main.dart' as application;
 
@@ -133,6 +137,74 @@ void main() {
     await tester.pump();
     expect(find.text('Sua biblioteca está vazia'), findsOneWidget);
     expect(File('${root.path}/books/book-id.pdf').existsSync(), isFalse);
+  });
+
+  test('cleanup failure is compensated durably across restart', () async {
+    final root = await Directory.systemTemp.createTemp('vox_novel_delete_');
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final databaseFile = File('${root.path}/library.sqlite');
+    var database = AppDatabase(NativeDatabase(databaseFile));
+    var repository = DriftBookRepository(database);
+    final pdf = File('${root.path}/books/book.pdf');
+    final cover = File('${root.path}/books/cover.jpg');
+    await pdf.create(recursive: true);
+    await cover.create(recursive: true);
+    await pdf.writeAsBytes([1]);
+    await cover.writeAsBytes([2]);
+    final book = domain.Book(
+      id: 'book-id',
+      title: 'Título',
+      author: 'Autora',
+      coverPath: cover.path,
+      originalFileName: 'book.pdf',
+      storedFilePath: pdf.path,
+      fileHash: 'hash',
+      status: domain.BookStatus.ready,
+      processingProgress: 1,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+    await repository.insert(book);
+    final failingStorage = LocalBookFileStorage(
+      supportDirectory: root,
+      deleteFile: (_) async => throw const FileSystemException('disk failure'),
+    );
+
+    final failed = await LibraryService(
+      repository: repository,
+      storage: failingStorage,
+      clock: () => DateTime.utc(2026),
+    ).deleteBook(book);
+
+    expect(failed.success, isFalse);
+    expect(failed.message, 'Não foi possível excluir o livro');
+    await database.close();
+    database = AppDatabase(NativeDatabase(databaseFile));
+    repository = DriftBookRepository(database);
+    expect(await repository.findById(book.id), book);
+    expect(await pdf.readAsBytes(), [1]);
+    expect(await cover.readAsBytes(), [2]);
+
+    final deleted = await LibraryService(
+      repository: repository,
+      storage: LocalBookFileStorage(supportDirectory: root),
+      clock: () => DateTime.utc(2026),
+    ).deleteBook(book);
+
+    expect(deleted.success, isTrue);
+    await database.close();
+    database = AppDatabase(NativeDatabase(databaseFile));
+    repository = DriftBookRepository(database);
+    expect(await repository.findById(book.id), isNull);
+    expect(await pdf.exists(), isFalse);
+    expect(await cover.exists(), isFalse);
+    expect(
+      await Directory('${root.path}/books/.trash').list().toList(),
+      isEmpty,
+    );
+    await database.close();
   });
 }
 

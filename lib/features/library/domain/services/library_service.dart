@@ -81,8 +81,8 @@ final class LibraryService {
     try {
       await storage.discardQuarantine(quarantine);
     } catch (_) {
-      // The row is already durably deleted and the files remain quarantined
-      // for cleanup on storage initialization.
+      await _restoreDeletion(book, quarantine);
+      return const DeleteBookResult.failure(deleteError);
     }
     return const DeleteBookResult.success();
   }
