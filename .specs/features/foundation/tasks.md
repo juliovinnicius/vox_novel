@@ -307,7 +307,7 @@ T9 → F1 → F2 → F3
 **Gate**: build
 **Commit**: `ci(android): add Flutter quality gate`
 
-### F1: Make startup ordering executable
+### F1: Make startup ordering executable ✅
 
 **What**: Extract an awaitable application factory and prove dependencies and
 ready state exist before the root widget is returned for rendering.
