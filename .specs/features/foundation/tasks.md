@@ -248,10 +248,10 @@ T8 → T9
 **Expected tests**: 4
 **Commit**: `feat(app): add dependency composition root`
 
-### T8: Replace the generated startup entry point
+### T8: Replace the generated startup entry point ✅
 
 **What**: Bootstrap bindings, dependencies, readiness state, and the root app.
-**Where**: `lib/main.dart`, `test/widget_test.dart`
+**Where**: `lib/main.dart`, `test/widget_test.dart`, `test/app/app_test.dart`
 **Depends on**: T7
 **Reuses**: Composition root and `VoxNovelApp`.
 **Requirement**: FND-01, FND-03
@@ -266,6 +266,7 @@ T8 → T9
 - [ ] `main` initializes Flutter bindings before asynchronous setup.
 - [ ] Dependency setup completes before `runApp`.
 - [ ] The generated counter UI and counter assertions are removed.
+- [ ] The build gate removes the stale unused import exposed by application integration.
 - [ ] The application smoke test renders exactly one `Biblioteca`.
 - [ ] Build gate passes.
 
