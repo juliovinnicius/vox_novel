@@ -218,7 +218,7 @@ T13 → T14
 **Gate**: quick
 **Commit**: `feat(import): add PDF picker adapter`
 
-### T6: Implement private book file storage
+### T6: Implement private book file storage ✅
 
 **What**: Add chunked validation, SHA-256, staging, commit, rollback, quarantine, and owned-path protection.
 **Where**: `lib/features/import_book/domain/services/book_file_storage.dart`,
@@ -235,16 +235,16 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Validation accepts an existing readable regular file with case-insensitive `.pdf`.
-- [ ] Missing, directory, unreadable, and non-PDF inputs return typed validation failures.
-- [ ] Empty readable PDFs are valid in this milestone.
-- [ ] SHA-256 is calculated from a chunked stream and matches a known fixture digest.
-- [ ] Stage, commit, discard, backup/restore, and quarantine operations have exact filesystem outcomes.
-- [ ] Deletion rejects every path outside the canonical owned books root.
-- [ ] Missing owned files count as deleted.
-- [ ] Injected copy/move/delete failures leave the expected pre-operation filesystem state.
-- [ ] Tests use temporary directories and satisfy every file-storage matrix branch.
-- [ ] Build gate passes.
+- [x] Validation accepts an existing readable regular file with case-insensitive `.pdf`.
+- [x] Missing, directory, unreadable, and non-PDF inputs return typed validation failures.
+- [x] Empty readable PDFs are valid in this milestone.
+- [x] SHA-256 is calculated from a chunked stream and matches a known fixture digest.
+- [x] Stage, commit, discard, backup/restore, and quarantine operations have exact filesystem outcomes.
+- [x] Deletion rejects every path outside the canonical owned books root.
+- [x] Missing owned files count as deleted.
+- [x] Injected copy/move/delete failures leave the expected pre-operation filesystem state.
+- [x] Tests use temporary directories and satisfy every file-storage matrix branch.
+- [x] Build gate passes.
 
 **Tests**: unit/integration
 **Gate**: build
