@@ -1,3 +1,5 @@
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
+
 enum BookStatus {
   importing,
   processing,
@@ -16,7 +18,7 @@ enum BookStatus {
 }
 
 final class Book {
-  const Book({
+  Book({
     required this.id,
     required this.title,
     required this.originalFileName,
@@ -28,7 +30,22 @@ final class Book {
     required this.updatedAt,
     this.author,
     this.coverPath,
-  });
+    this.pageCount = 0,
+    this.chapterCount = 0,
+    this.blockCount = 0,
+    this.processingStage,
+    this.activeContentRunId,
+  }) {
+    if (processingProgress < 0 ||
+        processingProgress > 1 ||
+        pageCount < 0 ||
+        chapterCount < 0 ||
+        blockCount < 0) {
+      throw const TextProcessingValidationException(
+        'invalid book processing values',
+      );
+    }
+  }
 
   final String id;
   final String title;
@@ -41,6 +58,11 @@ final class Book {
   final double processingProgress;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int pageCount;
+  final int chapterCount;
+  final int blockCount;
+  final ProcessingStage? processingStage;
+  final String? activeContentRunId;
 
   static String titleFromFileName(String fileName) {
     final withoutExtension = fileName.toLowerCase().endsWith('.pdf')
@@ -79,6 +101,11 @@ final class Book {
     double? processingProgress,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? pageCount,
+    int? chapterCount,
+    int? blockCount,
+    Object? processingStage = _unset,
+    Object? activeContentRunId = _unset,
   }) {
     return Book(
       id: id ?? this.id,
@@ -94,6 +121,15 @@ final class Book {
       processingProgress: processingProgress ?? this.processingProgress,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      pageCount: pageCount ?? this.pageCount,
+      chapterCount: chapterCount ?? this.chapterCount,
+      blockCount: blockCount ?? this.blockCount,
+      processingStage: identical(processingStage, _unset)
+          ? this.processingStage
+          : processingStage as ProcessingStage?,
+      activeContentRunId: identical(activeContentRunId, _unset)
+          ? this.activeContentRunId
+          : activeContentRunId as String?,
     );
   }
 
@@ -111,7 +147,12 @@ final class Book {
             other.status == status &&
             other.processingProgress == processingProgress &&
             other.createdAt == createdAt &&
-            other.updatedAt == updatedAt;
+            other.updatedAt == updatedAt &&
+            other.pageCount == pageCount &&
+            other.chapterCount == chapterCount &&
+            other.blockCount == blockCount &&
+            other.processingStage == processingStage &&
+            other.activeContentRunId == activeContentRunId;
   }
 
   @override
@@ -127,6 +168,11 @@ final class Book {
     processingProgress,
     createdAt,
     updatedAt,
+    pageCount,
+    chapterCount,
+    blockCount,
+    processingStage,
+    activeContentRunId,
   );
 }
 

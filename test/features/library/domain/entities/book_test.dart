@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 
 void main() {
   group('BookStatus', () {
@@ -90,7 +91,15 @@ void main() {
       ),
     );
     expect(
-      book.copyWith(title: 'Novo título', author: null),
+      book.copyWith(
+        title: 'Novo título',
+        author: null,
+        pageCount: 10,
+        chapterCount: 2,
+        blockCount: 8,
+        processingStage: ProcessingStage.completed,
+        activeContentRunId: 'run-1',
+      ),
       Book(
         id: 'book-1',
         title: 'Novo título',
@@ -103,7 +112,36 @@ void main() {
         processingProgress: 0,
         createdAt: createdAt,
         updatedAt: updatedAt,
+        pageCount: 10,
+        chapterCount: 2,
+        blockCount: 8,
+        processingStage: ProcessingStage.completed,
+        activeContentRunId: 'run-1',
       ),
+    );
+  });
+
+  test('rejects invalid processing progress and counts', () {
+    Book make({double progress = 0, int pages = 0}) => Book(
+      id: 'book',
+      title: 'Book',
+      originalFileName: 'book.pdf',
+      storedFilePath: '/book.pdf',
+      fileHash: 'hash',
+      status: BookStatus.importing,
+      processingProgress: progress,
+      pageCount: pages,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+
+    expect(
+      () => make(progress: 1.1),
+      throwsA(isA<TextProcessingValidationException>()),
+    );
+    expect(
+      () => make(pages: -1),
+      throwsA(isA<TextProcessingValidationException>()),
     );
   });
 }
