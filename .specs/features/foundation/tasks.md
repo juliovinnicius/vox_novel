@@ -346,7 +346,7 @@ implementations from the foundation shell while allowing Cubit infrastructure.
 **Gate**: quick
 **Commit**: `test(architecture): enforce Cubit-only foundation`
 
-### F3: Add executable CI workflow contracts
+### F3: Add executable CI workflow contracts ✅
 
 **What**: Parse the GitHub Actions workflow and assert triggers, exact command
 order, and absence of failure suppression.
