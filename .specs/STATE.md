@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: foundation / `.specs/features/foundation`
-- **Phase / Task**: Tasks — awaiting task plan, tooling, and sub-agent approval
+- **Phase / Task**: Execute — batch 1, T1 through T5
 - **Completed**: project baseline, feature specification, gray-area context, approved design
 - **In-progress** (file:line): none
-- **Next step**: obtain task/tool approval and choose inline or two sequential execution batches
+- **Next step**: execute batch 1 and require all task gates and commits before batch 2
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/spec.md`, `.specs/features/foundation/design.md`, `.specs/features/foundation/tasks.md`
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/tasks.md`
 - **Branch**: `main`
