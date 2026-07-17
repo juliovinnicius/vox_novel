@@ -157,6 +157,25 @@ void main() {
       expect(storage.quarantined, isFalse);
     },
   );
+
+  test(
+    'empty cover skips cover quarantine while deleting PDF and row',
+    () async {
+      final original = fixture().copyWith(coverPath: '');
+      final repository = FakeLibraryRepository(book: original);
+      final storage = FakeLibraryStorage();
+      final result = await LibraryService(
+        repository: repository,
+        storage: storage,
+        clock: () => now,
+      ).deleteBook(original);
+
+      expect(result.success, isTrue);
+      expect(repository.book, isNull);
+      expect(storage.quarantinedOriginalPaths, [original.storedFilePath]);
+      expect(storage.requestedCoverPath, '');
+    },
+  );
 }
 
 final class FakeLibraryStorage implements BookFileStorage {
@@ -169,6 +188,8 @@ final class FakeLibraryStorage implements BookFileStorage {
   bool restored = false;
   bool externalRemoved = false;
   final restoredFiles = <String>[];
+  final quarantinedOriginalPaths = <String>[];
+  String? requestedCoverPath;
 
   @override
   Future<QuarantinedBookFiles> quarantineOwnedFiles({
@@ -176,13 +197,16 @@ final class FakeLibraryStorage implements BookFileStorage {
     String? coverPath,
   }) async {
     events.add('quarantine');
+    requestedCoverPath = coverPath;
     if (failQuarantine) throw const UnsafeBookPathException('/external');
     quarantined = true;
-    return QuarantinedBookFiles([
+    final files = [
       BookFileBackup(originalPath: pdfPath, backupPath: '$pdfPath.trash'),
-      if (coverPath != null)
+      if (coverPath != null && coverPath.isNotEmpty)
         BookFileBackup(originalPath: coverPath, backupPath: '$coverPath.trash'),
-    ]);
+    ];
+    quarantinedOriginalPaths.addAll(files.map((file) => file.originalPath));
+    return QuarantinedBookFiles(files);
   }
 
   @override

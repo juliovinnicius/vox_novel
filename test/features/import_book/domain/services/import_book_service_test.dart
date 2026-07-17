@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/features/import_book/domain/services/book_file_storage.dart';
 import 'package:vox_novel/features/import_book/domain/services/import_book_service.dart';
@@ -123,7 +125,9 @@ void main() {
 
 enum FailurePoint {
   validation,
+  disappearance,
   stage,
+  diskFull,
   backup,
   commitNew,
   commitDuplicate,
@@ -153,6 +157,9 @@ final class FakeStorage implements BookFileStorage {
   Future<ValidatedPdf> validateAndHash(PickedPdf source) async {
     events.add('validate');
     fail(FailurePoint.validation);
+    if (failure == FailurePoint.disappearance) {
+      throw const FileSystemException('source disappeared');
+    }
     return const ValidatedPdf(hash: 'hash');
   }
 
@@ -163,6 +170,13 @@ final class FakeStorage implements BookFileStorage {
   }) async {
     events.add('stage');
     fail(FailurePoint.stage);
+    if (failure == FailurePoint.diskFull) {
+      throw const FileSystemException(
+        'write failed',
+        '',
+        OSError('No space left on device', 28),
+      );
+    }
     partialActive = true;
     return StagedBookFile(
       stagingPath: '/staging/$bookId.pdf',

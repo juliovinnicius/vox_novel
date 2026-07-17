@@ -649,11 +649,11 @@ disk-full-shaped failure, empty cover, and one ordered repository emission per m
 
 **Done when**:
 
-- [ ] Mid-stream source disappearance removes the stage and yields the standard import failure.
-- [ ] A disk-full-shaped write failure removes the stage and leaves the repository unchanged.
-- [ ] Empty cover skips cover removal while deleting PDF and row.
-- [ ] Import, edit, replacement, and deletion each emit one ordered collection without duplicate IDs.
-- [ ] Build gate passes.
+- [x] Mid-stream source disappearance removes the stage and yields the standard import failure.
+- [x] A disk-full-shaped write failure removes the stage and leaves the repository unchanged.
+- [x] Empty cover skips cover removal while deleting PDF and row.
+- [x] Import, edit, replacement, and deletion each emit one ordered collection without duplicate IDs.
+- [x] Build gate passes.
 
 **Tests**: unit/integration
 **Gate**: build

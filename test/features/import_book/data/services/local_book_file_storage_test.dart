@@ -272,4 +272,49 @@ void main() {
       expect(await owned.readAsString(), 'owned');
     },
   );
+
+  for (final failure in [
+    const FileSystemException('source disappeared'),
+    const FileSystemException(
+      'write failed',
+      '',
+      OSError('No space left on device', 28),
+    ),
+  ]) {
+    test(
+      '${failure.osError?.errorCode == 28 ? 'disk full' : 'mid-copy disappearance'} removes the partial stage',
+      () async {
+        final source = File(p.join(temporary.path, 'failing.pdf'));
+        await source.writeAsBytes([1, 2, 3]);
+        final failing = LocalBookFileStorage(
+          supportDirectory: temporary,
+          readFile: (_) => Stream<List<int>>.multi((controller) {
+            controller.add([1]);
+            controller.addError(failure);
+            controller.close();
+          }),
+        );
+
+        await expectLater(
+          failing.stageCopy(
+            source: PickedPdf(
+              sourcePath: source.path,
+              originalFileName: 'failing.pdf',
+            ),
+            bookId: 'failed',
+          ),
+          throwsA(
+            isA<FileSystemException>().having(
+              (error) => error.osError?.errorCode,
+              'errorCode',
+              failure.osError?.errorCode,
+            ),
+          ),
+        );
+
+        final staging = Directory(p.join(temporary.path, 'books', '.staging'));
+        expect(await staging.list().toList(), isEmpty);
+      },
+    );
+  }
 }
