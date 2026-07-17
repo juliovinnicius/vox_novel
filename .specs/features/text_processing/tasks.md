@@ -52,6 +52,16 @@ without it.**
 Phases are ordered and execute sequentially. Tasks within each phase execute in
 order and receive one atomic commit each.
 
+### Execution status
+
+- [x] T1 — `e9bee71`
+- [x] T2 — `985f87a`
+- [x] T3 — `6e7da31`
+- [x] T4 — `a19c8ee`
+- [x] F0 — Resolve committed domain analyzer findings before the Phase 1 build
+  gate without changing behavior or tests — `7c161c8`
+- [x] T5
+
 ### Phase 1: PDF boundary and deterministic domain
 
 ```text
