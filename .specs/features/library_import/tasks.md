@@ -250,7 +250,7 @@ T13 → T14
 **Gate**: build
 **Commit**: `feat(import): add private PDF storage`
 
-### T7: Implement PDF import orchestration
+### T7: Implement PDF import orchestration ✅
 
 **What**: Add `ImportBookService` for new imports, duplicate replacement, and reverse-order compensation.
 **Where**: `lib/features/import_book/domain/services/import_book_service.dart`,
@@ -266,13 +266,13 @@ T13 → T14
 
 **Done when**:
 
-- [ ] A new PDF produces one exact `importing` book, zero progress, derived title, empty author/cover, timestamps, hash, and owned path.
-- [ ] A duplicate preserves stable ID, created timestamp, title, author, and cover while replacing only approved fields.
-- [ ] Old duplicate files are removed only after the replacement and row are durable.
-- [ ] Every validation, hash, stage, commit, repository, and cleanup failure executes exact compensation and returns the standard typed failure.
-- [ ] No failed path leaves a new record or active partial copy.
-- [ ] Domain tests map 1:1 to every LIB-01/LIB-02 criterion and listed import edge case.
-- [ ] Build gate passes.
+- [x] A new PDF produces one exact `importing` book, zero progress, derived title, empty author/cover, timestamps, hash, and owned path.
+- [x] A duplicate preserves stable ID, created timestamp, title, author, and cover while replacing only approved fields.
+- [x] Old duplicate files are removed only after the replacement and row are durable.
+- [x] Every validation, hash, stage, commit, repository, and cleanup failure executes exact compensation and returns the standard typed failure.
+- [x] No failed path leaves a new record or active partial copy.
+- [x] Domain tests map 1:1 to every LIB-01/LIB-02 criterion and listed import edge case.
+- [x] Build gate passes.
 
 **Tests**: unit
 **Gate**: build
