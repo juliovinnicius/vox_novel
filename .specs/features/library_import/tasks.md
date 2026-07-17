@@ -413,14 +413,14 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Edit fields start with exact current title and author.
-- [ ] Save returns exact trimmed valid values.
-- [ ] Empty title shows `Informe o título` and does not close the dialog.
-- [ ] Cancel returns no mutation.
-- [ ] Delete confirmation names the exact title and has accessible cancel/delete actions.
-- [ ] Confirmation and cancellation return exact typed results.
-- [ ] Widget tests cover every form and confirmation branch.
-- [ ] Quick gate passes.
+- [x] Edit fields start with exact current title and author.
+- [x] Save returns exact trimmed valid values.
+- [x] Empty title shows `Informe o título` and does not close the dialog.
+- [x] Cancel returns no mutation.
+- [x] Delete confirmation names the exact title and has accessible cancel/delete actions.
+- [x] Confirmation and cancellation return exact typed results.
+- [x] Widget tests cover every form and confirmation branch.
+- [x] Quick gate passes.
 
 **Tests**: widget
 **Gate**: quick
