@@ -7,7 +7,7 @@ name and follow its Execute flow and Critical Rules.** Do not proceed without th
 per-task gate, atomic commit, adequacy review, and final independent Verifier.
 
 **Design**: `.specs/features/library_import/design.md`
-**Status**: Complete
+**Status**: Done
 
 ---
 
@@ -308,7 +308,7 @@ T13 → T14
 **Gate**: build
 **Commit**: `feat(library): add metadata and deletion service`
 
-### T9: Create the import Cubit
+### T9: Create the import Cubit ✅
 
 **What**: Add exact import presentation states and guarded picker/import transitions.
 **Where**: `lib/features/import_book/presentation/cubit/import_book_cubit.dart`,
@@ -337,7 +337,7 @@ T13 → T14
 **Gate**: quick
 **Commit**: `feat(import): add import Cubit`
 
-### T10: Create the library Cubit
+### T10: Create the library Cubit ✅
 
 **What**: Add stream-backed library state, list/grid transitions, and edit/delete result handling.
 **Where**: `lib/features/library/presentation/cubit/library_cubit.dart`,
@@ -368,7 +368,7 @@ T13 → T14
 **Gate**: build
 **Commit**: `feat(library): add library Cubit`
 
-### T11: Create reusable library book tiles
+### T11: Create reusable library book tiles ✅
 
 **What**: Add list and two-column-grid item widgets with exact metadata/status rendering and actions.
 **Where**: `lib/features/library/presentation/widgets/book_list_item.dart`,
@@ -396,7 +396,7 @@ T13 → T14
 **Gate**: quick
 **Commit**: `feat(library): add book item widgets`
 
-### T12: Create metadata and deletion dialogs
+### T12: Create metadata and deletion dialogs ✅
 
 **What**: Add the edit form and named deletion confirmation dialogs.
 **Where**: `lib/features/library/presentation/widgets/edit_book_dialog.dart`,
@@ -426,7 +426,7 @@ T13 → T14
 **Gate**: quick
 **Commit**: `feat(library): add book management dialogs`
 
-### T13: Replace the library placeholder with the complete page
+### T13: Replace the library placeholder with the complete page ✅
 
 **What**: Build the library page integrating both Cubits, layouts, empty state, import feedback, editing, and deletion.
 **Where**: `lib/features/library/presentation/pages/library_page.dart`,
@@ -459,7 +459,7 @@ update placeholder test references
 **Gate**: build
 **Commit**: `feat(library): build library page`
 
-### T14: Integrate library and import into application composition
+### T14: Integrate library and import into application composition ✅
 
 **What**: Register all feature dependencies and route the application root to the real library page.
 **Where**: `lib/app/dependency_injection/configure_dependencies.dart`,
@@ -568,7 +568,7 @@ contain consecutive whole phases but never split a phase.
 
 ## Validation Fix Tasks — Iteration 1
 
-### F1: Make permanent cleanup failure restore deletion
+### F1: Make permanent cleanup failure restore deletion ✅
 
 **What**: Treat quarantined-file cleanup as part of deletion success and compensate
 the row/files when cleanup fails.
@@ -590,7 +590,7 @@ the row/files when cleanup fails.
 **Gate**: build
 **Commit**: `fix(library): restore failed file deletion`
 
-### F2: Execute production hash and copy work off the UI isolate
+### F2: Execute production hash and copy work off the UI isolate ✅
 
 **What**: Add an isolate-backed production execution seam for validation, hashing,
 and copying while retaining deterministic injected test behavior.
@@ -612,7 +612,7 @@ and copying while retaining deterministic injected test behavior.
 **Gate**: build
 **Commit**: `fix(import): isolate PDF file work`
 
-### F3: Close library lifecycle and interaction evidence
+### F3: Close library lifecycle and interaction evidence ✅
 
 **What**: Add exact status, initial-value, cancellation, persistence/restart, order,
 default-layout, and latency assertions.
@@ -636,7 +636,7 @@ default-layout, and latency assertions.
 **Gate**: build
 **Commit**: `test(library): cover lifecycle interactions`
 
-### F4: Cover explicit filesystem and observation edge payloads
+### F4: Cover explicit filesystem and observation edge payloads ✅
 
 **What**: Add exact adapter/service assertions for mid-copy disappearance,
 disk-full-shaped failure, empty cover, and one ordered repository emission per mutation.

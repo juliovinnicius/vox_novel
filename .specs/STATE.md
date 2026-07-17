@@ -52,11 +52,11 @@
 
 ## Handoff
 
-- **Feature**: foundation / `.specs/features/foundation`
-- **Phase / Task**: Foundation complete — validation PASS
-- **Completed**: Foundation T1 through T9, fixes F1 through F3, validation iteration 2
+- **Feature**: library_import / `.specs/features/library_import`
+- **Phase / Task**: Milestone 1 complete — validation iteration 2 PASS
+- **Completed**: T1 through T14, fixes F1 through F4, 28/28 acceptance criteria and 7/7 edge cases verified
 - **In-progress** (file:line): none
-- **Next step**: specify Milestone 1 — Library and import
+- **Next step**: specify Milestone 2 — text processing
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/spec.md`, `.specs/features/foundation/tasks.md`, `.specs/features/foundation/validation.md`
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/library_import/spec.md`, `.specs/features/library_import/tasks.md`, `.specs/features/library_import/validation.md`
 - **Branch**: `main`

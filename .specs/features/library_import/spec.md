@@ -178,11 +178,11 @@ the database, filesystem, refreshed UI, and cancellation/failure paths.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| LIB-01 | Import a PDF into private storage | Execute | Implemented |
-| LIB-02 | Replace duplicate content safely | Execute | Implemented |
-| LIB-03 | Browse the local library | Execute | Implemented |
-| LIB-04 | Edit book metadata | Execute | Implemented |
-| LIB-05 | Delete a complete local book | Execute | Implemented |
+| LIB-01 | Import a PDF into private storage | Validation | Verified |
+| LIB-02 | Replace duplicate content safely | Validation | Verified |
+| LIB-03 | Browse the local library | Validation | Verified |
+| LIB-04 | Edit book metadata | Validation | Verified |
+| LIB-05 | Delete a complete local book | Validation | Verified |
 
 **Coverage:** 5 total, 5 mapped to tasks, 0 unmapped.
 

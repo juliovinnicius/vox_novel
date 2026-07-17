@@ -1,171 +1,157 @@
-# Library and Import Validation
+# Library and Import Validation — Iteration 2
 
 **Date**: 2026-07-17
 **Spec**: `.specs/features/library_import/spec.md`
-**Diff range**: `e40c552..3ad8dfe`
+**Diff range**: `e40c552..bd6e6cc`
 **Verifier**: independent sub-agent (author ≠ verifier)
-
----
+**Verdict**: PASS
 
 ## Task Completion
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| T1–T14 | ✅ Done | All task bodies are marked complete and the range contains one matching implementation commit per task. Outcome gaps below prevent feature verification. |
+| T1–T14 | ✅ Done | Original implementation tasks remain complete. |
+| F1 | ✅ Done | Cleanup failure now compensates the database row and quarantined files, including restart evidence. |
+| F2 | ✅ Done | Production validation/hash and stage-copy use `Isolate.run`; caller/worker identities are asserted. |
+| F3 | ✅ Done | Status, dialog initialization/cancellation, restart/order/default-layout, and latency evidence added. |
+| F4 | ✅ Done | Mid-copy, disk-full, empty-cover, and exact mutation-emission payloads added. |
 
 ## Spec-Anchored Acceptance Criteria
 
 ### LIB-01 — Import a PDF into private storage
 
-| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
-| --------- | -------------------- | ----------------------- | ------ |
-| Import action opens a PDF-only picker | One selection, custom type, allowed extension exactly `pdf` | `test/features/import_book/data/services/file_picker_pdf_picker_test.dart:27` — `expect(capturedAllowMultiple, isFalse)`; `:28` — `expect(capturedType, FileType.custom)`; `:29` — `expect(capturedAllowedExtensions, ['pdf'])` | ✅ PASS |
-| Cancellation leaves the library unchanged with no error | `selecting → idle`, no error payload | `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:39` — `expectLater(cubit.stream, emitsInOrder([selecting, idle]))` | ✅ PASS |
-| Invalid path leaves library/storage unchanged and shows the standard error | Typed validation failure; no active partial/insert; exact `Não foi possível importar este PDF` | `test/features/import_book/data/services/local_book_file_storage_test.dart:77` — `expectLater(... throwsA(...having(kind, kind)))`; `test/features/import_book/domain/services/import_book_service_test.dart:103` — exact exception-message matcher; `:114` — `expect(storage.partialActive, isFalse)`; `:118` — `expect(repository.inserted, isNull)`; `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:56` — exact error text | ✅ PASS |
-| Valid PDF is hashed and copied uniquely without file work on the UI isolate | Exact SHA-256/private copy and filesystem pipeline executed off the UI isolate | `test/features/import_book/data/services/local_book_file_storage_test.dart:53` proves the digest and `:124-127` prove copy outcomes, but no test asserts isolate execution and production calls the storage pipeline directly | ❌ GAP |
-| Successful copy persists one exact initial book | Exact ID/title/null author/null cover/name/path/hash/`importing`/0/timestamps | `test/features/import_book/domain/services/import_book_service_test.dart:27` — whole-`Book` equality with every required field; `:43` — `expect(repository.inserted, result)` | ✅ PASS |
-| Copy/persistence failure compensates and shows standard error | No partial copy or inserted row; exact error | `test/features/import_book/domain/services/import_book_service_test.dart:103-119` — exact exception, `partialActive == false`, old file retained when applicable, no insert; `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:55-56` — idle plus exact message | ✅ PASS |
-| Active import indicates busy, disables import, remains responsive | Indeterminate progress, null action callback, frame can pump while import awaits | `test/features/library/presentation/pages/library_page_test.dart:54-60` — pumps pending import, finds `LinearProgressIndicator`, asserts `button.onPressed == null`; `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:79-82` — readable importing state while pending | ✅ PASS |
+| # | Spec-defined outcome | Exact evidence (`file:line` + assertion) | Result |
+| - | -------------------- | ---------------------------------------- | ------ |
+| 1 | Picker permits one custom-extension selection with exactly `pdf`. | `test/features/import_book/data/services/file_picker_pdf_picker_test.dart:27` — `expect(capturedAllowMultiple, isFalse)`; `:28` — `expect(capturedType, FileType.custom)`; `:29` — `expect(capturedAllowedExtensions, ['pdf'])`. | ✅ |
+| 2 | Cancellation emits selecting then idle with no error/library mutation. | `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:39` — `emitsInOrder([selecting, ImportBookState()])`; `test/widget_test.dart:139` — repository result remains the exact pre-dialog `book`. | ✅ |
+| 3 | Invalid selection leaves storage/repository unchanged and exposes `Não foi possível importar este PDF`. | `test/features/import_book/data/services/local_book_file_storage_test.dart:107` — exact typed validation-kind matcher; `test/features/import_book/domain/services/import_book_service_test.dart:105` — exact error string plus `:116` `partialActive == false` and `:120` `inserted == null`; `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:56` — exact UI-state error. | ✅ |
+| 4 | Valid PDF gets exact SHA-256 and a private unique copy off the caller/UI isolate. | `test/features/import_book/data/services/local_book_file_storage_test.dart:55` — exact digest; `:59` — copied bytes equal `isolate payload`; `:60` — two worker callbacks; `:62` — every worker identity differs from caller. | ✅ |
+| 5 | Exactly one initial book has stable ID, derived title, null author/cover, exact file fields, `importing`, zero progress, and equal timestamps. | `test/features/import_book/domain/services/import_book_service_test.dart:29` — whole-`Book` equality with all values at `:31-43`; `:45` — inserted object is the result; `:46` — exact validate/stage/commit sequence. | ✅ |
+| 6 | Every copy/persistence failure removes partial state, retains prior state, and reports the standard error. | `test/features/import_book/domain/services/import_book_service_test.dart:87` iterates every failure point; `:105-113` asserts exact exception text; `:116-120` assert no partial/new insert and old file retained for replacement. | ✅ |
+| 7 | Active import is indeterminate, disabled, and state/frame responsive. | `test/features/library/presentation/pages/library_page_test.dart:56` — one `LinearProgressIndicator`; `:60` — FAB callback null; `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:79-82` — pending import state remains synchronously readable and second call is ignored. | ✅ |
 
 ### LIB-02 — Replace duplicate content safely
 
-| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
-| --------- | -------------------- | ----------------------- | ------ |
-| New hash creates one new book | Exact inserted result, no replacement | `test/features/import_book/domain/services/import_book_service_test.dart:27-44` — exact new book, inserted same result, exact validate/stage/commit sequence | ✅ PASS |
-| Existing hash preserves identity and metadata while replacing approved fields | Stable ID/created/title/author/cover; new name/path/hash/time; `importing`; zero progress | `test/features/import_book/domain/services/import_book_service_test.dart:62` — whole-`Book` equality against `existing.copyWith(...)`; `:73` — exact stable ID | ✅ PASS |
-| Superseded PDF is deleted only after new file and row are durable | Backup → commit → repository replacement → backup discard | `test/features/import_book/domain/services/import_book_service_test.dart:74-81` — exact storage event order and `replacementCompletedBeforeCleanup == true` | ✅ PASS |
-| Failed replacement restores existing record/file and removes partial replacement | Exact standard failure, no partial active file, old file available, no new insert | `test/features/import_book/domain/services/import_book_service_test.dart:85-119` — all duplicate failure points assert compensation outcomes | ✅ PASS |
-| Concurrent imports execute only the first | Picker invoked once during selecting and importing | `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:65-68` and `:77-82` — second calls leave pending state and `expect(picker.calls, 1)` | ✅ PASS |
+| # | Spec-defined outcome | Exact evidence (`file:line` + assertion) | Result |
+| - | -------------------- | ---------------------------------------- | ------ |
+| 1 | A new hash inserts exactly one new book. | `test/features/import_book/domain/services/import_book_service_test.dart:29-46` — exact new-book value, one inserted result, and no replacement event. | ✅ |
+| 2 | Duplicate preserves ID/title/author/cover/createdAt and replaces only approved import fields. | `test/features/import_book/domain/services/import_book_service_test.dart:64` — whole result equals `existing.copyWith(...)` with exact replacement values at `:66-73`; `:75` — stable ID `book-7`. | ✅ |
+| 3 | Old PDF cleanup occurs only after new file and row are durable. | `test/features/import_book/domain/services/import_book_service_test.dart:76` — exact `validate, stage, backup, commit, discardBackup` order; `:83` — `replacementCompletedBeforeCleanup == true`. | ✅ |
+| 4 | Failed replacement keeps/restores old record/file and removes partial replacement. | `test/features/import_book/domain/services/import_book_service_test.dart:87-120` — failure matrix asserts exact standard failure, no partial, old file available, and no new insert. | ✅ |
+| 5 | Concurrent requests execute only the first. | `test/features/import_book/presentation/cubit/import_book_cubit_test.dart:61-70` and `:73-84` — selection/import pending cases both assert `picker.calls == 1` and unchanged active state. | ✅ |
 
 ### LIB-03 — Browse the local library
 
-| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
-| --------- | -------------------- | ----------------------- | ------ |
-| Empty library shows exact copy and accessible import action | `Sua biblioteca está vazia`; `Importar PDF` | `test/features/library/presentation/pages/library_page_test.dart:23-25` — exact visible strings | ✅ PASS |
-| Every persisted book renders once with title, optional author, and exact status label | Exact localized label for each possible persisted status | `test/features/library/presentation/widgets/book_item_test.dart:32-34` covers title/author and only `Importando`; no assertion covers `Processando`, `Pronto`, `Falhou`, or `Não suportado` | ❌ GAP |
-| Grid shows same ordered books in exactly two columns | Same IDs once, unchanged order/data, `crossAxisCount == 2` | `test/features/library/presentation/pages/library_page_test.dart:35-44` — same keyed IDs before/after and exact column count; `test/features/library/presentation/cubit/library_cubit_test.dart:35-36` — exact books preserved | ✅ PASS |
-| List shows same ordered books in one column | Layout becomes list and exact book collection is preserved | `test/features/library/presentation/cubit/library_cubit_test.dart:37-39` — exact list layout and same books | ✅ PASS |
-| Restart loads persisted books newest-first and defaults to list | Fresh application/cubit over persistent storage, ordered by latest update | `test/features/library/data/repositories/drift_book_repository_test.dart:38-41` proves ordering and `test/features/library/presentation/cubit/library_cubit_test.dart:40` proves a new Cubit defaults to list, but no restart/persistence conjunction is exercised | ❌ GAP |
-| First query and visible result complete within two seconds | Observable result latency `< 2s` under normal local conditions | No timing assertion | ❌ GAP |
+| # | Spec-defined outcome | Exact evidence (`file:line` + assertion) | Result |
+| - | -------------------- | ---------------------------------------- | ------ |
+| 1 | Empty state shows `Sua biblioteca está vazia` and accessible `Importar PDF`. | `test/features/library/presentation/pages/library_page_test.dart:23-25` — exact title, empty copy, and action text. | ✅ |
+| 2 | Each book renders once with title, optional author, and the exact label for all five statuses. | `test/features/library/presentation/widgets/book_item_test.dart:32-34` — exact title/author/importing label and one widget; `:50` — empty author absent; `:53-75` — exact `Importando`, `Processando`, `Pronto`, `Falhou`, `Não suportado` mapping. | ✅ |
+| 3 | Grid preserves the same ordered books/data and uses exactly two phone columns. | `test/features/library/presentation/pages/library_page_test.dart:35-44` — each keyed ID occurs once before/after and `crossAxisCount == 2`; `test/features/library/presentation/cubit/library_cubit_test.dart:34-36` — exact books preserved. | ✅ |
+| 4 | List preserves the same one-column ordered books/data. | `test/features/library/presentation/cubit/library_cubit_test.dart:37-40` — layout is list, exact book list unchanged, fresh Cubit defaults list. | ✅ |
+| 5 | Restart loads durable data newest-first and defaults to list. | `test/widget_test.dart:259-299` — seeds a file-backed Drift database, closes it, starts two fresh applications; `:302` — exact list layout; `:303-306` — IDs exactly `newer, older`; `:307-310` — visible vertical order matches. | ✅ |
+| 6 | First query and visible result completes in less than two seconds. | `test/widget_test.dart:297-301` — stopwatch spans fresh app/query/render and asserts `< Duration(seconds: 2)`; visible titles are located at `:308-309`. | ✅ |
 
 ### LIB-04 — Edit book metadata
 
-| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
-| --------- | -------------------- | ----------------------- | ------ |
-| Edit form contains current title and author | Input values equal the selected book's current `Title` and `Author` | `test/features/library/presentation/widgets/book_dialogs_test.dart:23-24` only finds fields by label text; it does not inspect controller/input values | ❌ GAP |
-| Valid save persists trimmed values, updates time, and displays them | Exact trimmed title/author/timestamp and visible title | `test/features/library/domain/services/library_service_test.dart:25-26` — success and exact payload tuple; `test/widget_test.dart:126` — exact visible renamed title | ✅ PASS |
-| Empty title shows exact validation and changes nothing | `Informe o título`; no repository mutation/dialog close | `test/features/library/domain/services/library_service_test.dart:43-45` — failure, exact text, no mutation; `test/features/library/presentation/widgets/book_dialogs_test.dart:28` — exact visible validation | ✅ PASS |
-| Persistence failure retains old values and shows exact save error | Old record/collection plus `Não foi possível salvar as alterações` | `test/features/library/domain/services/library_service_test.dart:67-69` — exact failure/message/original book; `test/features/library/presentation/cubit/library_cubit_test.dart:56-57` — old collection plus exact message | ✅ PASS |
-| Cancel returns without changing persisted metadata | Dialog returns no edit and repository receives no mutation | No cancellation action or post-cancel mutation assertion; the combined test name says “cancels” but lines 21-34 only validate and save | ❌ GAP |
+| # | Spec-defined outcome | Exact evidence (`file:line` + assertion) | Result |
+| - | -------------------- | ---------------------------------------- | ------ |
+| 1 | Form inputs contain current title and author. | `test/features/library/presentation/widgets/book_dialogs_test.dart:23-25` — controller texts exactly `Title` and `Author`. | ✅ |
+| 2 | Valid save persists trimmed title/author, exact update time, and renders the title. | `test/features/library/domain/services/library_service_test.dart:25-26` — success and exact tuple `('Novo título', 'Autora nova', now)`; `test/widget_test.dart:164-171` — trims `Renomeado` and renders it. | ✅ |
+| 3 | Blank trimmed title shows `Informe o título` and performs no mutation. | `test/features/library/domain/services/library_service_test.dart:43-45` — failure, exact message, metadata call null; `test/features/library/presentation/widgets/book_dialogs_test.dart:26-29` — exact visible validation. | ✅ |
+| 4 | Persistence failure keeps previous values and shows `Não foi possível salvar as alterações`. | `test/features/library/domain/services/library_service_test.dart:67-69` — exact failure/message/original book; `test/features/library/presentation/cubit/library_cubit_test.dart:55-57` — exact prior collection plus message. | ✅ |
+| 5 | Cancellation returns without metadata mutation. | `test/features/library/presentation/widgets/book_dialogs_test.dart:37-57` — edited input then Cancel returns null payload; `test/widget_test.dart:134-144` — repository still equals exact pre-edit `book`. | ✅ |
 
 ### LIB-05 — Delete a complete local book
 
-| Criterion | Spec-defined outcome | `file:line` + assertion | Result |
-| --------- | -------------------- | ----------------------- | ------ |
-| Confirmation names the book | Dialog contains exact selected title | `test/features/library/presentation/widgets/book_dialogs_test.dart:51` — `expect(find.textContaining('Title'), findsOneWidget)` | ✅ PASS |
-| Cancellation preserves record and all files | Typed false/cancel result and unchanged repository/files | No cancellation action or unchanged-payload assertion; lines 52-54 exercise confirmation only | ❌ GAP |
-| Confirmation removes record, private PDF, and owned cover before visible removal | Row absent and both owned files permanently absent before success | Happy-path assertions exist at `test/features/library/domain/services/library_service_test.dart:89-92` and PDF integration at `test/widget_test.dart:134-135`, but `test/features/library/domain/services/library_service_test.dart:149-151` explicitly accepts success with quarantined files still present after cleanup failure | ❌ GAP |
-| Any owned-file deletion failure restores/keeps record and reports exact error | `success == false`, exact delete error, original row/files retained | Pre-commit failures pass at `test/features/library/domain/services/library_service_test.dart:108-112` and `:130-133`; however post-commit deletion failure asserts the opposite at `:149-151` (`success == true`, row null, quarantine remains) | ❌ GAP |
-| Success survives restart with no referenced owned file remaining | Durable row absence and zero referenced PDF/cover/trash files | `test/widget_test.dart:134-135` proves visible row/PDF absence in one running app, but no restart, cover, or cleanup-failure assertion; `test/features/library/domain/services/library_service_test.dart:149-151` permits remaining quarantined files | ❌ GAP |
+| # | Spec-defined outcome | Exact evidence (`file:line` + assertion) | Result |
+| - | -------------------- | ---------------------------------------- | ------ |
+| 1 | Confirmation names the exact book. | `test/features/library/presentation/widgets/book_dialogs_test.dart:72-77` — dialog contains `Title` and confirmation returns true. | ✅ |
+| 2 | Cancellation preserves exact record, PDF, and cover. | `test/features/library/presentation/widgets/book_dialogs_test.dart:79-96` — Cancel returns false; `test/widget_test.dart:146-162` — repository equals exact `book`, PDF bytes `[1,2,3]`, cover bytes `[4,5,6]`. | ✅ |
+| 3 | Confirmation quarantines files before row removal, then removes row/PDF/cover before visible success. | `test/features/library/domain/services/library_service_test.dart:89-92` — exact quarantine/discard order, row null, deletion observed quarantine; `test/widget_test.dart:176-181` — empty visible library and both files absent. | ✅ |
+| 4 | Any owned-file cleanup failure restores row/files and reports `Não foi possível excluir o livro`. | `test/features/library/domain/services/library_service_test.dart:150-157` — exact failure/message/record and both restored paths; `test/widget_test.dart:217-230` — failure survives database restart with exact row/PDF/cover bytes. | ✅ |
+| 5 | Successful deletion survives restart with no referenced owned file or quarantine remaining. | `test/widget_test.dart:232-248` — success, reopen file-backed database, row null, PDF/cover absent, `.trash` empty. | ✅ |
 
-**Status**: ❌ 18/28 acceptance criteria match the spec-defined outcome; 10 have evidence or outcome gaps.
+**Acceptance status**: ✅ 28/28 criteria match spec-defined values; 0 uncovered; 0 spec-precision gaps.
 
 ## Edge Cases
 
-| Edge case | Evidence | Result |
-| --------- | -------- | ------ |
-| Filename exactly `.pdf` uses `Livro sem título` | `test/features/library/domain/entities/book_test.dart:20` — exact fallback equality | ✅ PASS |
-| Empty readable PDF imports | `test/features/import_book/data/services/local_book_file_storage_test.dart:30-33` — exact empty SHA-256 | ✅ PASS |
-| Source disappears before/during copy rolls back with standard error | Failure matrix `test/features/import_book/domain/services/import_book_service_test.dart:85-119` proves compensation, but no real mid-stream disappearance payload is injected | ❌ GAP |
-| Insufficient private storage rolls back with standard error | Generic stage/commit failure matrix proves service compensation but no disk-full-shaped adapter failure is asserted | ❌ GAP |
-| Import/edit/replace/delete observation emits one ordered collection without duplicate IDs | `test/features/library/data/repositories/drift_book_repository_test.dart:40-41` proves order/unique IDs and `:145-162` proves no failed-transaction intermediate emission; no test covers one emission for every named mutation | ❌ GAP |
-| Empty cover path is skipped while deletion succeeds | No test uses `coverPath: ''` and asserts PDF/row deletion | ❌ GAP |
-| Already-missing owned file counts as deleted | `test/features/import_book/data/services/local_book_file_storage_test.dart:203-205` completes missing owned removal without error | ✅ PASS |
+| Edge case | Exact evidence | Result |
+| --------- | -------------- | ------ |
+| Filename `.pdf` becomes `Livro sem título`. | `test/features/library/domain/entities/book_test.dart:20` — exact equality. | ✅ |
+| Empty readable PDF imports. | `test/features/import_book/data/services/local_book_file_storage_test.dart:31-34` — exact empty-input SHA-256. | ✅ |
+| Source disappearance during copy removes stage and produces standard import failure. | `test/features/import_book/data/services/local_book_file_storage_test.dart:276-317` — injected mid-stream `FileSystemException`, exact propagated shape, staging directory empty; `test/features/import_book/domain/services/import_book_service_test.dart:87-120` — disappearance point maps to standard error and compensation. | ✅ |
+| Disk-full-shaped write failure removes stage and leaves repository unchanged. | `test/features/import_book/data/services/local_book_file_storage_test.dart:278-317` — injected OS error 28 and empty stage; `test/features/import_book/domain/services/import_book_service_test.dart:87-120` — disk-full point yields exact standard error, no partial/insert. | ✅ |
+| Import/edit/replacement/deletion each emits exactly one ordered collection with no duplicate IDs. | `test/features/library/data/repositories/drift_book_repository_test.dart:177-243` — exact emission lists/count after every mutation, ordered IDs, set equality. | ✅ |
+| Empty cover skips cover file quarantine but deletes PDF and row. | `test/features/library/domain/services/library_service_test.dart:162-176` — success, row null, quarantined paths exactly `[storedFilePath]`, requested cover remains `''`. | ✅ |
+| Already-missing owned file counts as deleted. | `test/features/import_book/data/services/local_book_file_storage_test.dart:233-235` — missing owned path completes without exception. | ✅ |
 
 ## Discrimination Sensor
 
-All mutations ran in a disposable `/tmp` copy; the real implementation/tests were not modified.
+Mutations ran only in disposable `/tmp/vox-library-verify2.v7IeKm`; the real implementation and tests were not mutated.
 
-| Mutation | Production location | Description | Killed? |
-| -------- | ------------------- | ----------- | ------- |
-| M1 | `lib/features/import_book/domain/services/import_book_service.dart:69` | Replaced successful duplicate backup discard with restore, violating replacement cleanup/rollback behavior | ✅ Killed by `import_book_service_test.dart:74` and cleanup-failure expectation at `:103` |
-| M2 | `lib/features/import_book/data/services/local_book_file_storage.dart:203` | Disabled canonical owned-root rejection, allowing external/traversal deletion | ✅ Killed by `local_book_file_storage_test.dart:192-200` |
-| M3 | `lib/features/import_book/presentation/cubit/import_book_cubit.dart:14` | Inverted the idle guard, breaking first-call execution/single-flight behavior | ✅ Killed by `import_book_cubit_test.dart:29`, `:66`, and `:79` |
+| Mutation | Production location | Fault injected | Result |
+| -------- | ------------------- | -------------- | ------ |
+| M1 — cleanup compensation | `lib/features/library/domain/services/library_service.dart:83-85` | On permanent quarantine cleanup failure, returned success and skipped restoration. | ✅ Killed by `library_service_test.dart:150` and `widget_test.dart:223` (`success` had to be false); both failed. |
+| M2 — off-UI isolate route | `lib/features/import_book/data/services/local_book_file_storage.dart:25` | Forced `_useIsolate = false`, routing production hash/copy through the caller isolate. | ✅ Killed by `local_book_file_storage_test.dart:60` (`workerIdentities` expected length 2, actual 0). |
+| M3 — owned-cover lifecycle | `lib/features/library/domain/services/library_service.dart:71` | Passed null cover path during quarantine, silently excluding an owned cover from cleanup/restoration. | ✅ Killed by `library_service_test.dart:153` (expected restored cover+PDF, actual PDF only). |
 
-**Sensor depth**: lightweight, three high-risk behavior mutations  
-**Result**: 3/3 killed — PASS ✅
+An exploratory change to the concrete adapter's empty-cover condition survived a fake-service test because that test did not traverse the adapter. It was rejected as a non-applicable probe, not counted as a valid mutation, and replaced by M3 above.
 
-## Payload, Conjunction, and Test-Necessity Checks
+**Sensor depth**: lightweight, three required high-risk behavior mutations
+**Result**: ✅ 3/3 valid mutants killed; 0 survived.
 
-- **Payload rule**: Exact whole-`Book`, metadata tuple, error strings, state sequences, ordering, and file-state assertions are present for the covered flows. Gaps are recorded where tests only locate controls/labels instead of asserting current input values or cancelled-operation payloads.
-- **Conjunction rule**: Restart + persistence + ordering, and successful deletion + permanent cleanup + restart, are not exercised as joined outcomes. Component-level assertions were not treated as full evidence for those criteria.
-- **Test necessity/discrimination**: The three highest-risk targeted mutations were killed. Feature tests otherwise map to an acceptance criterion, listed edge case, task done-when, schema/migration requirement, or composition contract. No feature test deletion or weakened pre-feature assertion was found in the diff.
+## F1–F4 Closure, Payload Conjunction, and Test Necessity
+
+- **F1**: Closed. Cleanup failure asserts the exact failure payload, exact restored row/files, and durable restart conjunction; successful retry asserts row/PDF/cover/trash absence after restart.
+- **F2**: Closed. The production default path records two worker isolate identities and jointly asserts exact hash/copy payloads and caller/worker inequality.
+- **F3**: Closed. All status labels, current input values, cancellation payloads and unchanged persistence, fresh-app persistence/order/default layout, visible order, and `<2s` latency are asserted.
+- **F4**: Closed. Real stream-shaped disappearance and OS-error-28 payloads assert stage cleanup and service compensation; empty cover and exact one-emission-per-mutation behavior are asserted.
+- **Payload rule**: Covered tests assert whole `Book` values, exact strings, exact state sequences, exact file bytes/paths, exact order/counts, exact timestamps, and exact isolate identities—not only call occurrence.
+- **Conjunction rule**: Restart + persistence + ordering + default layout + visibility + latency are joined in one test; cleanup failure + compensation + restart and deletion success + permanent cleanup + restart are each joined in one lifecycle.
+- **Test necessity**: M1–M3 prove the newly added F1/F2/F3/F4 assertions discriminate the required behavior. All in-scope tests claim an AC, edge case, schema/migration rule, task done-when, or application composition contract. No weakened assertion or unjustified test deletion was found.
+
+## Gate Check
+
+- **Command**: `dart run build_runner build && flutter analyze && flutter test && flutter build apk --debug`
+- **Result**: ✅ PASS
+- **Build runner**: 184 Drift inputs and 92 combining-builder inputs checked; 0 outputs changed
+- **Analyze**: 0 issues
+- **Tests after feature**: 112 passed, 0 failed, 0 skipped
+- **Tests before feature (`e40c552`)**: 24
+- **Delta**: +88
+- **APK**: debug APK built successfully
 
 ## Code Quality
 
 | Principle | Status |
 | --------- | ------ |
-| Minimum code / no unnecessary flexibility | ✅ |
-| Surgical scope / no unrelated refactor | ✅ |
-| Matches project patterns | ✅ |
-| Spec-anchored asserted outcomes | ❌ Post-commit owned-file cleanup failure is asserted as success contrary to LIB-05 |
-| Per-layer coverage expectations | ❌ Missing isolate, status variants, restart/performance, cancellation, and several filesystem edge payloads |
-| Every in-scope test has a requirement/done-when claim | ✅ |
-| Documented guidelines followed | ✅ `analysis_options.yaml`, `.github/workflows/ci.yml`, `docs/spec.md` |
-| Senior-engineer approval | ❌ Data-lifecycle failure can be presented as successful deletion |
+| No features beyond requested scope | ✅ |
+| No single-use abstraction or unnecessary flexibility | ✅ |
+| Surgical feature-scoped changes; no unrelated refactor | ✅ |
+| Matches repository/Cubit/Drift/widget patterns | ✅ |
+| Assertions are spec-anchored and non-shallow | ✅ |
+| Domain 1:1 mapping and route/widget happy-edge-error coverage | ✅ |
+| Every in-scope test has a requirement/edge/done-when claim | ✅ |
+| Guidelines followed: `analysis_options.yaml`, `.github/workflows/ci.yml`, `docs/spec.md` | ✅ |
+| Senior-engineer approval | ✅ |
 
-## Gate Check
+## Requirement Traceability
 
-- **Gate command**: `dart run build_runner build && flutter analyze && flutter test && flutter build apk --debug`
-- **Result**: PASS — build_runner current; analyze 0 issues; 96 passed, 0 failed, 0 skipped; debug APK built
-- **Test count before feature (`e40c552`)**: 24
-- **Test count after feature (`3ad8dfe`)**: 96
-- **Delta**: +72 tests
-- **Skipped tests**: none
-- **Failures**: none
-
-## Fix Plans
-
-### Fix 1 — Make permanent owned-file cleanup part of deletion success
-
-- **Root cause**: `LibraryService.deleteBook` catches `discardQuarantine` failure and returns success after deleting the row, leaving quarantined application-owned files.
-- **Fix task**: Define and implement a recoverable commit boundary that returns the exact delete error and restores/retains the row and owned files whenever permanent cleanup fails; add an integration assertion for PDF, cover, row, visible state, and restart.
-- **Priority**: Blocker
-
-### Fix 2 — Prove file work is off the UI isolate
-
-- **Root cause**: The storage service is called directly and no seam/test distinguishes UI-isolate execution from background execution.
-- **Fix task**: Add the designed isolate-capable execution boundary and a test that records/asserts isolate identity while preserving pending-frame responsiveness.
-- **Priority**: Major
-
-### Fix 3 — Close presentation and lifecycle coverage gaps
-
-- **Root cause**: Tests assert only the importing label, field labels rather than initial values, and confirmation paths rather than cancellation; restart/performance conjunctions are absent.
-- **Fix task**: Add exact assertions for all five localized statuses, current edit input values, edit/delete cancellation with unchanged repository/files, fresh-app persistence/order/default layout, and `<2s` visible-result latency.
-- **Priority**: Major
-
-### Fix 4 — Close remaining filesystem edge payload gaps
-
-- **Root cause**: Generic failure fakes do not establish mid-stream source disappearance, disk-full behavior, empty-cover deletion, or exactly-one observation for each mutation type.
-- **Fix task**: Add adapter/service tests with those exact injected failures and filesystem/stream payload assertions.
-- **Priority**: Minor
-
-## Requirement Traceability Update
-
-| Requirement | Previous status | Validation status |
-| ----------- | --------------- | ----------------- |
-| LIB-01 | Implemented | ❌ Needs fix |
-| LIB-02 | Implemented | ✅ Verified |
-| LIB-03 | Implemented | ❌ Needs fix |
-| LIB-04 | Implemented | ❌ Needs fix |
-| LIB-05 | Implemented | ❌ Needs fix |
+| Requirement | Previous validation | Iteration-2 status |
+| ----------- | ------------------- | ------------------ |
+| LIB-01 | Needs fix | ✅ Verified |
+| LIB-02 | Verified | ✅ Verified |
+| LIB-03 | Needs fix | ✅ Verified |
+| LIB-04 | Needs fix | ✅ Verified |
+| LIB-05 | Needs fix | ✅ Verified |
 
 ## Summary
 
-**Overall**: ❌ Not Ready
+**Overall**: ✅ Ready
 
-**Spec-anchored check**: 18/28 acceptance criteria matched; 10 gaps  
-**Sensor**: 3/3 mutations killed  
-**Gate**: 96 passed, 0 failed, 0 skipped; analysis and APK build passed
+**Spec-anchored check**: 28/28 acceptance criteria matched; 0 gaps
+**Edges**: 7/7 matched
+**Sensor**: 3/3 valid mutants killed
+**Gate**: 112 passed, 0 failed, 0 skipped; analysis and debug APK build passed
 
-The core import, duplicate compensation, repository ordering, metadata mutation, and pre-commit deletion rollback paths are strong. The feature cannot pass while a permanent owned-file cleanup failure is reported as successful deletion, and evidence is still missing for the isolate, restart/performance, cancellation, status-label, and several explicit edge-case outcomes.
+No grounded failure signal remains, so iteration 2 adds no lesson and no fix plan.
