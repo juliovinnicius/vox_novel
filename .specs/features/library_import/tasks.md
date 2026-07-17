@@ -563,3 +563,98 @@ contain consecutive whole phases but never split a phase.
 | T12 | Library dialogs | widget | widget | ✅ OK |
 | T13 | Library page | widget | widget | ✅ OK |
 | T14 | Router/composition | integration/widget | integration/widget | ✅ OK |
+
+---
+
+## Validation Fix Tasks — Iteration 1
+
+### F1: Make permanent cleanup failure restore deletion
+
+**What**: Treat quarantined-file cleanup as part of deletion success and compensate
+the row/files when cleanup fails.
+**Where**: `lib/features/library/domain/services/library_service.dart`,
+`test/features/library/domain/services/library_service_test.dart`,
+`test/widget_test.dart`
+**Depends on**: T14
+**Requirement**: LIB-05
+
+**Done when**:
+
+- [ ] Cleanup failure returns `Não foi possível excluir o livro`.
+- [ ] Cleanup failure restores the exact database record and every remaining quarantined owned file.
+- [ ] Successful deletion leaves no PDF, cover, active row, or quarantined file.
+- [ ] Restart assertions distinguish durable success from compensated failure.
+- [ ] Full gate passes.
+
+**Tests**: unit/integration/widget
+**Gate**: build
+**Commit**: `fix(library): restore failed file deletion`
+
+### F2: Execute production hash and copy work off the UI isolate
+
+**What**: Add an isolate-backed production execution seam for validation, hashing,
+and copying while retaining deterministic injected test behavior.
+**Where**: `lib/features/import_book/data/services/local_book_file_storage.dart`,
+`test/features/import_book/data/services/local_book_file_storage_test.dart`,
+`test/features/import_book/presentation/cubit/import_book_cubit_test.dart`
+**Depends on**: F1
+**Requirement**: LIB-01
+
+**Done when**:
+
+- [ ] Production validation/hash and stage-copy execution occurs on a different isolate from the caller.
+- [ ] Chunked hashing/copying and existing injected failure seams remain deterministic.
+- [ ] A test records caller/worker isolate identities and proves they differ.
+- [ ] Pending work still permits widget frames/state reads.
+- [ ] Build gate passes.
+
+**Tests**: unit/integration
+**Gate**: build
+**Commit**: `fix(import): isolate PDF file work`
+
+### F3: Close library lifecycle and interaction evidence
+
+**What**: Add exact status, initial-value, cancellation, persistence/restart, order,
+default-layout, and latency assertions.
+**Where**: `test/features/library/presentation/widgets/book_item_test.dart`,
+`test/features/library/presentation/widgets/book_dialogs_test.dart`,
+`test/features/library/presentation/cubit/library_cubit_test.dart`,
+`test/widget_test.dart`
+**Depends on**: F2
+**Requirement**: LIB-03, LIB-04, LIB-05
+
+**Done when**:
+
+- [ ] All five `BookStatus` values assert their exact localized labels.
+- [ ] Edit inputs assert current title/author values; edit cancellation mutates nothing.
+- [ ] Delete cancellation preserves exact record, PDF, and cover.
+- [ ] Fresh application state over persisted Drift proves newest-first order and default list layout.
+- [ ] First query and visible result are measured below two seconds.
+- [ ] Build gate passes.
+
+**Tests**: unit/integration/widget
+**Gate**: build
+**Commit**: `test(library): cover lifecycle interactions`
+
+### F4: Cover explicit filesystem and observation edge payloads
+
+**What**: Add exact adapter/service assertions for mid-copy disappearance,
+disk-full-shaped failure, empty cover, and one ordered repository emission per mutation.
+**Where**: `test/features/import_book/data/services/local_book_file_storage_test.dart`,
+`test/features/import_book/domain/services/import_book_service_test.dart`,
+`test/features/library/data/repositories/drift_book_repository_test.dart`,
+`test/features/library/domain/services/library_service_test.dart`
+**Depends on**: F3
+**Requirement**: LIB-01, LIB-03, LIB-05 edge cases
+
+**Done when**:
+
+- [ ] Mid-stream source disappearance removes the stage and yields the standard import failure.
+- [ ] A disk-full-shaped write failure removes the stage and leaves the repository unchanged.
+- [ ] Empty cover skips cover removal while deleting PDF and row.
+- [ ] Import, edit, replacement, and deletion each emit one ordered collection without duplicate IDs.
+- [ ] Build gate passes.
+
+**Tests**: unit/integration
+**Gate**: build
+**Commit**: `test(library): cover import edge payloads`

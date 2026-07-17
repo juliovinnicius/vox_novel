@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 6,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "ac_gap::treat permanent cleanup of application owned files as part of deletion success and restore durable state when it fails",
+      "text": "Treat permanent cleanup of application-owned files as part of deletion success and restore durable state when it fails",
+      "signal": "ac_gap",
+      "scope": "library deletion",
+      "status": "candidate",
+      "features": [
+        "library_import"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "LIB-05 AC3/AC4/AC5; validation.md Fix 1 (library deletion)"
+      ],
+      "created": "2026-07-17T20:01:11Z",
+      "last_seen": "2026-07-17T20:01:11Z"
+    },
+    {
+      "id": "L-002",
+      "key": "ac_gap::assert the execution boundary for work required off the ui isolate not only asynchronous responsiveness",
+      "text": "Assert the execution boundary for work required off the UI isolate, not only asynchronous responsiveness",
+      "signal": "ac_gap",
+      "scope": "filesystem concurrency",
+      "status": "candidate",
+      "features": [
+        "library_import"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "LIB-01 AC4; validation.md Fix 2 (filesystem concurrency)"
+      ],
+      "created": "2026-07-17T20:01:11Z",
+      "last_seen": "2026-07-17T20:01:11Z"
+    },
+    {
+      "id": "L-003",
+      "key": "ac_gap::test restart and latency requirements as joined observable outcomes over persistent storage",
+      "text": "Test restart and latency requirements as joined observable outcomes over persistent storage",
+      "signal": "ac_gap",
+      "scope": "library lifecycle",
+      "status": "candidate",
+      "features": [
+        "library_import"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "LIB-03 AC5/AC6; validation.md Fix 3 (library lifecycle)"
+      ],
+      "created": "2026-07-17T20:01:11Z",
+      "last_seen": "2026-07-17T20:01:11Z"
+    },
+    {
+      "id": "L-004",
+      "key": "ac_gap::assert dialog input payloads and cancellation side effects not only labels and confirmation paths",
+      "text": "Assert dialog input payloads and cancellation side effects, not only labels and confirmation paths",
+      "signal": "ac_gap",
+      "scope": "presentation dialogs",
+      "status": "candidate",
+      "features": [
+        "library_import"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "LIB-04 AC1/AC5 and LIB-05 AC2; validation.md Fix 3 (presentation dialogs)"
+      ],
+      "created": "2026-07-17T20:01:11Z",
+      "last_seen": "2026-07-17T20:01:11Z"
+    },
+    {
+      "id": "L-005",
+      "key": "ac_gap::inject each specified filesystem failure shape and assert its exact storage repository and stream payloads",
+      "text": "Inject each specified filesystem failure shape and assert its exact storage, repository, and stream payloads",
+      "signal": "ac_gap",
+      "scope": "filesystem testing",
+      "status": "candidate",
+      "features": [
+        "library_import"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "Edge Cases; validation.md Fix 4 (filesystem testing)"
+      ],
+      "created": "2026-07-17T20:01:11Z",
+      "last_seen": "2026-07-17T20:01:11Z"
+    }
+  ]
+}
