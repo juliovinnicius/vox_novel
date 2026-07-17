@@ -194,7 +194,7 @@ T8 → T9
 **Expected tests**: 3
 **Commit**: `feat(router): add application routes`
 
-### T6: Create the root application widget
+### T6: Create the root application widget ✅
 
 **What**: Add `VoxNovelApp` using the injected router and Cubit.
 **Where**: `lib/app/app.dart`, `test/app/app_test.dart`
