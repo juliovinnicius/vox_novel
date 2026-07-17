@@ -78,7 +78,7 @@ T13 → T14
 
 ## Task Breakdown
 
-### T1: Add library-import dependencies
+### T1: Add library-import dependencies ✅
 
 **What**: Add the approved picker, application-directory, SHA-256, path, and UUID packages.
 **Where**: `pubspec.yaml`, `pubspec.lock`, generated platform plugin registrants
@@ -94,10 +94,10 @@ T13 → T14
 
 **Done when**:
 
-- [ ] `file_picker`, `path_provider`, `crypto`, `path`, and `uuid` are runtime dependencies.
-- [ ] Dependency resolution completes without overrides.
-- [ ] Existing generated plugin registrants contain only tool-generated changes.
-- [ ] Build gate passes before feature behavior is introduced.
+- [x] `file_picker`, `path_provider`, `crypto`, `path`, and `uuid` are runtime dependencies.
+- [x] Dependency resolution completes without overrides.
+- [x] Existing generated plugin registrants contain only tool-generated changes.
+- [x] Build gate passes before feature behavior is introduced.
 
 **Tests**: none
 **Gate**: build
