@@ -130,7 +130,7 @@ T13 → T14
 **Gate**: quick
 **Commit**: `feat(library): add book domain model`
 
-### T3: Add the Books schema and migration
+### T3: Add the Books schema and migration ✅
 
 **What**: Add the feature-owned Drift table, status converter, indexes, and schema v1→v2 migration.
 **Where**: `lib/features/library/data/database/books.dart`,
@@ -149,12 +149,12 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Fresh databases create every designed column and unique hash constraint.
-- [ ] A version-1 database upgrades to version 2 without losing pre-existing schema state.
-- [ ] Every `BookStatus` persists and reads back exactly.
-- [ ] Duplicate hashes are rejected by the database constraint.
-- [ ] Generated code is current and contains no hand edits.
-- [ ] Integration tests satisfy the matrix and build gate passes.
+- [x] Fresh databases create every designed column and unique hash constraint.
+- [x] A version-1 database upgrades to version 2 without losing pre-existing schema state.
+- [x] Every `BookStatus` persists and reads back exactly.
+- [x] Duplicate hashes are rejected by the database constraint.
+- [x] Generated code is current and contains no hand edits.
+- [x] Integration tests satisfy the matrix and build gate passes.
 
 **Tests**: integration
 **Gate**: build

@@ -16,7 +16,7 @@ void main() {
     );
     final database = AppDatabase.defaults();
 
-    expect(database.schemaVersion, 1);
+    expect(database.schemaVersion, 2);
 
     await database.close();
   });
@@ -42,5 +42,29 @@ void main() {
       executor.runSelect('SELECT 1', const []),
       throwsA(isA<StateError>()),
     );
+  });
+
+  test('upgrades version 1 to 2 without losing existing schema state', () async {
+    final executor = NativeDatabase.memory(
+      setup: (database) {
+        database.execute(
+          'CREATE TABLE legacy_marker (value TEXT NOT NULL)',
+        );
+        database.execute(
+          "INSERT INTO legacy_marker (value) VALUES ('preserved')",
+        );
+        database.userVersion = 1;
+      },
+    );
+    final database = AppDatabase(executor);
+    addTearDown(database.close);
+
+    await database.select(database.books).get();
+    final marker = await database
+        .customSelect('SELECT value FROM legacy_marker')
+        .getSingle();
+
+    expect(marker.read<String>('value'), 'preserved');
+    expect(database.schemaVersion, 2);
   });
 }
