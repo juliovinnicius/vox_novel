@@ -385,12 +385,12 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Both variants render the exact title and exact localized processing-status label.
-- [ ] Non-empty author is visible; empty author is omitted.
-- [ ] Edit and delete actions identify the exact book.
-- [ ] Interactive controls have accessible labels and adequate Material tap targets.
-- [ ] Widget tests cover list/grid parity and semantics.
-- [ ] Quick gate passes.
+- [x] Both variants render the exact title and exact localized processing-status label.
+- [x] Non-empty author is visible; empty author is omitted.
+- [x] Edit and delete actions identify the exact book.
+- [x] Interactive controls have accessible labels and adequate Material tap targets.
+- [x] Widget tests cover list/grid parity and semantics.
+- [x] Quick gate passes.
 
 **Tests**: widget
 **Gate**: quick
