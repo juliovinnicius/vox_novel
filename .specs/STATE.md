@@ -52,11 +52,11 @@
 
 ## Handoff
 
-- **Feature**: library_import / `.specs/features/library_import`
-- **Phase / Task**: Milestone 1 complete — validation iteration 2 PASS
-- **Completed**: T1 through T14, fixes F1 through F4, 28/28 acceptance criteria and 7/7 edge cases verified
+- **Feature**: text_processing / `.specs/features/text_processing`
+- **Phase / Task**: Tasks — 14-task plan drafted and pre-approval checks pass
+- **Completed**: Milestone 1; Milestone 2 specification/context/design approved
 - **In-progress** (file:line): none
-- **Next step**: specify Milestone 2 — text processing
+- **Next step**: obtain task/matrix approval and execution mode, then execute Phase 1 beginning with T1
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/library_import/spec.md`, `.specs/features/library_import/tasks.md`, `.specs/features/library_import/validation.md`
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/text_processing/spec.md`, `.specs/features/text_processing/context.md`, `.specs/features/text_processing/design.md`, `.specs/features/text_processing/tasks.md`
 - **Branch**: `main`
