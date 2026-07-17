@@ -18,8 +18,9 @@ final class TextProcessingValidationException implements Exception {
 }
 
 void _positivePage(int value, String name) {
-  if (value < 1)
+  if (value < 1) {
     throw TextProcessingValidationException('$name must be positive');
+  }
 }
 
 final class RawPage {

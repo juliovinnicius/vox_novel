@@ -4,6 +4,8 @@ typedef ProcessingIdGenerator = String Function();
 
 final class ChapterDetector {
   ChapterDetector({required ProcessingIdGenerator idGenerator})
+    // Named injection is part of the public domain-service API.
+    // ignore: prefer_initializing_formals
     : _idGenerator = idGenerator;
 
   final ProcessingIdGenerator _idGenerator;
@@ -79,8 +81,12 @@ final class ChapterDetector {
   List<String> _trimBlankEdges(List<String> source) {
     var start = 0;
     var end = source.length;
-    while (start < end && source[start].trim().isEmpty) start++;
-    while (end > start && source[end - 1].trim().isEmpty) end--;
+    while (start < end && source[start].trim().isEmpty) {
+      start++;
+    }
+    while (end > start && source[end - 1].trim().isEmpty) {
+      end--;
+    }
     return source.sublist(start, end);
   }
 }
