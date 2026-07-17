@@ -325,13 +325,13 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Initial state is exactly idle with no message.
-- [ ] A request emits selecting, then importing, then idle on success.
-- [ ] Cancellation emits selecting then idle without an error.
-- [ ] Picker/import failure returns to idle with `Não foi possível importar este PDF`.
-- [ ] A second call during selecting or importing is ignored and invokes no dependency.
-- [ ] A pending import does not block state reads or widget frame pumping.
-- [ ] Cubit tests assert every exact state sequence and quick gate passes.
+- [x] Initial state is exactly idle with no message.
+- [x] A request emits selecting, then importing, then idle on success.
+- [x] Cancellation emits selecting then idle without an error.
+- [x] Picker/import failure returns to idle with `Não foi possível importar este PDF`.
+- [x] A second call during selecting or importing is ignored and invokes no dependency.
+- [x] A pending import does not block state reads or widget frame pumping.
+- [x] Cubit tests assert every exact state sequence and quick gate passes.
 
 **Tests**: unit
 **Gate**: quick
