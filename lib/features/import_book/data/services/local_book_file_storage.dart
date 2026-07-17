@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -15,19 +16,38 @@ final class LocalBookFileStorage implements BookFileStorage {
     FileReader? readFile,
     FileMover? moveFile,
     FileDeleter? deleteFile,
+    this.onWorkerIsolate,
   }) : _booksRoot = Directory(p.join(supportDirectory.path, 'books')),
        _readFile = readFile ?? ((file) => file.openRead()),
        _moveFile =
            moveFile ?? ((file, destination) => file.rename(destination)),
-       _deleteFile = deleteFile ?? ((file) => file.delete());
+       _deleteFile = deleteFile ?? ((file) => file.delete()),
+       _useIsolate = readFile == null && moveFile == null && deleteFile == null;
 
   final Directory _booksRoot;
   final FileReader _readFile;
   final FileMover _moveFile;
   final FileDeleter _deleteFile;
+  final bool _useIsolate;
+  final void Function(int workerIdentity)? onWorkerIsolate;
 
   @override
   Future<ValidatedPdf> validateAndHash(PickedPdf source) async {
+    if (_useIsolate) {
+      final result = await Isolate.run(
+        () => _validateAndHashInWorker(source.sourcePath),
+      );
+      onWorkerIsolate?.call(result.workerIdentity);
+      final failure = result.failure;
+      if (failure != null) {
+        throw PdfValidationException(failure);
+      }
+      return ValidatedPdf(hash: result.hash!);
+    }
+    return _validateAndHashInjected(source);
+  }
+
+  Future<ValidatedPdf> _validateAndHashInjected(PickedPdf source) async {
     if (!source.sourcePath.toLowerCase().endsWith('.pdf')) {
       throw const PdfValidationException(PdfValidationFailureKind.nonPdf);
     }
@@ -58,6 +78,16 @@ final class LocalBookFileStorage implements BookFileStorage {
     required PickedPdf source,
     required String bookId,
   }) async {
+    if (_useIsolate) {
+      final result = await Isolate.run(
+        () => _stageCopyInWorker(source.sourcePath, _booksRoot.path, bookId),
+      );
+      onWorkerIsolate?.call(result.workerIdentity);
+      return StagedBookFile(
+        stagingPath: result.stagingPath,
+        finalPath: result.finalPath,
+      );
+    }
     await _ensureDirectories();
     final finalPath = p.join(_booksRoot.path, '$bookId.pdf');
     final stagingPath = p.join(
@@ -203,5 +233,74 @@ final class LocalBookFileStorage implements BookFileStorage {
     if (!p.isWithin(root, candidate)) {
       throw UnsafeBookPathException(path);
     }
+  }
+}
+
+Future<({String? hash, PdfValidationFailureKind? failure, int workerIdentity})>
+_validateAndHashInWorker(String sourcePath) async {
+  final identity = Isolate.current.hashCode;
+  if (!sourcePath.toLowerCase().endsWith('.pdf')) {
+    return (
+      hash: null,
+      failure: PdfValidationFailureKind.nonPdf,
+      workerIdentity: identity,
+    );
+  }
+  final type = await FileSystemEntity.type(sourcePath, followLinks: true);
+  if (type == FileSystemEntityType.notFound) {
+    return (
+      hash: null,
+      failure: PdfValidationFailureKind.missing,
+      workerIdentity: identity,
+    );
+  }
+  if (type != FileSystemEntityType.file) {
+    return (
+      hash: null,
+      failure: PdfValidationFailureKind.directory,
+      workerIdentity: identity,
+    );
+  }
+  try {
+    final hash = (await sha256.bind(File(sourcePath).openRead()).first)
+        .toString();
+    return (hash: hash, failure: null, workerIdentity: identity);
+  } catch (_) {
+    return (
+      hash: null,
+      failure: PdfValidationFailureKind.unreadable,
+      workerIdentity: identity,
+    );
+  }
+}
+
+Future<({String stagingPath, String finalPath, int workerIdentity})>
+_stageCopyInWorker(String sourcePath, String booksRoot, String bookId) async {
+  final root = Directory(booksRoot);
+  await root.create(recursive: true);
+  for (final name in ['.staging', '.backup', '.trash']) {
+    await Directory(p.join(root.path, name)).create();
+  }
+  final finalPath = p.join(root.path, '$bookId.pdf');
+  final stagingPath = p.join(
+    root.path,
+    '.staging',
+    '$bookId-${DateTime.now().microsecondsSinceEpoch}.pdf',
+  );
+  final staged = File(stagingPath);
+  try {
+    final sink = staged.openWrite();
+    await sink.addStream(File(sourcePath).openRead());
+    await sink.close();
+    return (
+      stagingPath: stagingPath,
+      finalPath: finalPath,
+      workerIdentity: Isolate.current.hashCode,
+    );
+  } catch (_) {
+    if (await staged.exists()) {
+      await staged.delete();
+    }
+    rethrow;
   }
 }

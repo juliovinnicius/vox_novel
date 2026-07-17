@@ -602,11 +602,11 @@ and copying while retaining deterministic injected test behavior.
 
 **Done when**:
 
-- [ ] Production validation/hash and stage-copy execution occurs on a different isolate from the caller.
-- [ ] Chunked hashing/copying and existing injected failure seams remain deterministic.
-- [ ] A test records caller/worker isolate identities and proves they differ.
-- [ ] Pending work still permits widget frames/state reads.
-- [ ] Build gate passes.
+- [x] Production validation/hash and stage-copy execution occurs on a different isolate from the caller.
+- [x] Chunked hashing/copying and existing injected failure seams remain deterministic.
+- [x] A test records caller/worker isolate identities and proves they differ.
+- [x] Pending work still permits widget frames/state reads.
+- [x] Build gate passes.
 
 **Tests**: unit/integration
 **Gate**: build

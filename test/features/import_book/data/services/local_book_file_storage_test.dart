@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -33,6 +34,35 @@ void main() {
       );
     },
   );
+
+  test('production hash and copy execute on a different isolate', () async {
+    final source = File(p.join(temporary.path, 'worker.pdf'));
+    await source.writeAsString('isolate payload');
+    final callerIdentity = Isolate.current.hashCode;
+    final workerIdentities = <int>[];
+    final isolated = LocalBookFileStorage(
+      supportDirectory: temporary,
+      onWorkerIsolate: workerIdentities.add,
+    );
+    final picked = PickedPdf(
+      sourcePath: source.path,
+      originalFileName: 'worker.pdf',
+    );
+
+    final validated = await isolated.validateAndHash(picked);
+    final staged = await isolated.stageCopy(source: picked, bookId: 'worker');
+
+    expect(
+      validated.hash,
+      'baa94026fabcf226b6f839affb826a9832eddfdd83a491c07aaa04952b986d6b',
+    );
+    expect(await File(staged.stagingPath).readAsString(), 'isolate payload');
+    expect(workerIdentities, hasLength(2));
+    expect(
+      workerIdentities.every((identity) => identity != callerIdentity),
+      isTrue,
+    );
+  });
 
   test('hashes a known fixture through the injected chunked stream', () async {
     final source = File(p.join(temporary.path, 'book.pdf'));
