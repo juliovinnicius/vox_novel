@@ -190,7 +190,7 @@ T13 → T14
 **Gate**: build
 **Commit**: `feat(library): add Drift book repository`
 
-### T5: Implement the PDF picker adapter
+### T5: Implement the PDF picker adapter ✅
 
 **What**: Add the platform-neutral picker contract and `file_picker` adapter.
 **Where**: `lib/features/import_book/domain/services/pdf_picker.dart`,
@@ -207,12 +207,12 @@ T13 → T14
 
 **Done when**:
 
-- [ ] The adapter requests one file with custom type and exact allowed extension `pdf`.
-- [ ] Native cancellation returns null without an error.
-- [ ] A result with a usable path maps exact source path and original filename.
-- [ ] A selected result without a usable path returns a typed invalid-selection failure.
-- [ ] Unit tests cover exact adapter arguments and all result branches.
-- [ ] Quick gate passes.
+- [x] The adapter requests one file with custom type and exact allowed extension `pdf`.
+- [x] Native cancellation returns null without an error.
+- [x] A result with a usable path maps exact source path and original filename.
+- [x] A selected result without a usable path returns a typed invalid-selection failure.
+- [x] Unit tests cover exact adapter arguments and all result branches.
+- [x] Quick gate passes.
 
 **Tests**: unit
 **Gate**: quick
