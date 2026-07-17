@@ -160,7 +160,7 @@ T13 → T14
 **Gate**: build
 **Commit**: `feat(database): add books schema`
 
-### T4: Implement the Drift book repository
+### T4: Implement the Drift book repository ✅
 
 **What**: Implement the `BookRepository` contract and Drift mapper/query/mutation behavior.
 **Where**: `lib/features/library/domain/repositories/book_repository.dart`,
@@ -177,14 +177,14 @@ T13 → T14
 
 **Done when**:
 
-- [ ] `watchAll()` emits every book exactly once ordered by `updatedAt` descending with deterministic ID tie-break.
-- [ ] Find-by-ID and find-by-hash return exact domain values or null.
-- [ ] Insert persists every named field.
-- [ ] Replacement preserves ID, created timestamp, title, author, and cover while updating the approved import fields.
-- [ ] Metadata update trims valid values and changes only title, author, and `updatedAt`.
-- [ ] Delete removes exactly the requested record.
-- [ ] Transaction failure rolls back without an intermediate stream emission.
-- [ ] Integration tests satisfy every repository matrix path and build gate passes.
+- [x] `watchAll()` emits every book exactly once ordered by `updatedAt` descending with deterministic ID tie-break.
+- [x] Find-by-ID and find-by-hash return exact domain values or null.
+- [x] Insert persists every named field.
+- [x] Replacement preserves ID, created timestamp, title, author, and cover while updating the approved import fields.
+- [x] Metadata update trims valid values and changes only title, author, and `updatedAt`.
+- [x] Delete removes exactly the requested record.
+- [x] Transaction failure rolls back without an intermediate stream emission.
+- [x] Integration tests satisfy every repository matrix path and build gate passes.
 
 **Tests**: integration
 **Gate**: build
