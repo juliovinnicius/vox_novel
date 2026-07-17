@@ -278,7 +278,7 @@ T13 → T14
 **Gate**: build
 **Commit**: `feat(import): orchestrate PDF imports`
 
-### T8: Implement library metadata and deletion service
+### T8: Implement library metadata and deletion service ✅
 
 **What**: Add one domain service coordinating validated edits and quarantine-backed complete deletion.
 **Where**: `lib/features/library/domain/services/library_service.dart`,
@@ -294,15 +294,15 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Valid metadata persists exact trimmed title/author and injected update timestamp.
-- [ ] Empty title fails with `Informe o título` before any repository mutation.
-- [ ] Repository failure returns the exact save error and preserves old values.
-- [ ] Deletion quarantines every existing owned file before deleting the record.
-- [ ] Pre-commit file or repository failure restores files and retains/restores the exact record.
-- [ ] Successful deletion removes the row and schedules/removes quarantined files.
-- [ ] External paths are never removed.
-- [ ] Unit tests cover every LIB-04/LIB-05 criterion and edge case.
-- [ ] Build gate passes.
+- [x] Valid metadata persists exact trimmed title/author and injected update timestamp.
+- [x] Empty title fails with `Informe o título` before any repository mutation.
+- [x] Repository failure returns the exact save error and preserves old values.
+- [x] Deletion quarantines every existing owned file before deleting the record.
+- [x] Pre-commit file or repository failure restores files and retains/restores the exact record.
+- [x] Successful deletion removes the row and schedules/removes quarantined files.
+- [x] External paths are never removed.
+- [x] Unit tests cover every LIB-04/LIB-05 criterion and edge case.
+- [x] Build gate passes.
 
 **Tests**: unit
 **Gate**: build
