@@ -625,12 +625,12 @@ default-layout, and latency assertions.
 
 **Done when**:
 
-- [ ] All five `BookStatus` values assert their exact localized labels.
-- [ ] Edit inputs assert current title/author values; edit cancellation mutates nothing.
-- [ ] Delete cancellation preserves exact record, PDF, and cover.
-- [ ] Fresh application state over persisted Drift proves newest-first order and default list layout.
-- [ ] First query and visible result are measured below two seconds.
-- [ ] Build gate passes.
+- [x] All five `BookStatus` values assert their exact localized labels.
+- [x] Edit inputs assert current title/author values; edit cancellation mutates nothing.
+- [x] Delete cancellation preserves exact record, PDF, and cover.
+- [x] Fresh application state over persisted Drift proves newest-first order and default list layout.
+- [x] First query and visible result are measured below two seconds.
+- [x] Build gate passes.
 
 **Tests**: unit/integration/widget
 **Gate**: build

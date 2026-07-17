@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
+import 'package:vox_novel/features/library/presentation/cubit/library_state.dart';
 import 'package:vox_novel/main.dart' as application;
 
 void main() {
@@ -116,17 +118,56 @@ void main() {
     await tester.pump();
     expect(find.text('fixture'), findsOneWidget);
     expect(File('${root.path}/books/book-id.pdf').existsSync(), isTrue);
+    final cover = File('${root.path}/books/book-id.jpg');
+    await tester.runAsync(() => cover.writeAsBytes([4, 5, 6]));
+    await tester.runAsync(
+      () =>
+          (locator<AppDatabase>().update(locator<AppDatabase>().books)
+                ..where((row) => row.id.equals('book-id')))
+              .write(BooksCompanion(coverPath: Value(cover.path))),
+    );
+    await tester.pump();
 
     final book = await tester.runAsync(
       () => locator<BookRepository>().findById('book-id'),
     );
+    await tester.tap(find.byTooltip('Editar fixture'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'Discarded edit');
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(
+      await tester.runAsync(
+        () => locator<BookRepository>().findById('book-id'),
+      ),
+      book,
+    );
+
+    await tester.tap(find.byTooltip('Excluir fixture'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(
+      await tester.runAsync(
+        () => locator<BookRepository>().findById('book-id'),
+      ),
+      book,
+    );
+    expect(
+      await tester.runAsync(
+        () => File('${root.path}/books/book-id.pdf').readAsBytes(),
+      ),
+      [1, 2, 3],
+    );
+    expect(await tester.runAsync(cover.readAsBytes), [4, 5, 6]);
+
     await tester.runAsync(
       () => locator<LibraryCubit>().updateMetadata(
         book: book!,
         title: '  Renomeado  ',
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Renomeado'), findsOneWidget);
 
     final renamed = await tester.runAsync(
@@ -137,6 +178,7 @@ void main() {
     await tester.pump();
     expect(find.text('Sua biblioteca está vazia'), findsOneWidget);
     expect(File('${root.path}/books/book-id.pdf').existsSync(), isFalse);
+    expect(cover.existsSync(), isFalse);
   });
 
   test('cleanup failure is compensated durably across restart', () async {
@@ -206,7 +248,89 @@ void main() {
     );
     await database.close();
   });
+
+  testWidgets(
+    'restart loads persisted newest-first list visibly within two seconds',
+    (tester) async {
+      final root = await tester.runAsync(
+        () => Directory.systemTemp.createTemp('vox_novel_restart_'),
+      );
+      final databaseFile = File('${root!.path}/library.sqlite');
+      await tester.runAsync(() async {
+        final seedDatabase = AppDatabase(NativeDatabase(databaseFile));
+        final seedRepository = DriftBookRepository(seedDatabase);
+        await seedRepository.insert(
+          _persistedBook(
+            id: 'older',
+            title: 'Older',
+            updatedAt: DateTime.utc(2026, 1, 1),
+          ),
+        );
+        await seedRepository.insert(
+          _persistedBook(
+            id: 'newer',
+            title: 'Newer',
+            updatedAt: DateTime.utc(2026, 1, 2),
+          ),
+        );
+        await seedDatabase.close();
+      });
+
+      Future<GetIt> startFreshApplication() async {
+        final locator = GetIt.asNewInstance();
+        final app = await tester.runAsync(
+          () => application.createApplication(
+            instance: locator,
+            databaseExecutor: NativeDatabase(databaseFile),
+            supportDirectory: root,
+          ),
+        );
+        await tester.pumpWidget(app!);
+        await tester.pumpAndSettle();
+        return locator;
+      }
+
+      var locator = await startFreshApplication();
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      await tester.runAsync(() => resetDependencies(instance: locator));
+
+      final stopwatch = Stopwatch()..start();
+      locator = await startFreshApplication();
+      stopwatch.stop();
+
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+      expect(locator<LibraryCubit>().state.layout, LibraryLayout.list);
+      expect(locator<LibraryCubit>().state.books.map((book) => book.id), [
+        'newer',
+        'older',
+      ]);
+      expect(
+        tester.getTopLeft(find.text('Newer')).dy,
+        lessThan(tester.getTopLeft(find.text('Older')).dy),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      await tester.runAsync(() => resetDependencies(instance: locator));
+      await tester.runAsync(() => root.delete(recursive: true));
+    },
+  );
 }
+
+domain.Book _persistedBook({
+  required String id,
+  required String title,
+  required DateTime updatedAt,
+}) => domain.Book(
+  id: id,
+  title: title,
+  originalFileName: '$id.pdf',
+  storedFilePath: '/books/$id.pdf',
+  fileHash: id,
+  status: domain.BookStatus.ready,
+  processingProgress: 0,
+  createdAt: DateTime.utc(2026),
+  updatedAt: updatedAt,
+);
 
 final class _FixturePicker implements PdfPicker {
   const _FixturePicker(this.path);

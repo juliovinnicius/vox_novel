@@ -49,16 +49,42 @@ void main() {
     );
     expect(find.text('Author'), findsNothing);
   });
+
+  for (final entry in {
+    BookStatus.importing: 'Importando',
+    BookStatus.processing: 'Processando',
+    BookStatus.ready: 'Pronto',
+    BookStatus.failed: 'Falhou',
+    BookStatus.unsupported: 'Não suportado',
+  }.entries) {
+    testWidgets('${entry.key.name} renders exact localized status', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BookListItem(
+              book: _book(status: entry.key),
+              onEdit: (_) {},
+              onDelete: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text(entry.value), findsOneWidget);
+    });
+  }
 }
 
-Book _book({String? author}) => Book(
+Book _book({String? author, BookStatus status = BookStatus.importing}) => Book(
   id: 'id',
   title: 'Title',
   author: author,
   originalFileName: 'a.pdf',
   storedFilePath: '/a.pdf',
   fileHash: 'hash',
-  status: BookStatus.importing,
+  status: status,
   processingProgress: 0,
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),

@@ -20,8 +20,9 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextFormField, 'Title'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Author'), findsOneWidget);
+    final fields = tester.widgetList<TextFormField>(find.byType(TextFormField));
+    expect(fields.first.controller!.text, 'Title');
+    expect(fields.last.controller!.text, 'Author');
     await tester.enterText(find.widgetWithText(TextFormField, 'Title'), '  ');
     await tester.tap(find.text('Salvar'));
     await tester.pump();
@@ -32,6 +33,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(result!.title, 'New');
     expect(result!.author, 'Writer');
+  });
+  testWidgets('edit cancellation returns null without a mutation payload', (
+    tester,
+  ) async {
+    BookMetadata? result = const BookMetadata(title: 'sentinel', author: null);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async =>
+                result = await showEditBookDialog(context, _book()),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'Changed');
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(result, isNull);
   });
   testWidgets('delete names book and returns typed choices', (tester) async {
     bool? result;
@@ -52,6 +75,25 @@ void main() {
     await tester.tap(find.text('Excluir'));
     await tester.pumpAndSettle();
     expect(result, isTrue);
+  });
+  testWidgets('delete cancellation returns false', (tester) async {
+    bool? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async =>
+                result = await showDeleteBookDialog(context, _book()),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(result, isFalse);
   });
 }
 
