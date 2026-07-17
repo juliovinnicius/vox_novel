@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: text_processing / `.specs/features/text_processing`
-- **Phase / Task**: Tasks — 14-task plan drafted and pre-approval checks pass
-- **Completed**: Milestone 1; Milestone 2 specification/context/design approved
+- **Phase / Task**: Execute — Phase 2 / T6 next
+- **Completed**: Milestone 1; Milestone 2 T1–T5 and F0 (extractor, domain model, cleaner, chapters, blocks); 160 tests passing
 - **In-progress** (file:line): none
-- **Next step**: obtain task/matrix approval and execution mode, then execute Phase 1 beginning with T1
+- **Next step**: execute Phase 2 T6–T9 (schema, repository, orchestration, Cubit)
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/text_processing/spec.md`, `.specs/features/text_processing/context.md`, `.specs/features/text_processing/design.md`, `.specs/features/text_processing/tasks.md`
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/text_processing/tasks.md`
 - **Branch**: `main`

@@ -13,7 +13,7 @@ without it.**
 ---
 
 **Design**: `.specs/features/text_processing/design.md`
-**Status**: Draft
+**Status**: In Progress
 
 ---
 
@@ -84,7 +84,7 @@ T9 → T10 → T11 → T12 → T13 → T14
 
 ## Task Breakdown
 
-### T1: Prove and implement the isolated pdfrx extraction adapter
+### T1: Prove and implement the isolated pdfrx extraction adapter ✅
 
 **What**: Add `pdfrx`, define the extractor contract/event protocol, and implement
 the production adapter with a spawned isolate and cancellation.
@@ -116,7 +116,7 @@ selectable-text PDF fixtures under `test/fixtures/`
 **Gate**: build
 **Commit**: `feat(processing): add isolated PDF text extractor`
 
-### T2: Define the text-processing domain model
+### T2: Define the text-processing domain model ✅
 
 **What**: Add exact processing stages/events/results/page/chapter/block value
 objects and extend `Book` with processing counts, stage, and active run identity.
@@ -145,7 +145,7 @@ objects and extend `Book` with processing counts, stage, and active run identity
 **Gate**: quick
 **Commit**: `feat(processing): define processing domain model`
 
-### T3: Implement conservative text cleaning
+### T3: Implement conservative text cleaning ✅
 
 **What**: Add the two-pass edge profile and pure page cleaner implementing only
 the exact TXT-02 transformations.
@@ -173,7 +173,7 @@ the exact TXT-02 transformations.
 **Gate**: quick
 **Commit**: `feat(processing): add conservative text cleaner`
 
-### T4: Implement ordered chapter detection
+### T4: Implement ordered chapter detection ✅
 
 **What**: Add the incremental chapter detector for the exact complete-line
 Portuguese, English, and simplified-Chinese patterns and fallbacks.
@@ -201,7 +201,7 @@ Portuguese, English, and simplified-Chinese patterns and fallbacks.
 **Gate**: quick
 **Commit**: `feat(processing): detect ordered chapters`
 
-### T5: Implement bounded narration block splitting
+### T5: Implement bounded narration block splitting ✅
 
 **What**: Add paragraph-based block generation with exact sentence, whitespace,
 and hard-limit fallback behavior.
@@ -229,6 +229,25 @@ and hard-limit fallback behavior.
 **Tests**: unit
 **Gate**: build
 **Commit**: `feat(processing): split chapters into narration blocks`
+
+### F0: Satisfy the Phase 1 analysis gate ✅
+
+**What**: Correct four analyzer findings accumulated by the quick-gated T2/T4
+domain tasks without changing behavior or tests.
+**Where**:
+`lib/features/pdf_processing/domain/entities/text_processing_models.dart`,
+`lib/features/pdf_processing/domain/services/chapter_detector.dart`
+**Depends on**: T4
+**Requirement**: TXT-03, TXT-04
+
+**Done when**:
+
+- [x] All four analyzer findings are removed without changing existing tests.
+- [x] `flutter analyze`, all tests, and the Android debug APK build pass.
+
+**Tests**: existing unit suite unchanged
+**Gate**: build
+**Commit**: `fix(processing): satisfy domain analysis gate`
 
 ### T6: Add the version-3 processing schema and migration
 
