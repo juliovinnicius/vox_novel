@@ -103,7 +103,7 @@ T13 → T14
 **Gate**: build
 **Commit**: `build(library): add import dependencies`
 
-### T2: Define the Book domain model
+### T2: Define the Book domain model ✅
 
 **What**: Add the immutable `Book`, `BookStatus`, metadata normalization, and filename-title rules.
 **Where**: `lib/features/library/domain/entities/book.dart`,
@@ -119,12 +119,12 @@ T13 → T14
 
 **Done when**:
 
-- [ ] `Book` exposes exactly the Milestone 1 fields from the approved design.
-- [ ] Status strings round-trip exactly for all five documented statuses.
-- [ ] `Novel.PDF` produces title `Novel`; `.pdf` produces `Livro sem título`.
-- [ ] Valid metadata is trimmed and empty author becomes null.
-- [ ] Empty trimmed title returns the exact validation outcome `Informe o título`.
-- [ ] Spec-derived unit tests cover every listed rule and quick gate passes.
+- [x] `Book` exposes exactly the Milestone 1 fields from the approved design.
+- [x] Status strings round-trip exactly for all five documented statuses.
+- [x] `Novel.PDF` produces title `Novel`; `.pdf` produces `Livro sem título`.
+- [x] Valid metadata is trimmed and empty author becomes null.
+- [x] Empty trimmed title returns the exact validation outcome `Informe o título`.
+- [x] Spec-derived unit tests cover every listed rule and quick gate passes.
 
 **Tests**: unit
 **Gate**: quick
