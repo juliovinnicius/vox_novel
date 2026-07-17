@@ -444,16 +444,16 @@ update placeholder test references
 
 **Done when**:
 
-- [ ] Empty state shows `Sua biblioteca está vazia` and accessible `Importar PDF`.
-- [ ] Non-empty list and grid render the same exact ordered book IDs once each.
-- [ ] Grid uses exactly two columns at phone width.
-- [ ] Layout controls expose selected semantics and mutate no book data.
-- [ ] Import busy state shows an indeterminate indicator and disables import.
-- [ ] Import, edit, delete, and library failures show exact specified messages.
-- [ ] Edit and deletion dialogs invoke the exact selected book and refresh only from repository state.
-- [ ] The existing `Biblioteca` title and semantics contract remains.
-- [ ] Widget tests cover happy, empty, busy, cancellation, validation, and failure paths.
-- [ ] Build gate passes.
+- [x] Empty state shows `Sua biblioteca está vazia` and accessible `Importar PDF`.
+- [x] Non-empty list and grid render the same exact ordered book IDs once each.
+- [x] Grid uses exactly two columns at phone width.
+- [x] Layout controls expose selected semantics and mutate no book data.
+- [x] Import busy state shows an indeterminate indicator and disables import.
+- [x] Import, edit, delete, and library failures show exact specified messages.
+- [x] Edit and deletion dialogs invoke the exact selected book and refresh only from repository state.
+- [x] The existing `Biblioteca` title and semantics contract remains.
+- [x] Widget tests cover happy, empty, busy, cancellation, validation, and failure paths.
+- [x] Build gate passes.
 
 **Tests**: widget
 **Gate**: build

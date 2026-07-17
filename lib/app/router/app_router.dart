@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:vox_novel/features/library/presentation/pages/library_placeholder_page.dart';
 
-GoRouter createAppRouter() {
+GoRouter createAppRouter({WidgetBuilder? libraryPageBuilder}) {
   return GoRouter(
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const LibraryPlaceholderPage(),
+        builder: (context, state) =>
+            libraryPageBuilder?.call(context) ??
+            Scaffold(
+              appBar: AppBar(
+                title: Semantics(
+                  header: true,
+                  child: const Text('Biblioteca'),
+                ),
+              ),
+            ),
       ),
     ],
     errorBuilder: (context, state) {
