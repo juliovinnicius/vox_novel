@@ -168,7 +168,7 @@ T8 → T9
 **Expected tests**: 2
 **Commit**: `feat(library): add placeholder page`
 
-### T5: Configure application routing
+### T5: Configure application routing ✅
 
 **What**: Add the root route and visible unknown-route error handling.
 **Where**: `lib/app/router/app_router.dart`, `test/app/router/app_router_test.dart`
