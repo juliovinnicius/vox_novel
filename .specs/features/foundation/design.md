@@ -1,7 +1,7 @@
 # Foundation Design
 
 **Spec**: `.specs/features/foundation/spec.md`
-**Status**: Draft — awaiting approval
+**Status**: Approved
 
 ## Architecture Overview
 

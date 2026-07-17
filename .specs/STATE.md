@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: foundation / `.specs/features/foundation`
-- **Phase / Task**: Specify — awaiting architecture approach approval
-- **Completed**: project baseline, feature specification, gray-area context
+- **Phase / Task**: Tasks — awaiting task plan, tooling, and sub-agent approval
+- **Completed**: project baseline, feature specification, gray-area context, approved design
 - **In-progress** (file:line): none
-- **Next step**: compare viable foundation architectures and obtain user approval
+- **Next step**: obtain task/tool approval and choose inline or two sequential execution batches
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/spec.md`, `.specs/features/foundation/context.md`
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/spec.md`, `.specs/features/foundation/design.md`, `.specs/features/foundation/tasks.md`
 - **Branch**: `main`
