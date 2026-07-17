@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: foundation / `.specs/features/foundation`
-- **Phase / Task**: Validate iteration 1 — fix plan F1 through F3
-- **Completed**: project baseline, specification, context, design, T1 through T9
+- **Phase / Task**: Foundation complete — validation PASS
+- **Completed**: Foundation T1 through T9, fixes F1 through F3, validation iteration 2
 - **In-progress** (file:line): none
-- **Next step**: obtain fix-plan approval, implement F1 through F3, then re-verify
+- **Next step**: specify Milestone 1 — Library and import
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/LESSONS.md`, `.specs/features/foundation/tasks.md`, `.specs/features/foundation/validation.md`
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/spec.md`, `.specs/features/foundation/tasks.md`, `.specs/features/foundation/validation.md`
 - **Branch**: `main`

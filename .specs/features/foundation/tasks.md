@@ -7,7 +7,7 @@ name and follow its Execute flow and Critical Rules.** Do not proceed without th
 per-task gate, atomic commit, adequacy review, and final independent Verifier.
 
 **Design**: `.specs/features/foundation/design.md`
-**Status**: Needs Fix — validation iteration 1
+**Status**: Done
 
 ## Test Coverage Matrix
 

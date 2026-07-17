@@ -1,203 +1,165 @@
-# Foundation Validation
+# Foundation Validation — Iteration 2
 
 **Date**: 2026-07-17
 **Spec**: `.specs/features/foundation/spec.md`
-**Diff range**: `4837fc2..bb1e678` (product focus `0f59636..bb1e678`)
-**Verifier**: independent sub-agent (author ≠ verifier)
+**Original implementation range**: `4837fc2..bb1e678`
+**Validation-fix range**: `275d98e..4161e77`
+**Product/test fix commits**: `1c8e683`, `c2c0c7f`, `4161e77`
+**Verifier**: fresh independent Verifier (author != verifier)
 
 ---
+
+## Verdict
+
+**Overall**: PASS ✅ — all 14 acceptance criteria have exact, spec-anchored
+assertion evidence; all four listed edge cases are covered; the build gate passes;
+and all three targeted scratch mutants are killed.
 
 ## Task Completion
 
-| Task | Status | Notes |
-| ---- | ------ | ----- |
-| T1 | ✅ Done | Required runtime and development dependencies are present; the final build gate resolves them without overrides. |
-| T2 | ✅ Done | Drift boundary, generated code, and three database tests are present. |
-| T3 | ✅ Done | Typed Cubit state and three transition tests are present. |
-| T4 | ✅ Done | Placeholder page and two widget tests are present. |
-| T5 | ✅ Done | Root/error routing and three router tests are present. |
-| T6 | ✅ Done | Root app composition and three widget tests are present. |
-| T7 | ✅ Done | Composition root and four dependency tests are present. |
-| T8 | ✅ Done | Thin asynchronous startup and replacement smoke test are present. |
-| T9 | ✅ Done | Ordered Android GitHub Actions workflow is present. |
+| Tasks | Status | Notes |
+| ----- | ------ | ----- |
+| T1–T9 | ✅ Done | Original foundation tasks are implemented in the stated range. |
+| F1 | ✅ Done | Awaitable bootstrap ordering is executable and tested. |
+| F2 | ✅ Done | The foundation shell has an executable Cubit-only architecture contract. |
+| F3 | ✅ Done | CI triggers, exact command order, and fail-fast wiring are parsed and asserted. |
 
-All nine tasks are marked complete in `tasks.md`; no blocked or partial task is recorded. The implementation commits are atomic by task, with documentation-only progress commits between the two execution batches.
-
----
+No task is blocked or partial.
 
 ## Spec-Anchored Acceptance Criteria
 
 ### FND-01 — Run the application shell
 
-| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
-| --------- | -------------------- | ---------------------------------- | ------ |
-| WHEN the application starts THEN dependencies initialize before the root widget renders. | `configureDependencies()` completes before `runApp(...)`. | No test assertion. Implementation ordering is visible at `lib/main.dart:10` (`await configureDependencies();`) and `lib/main.dart:13` (`runApp(...)`), but `test/widget_test.dart:13` directly pumps `VoxNovelApp` and bypasses `main()`. | ❌ GAP |
-| WHEN `/` resolves THEN the library placeholder shows the exact visible title `Biblioteca`. | Exactly one visible `Biblioteca`. | `test/app/router/app_router_test.dart:12` — `expect(find.text('Biblioteca'), findsOneWidget)` | ✅ PASS |
-| WHEN an unknown route is requested THEN a visible navigation error state renders. | Exact visible title `Erro de navegação` and attempted location. | `test/app/router/app_router_test.dart:23` — `expect(find.text('Erro de navegação'), findsOneWidget)`; `test/app/router/app_router_test.dart:36` — `expect(find.text('/rota-inexistente'), findsOneWidget)` | ✅ PASS |
+| # | Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| - | --------- | -------------------- | ---------------------------------- | ------ |
+| 1 | Dependencies initialize before the root widget renders. | Application creation remains incomplete until configuration completes; before the returned widget is pumped, the database, Cubit, and router exist and the Cubit is exactly ready. | `test/widget_test.dart:52-53` — `expect(applicationCreated, isFalse)` while the injected configurator is blocked; `:58-61` — three `isRegistered<...>()` assertions and `expect(locator<AppCubit>().state.status, AppStatus.ready)`; production conjunction at `lib/main.dart:17` — `runApp(await createApplication())`. | ✅ PASS |
+| 2 | `/` renders exactly one visible `Biblioteca`. | One visible title with the exact text `Biblioteca`. | `test/app/router/app_router_test.dart:12` — `expect(find.text('Biblioteca'), findsOneWidget)`. | ✅ PASS |
+| 3 | An unknown route renders a visible navigation error. | Exact visible title `Erro de navegação` and the attempted location. | `test/app/router/app_router_test.dart:23` — `expect(find.text('Erro de navegação'), findsOneWidget)`; `:36` — `expect(find.text('/rota-inexistente'), findsOneWidget)`. | ✅ PASS |
 
 ### FND-02 — Manage presentation state with Cubit
 
-| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
-| --------- | -------------------- | ---------------------------------- | ------ |
-| WHEN mutable presentation state is needed THEN it is exposed through a Cubit. | `AppCubit` starts at `AppStatus.initial` and `markReady()` emits exactly `AppStatus.ready`. | `test/app/app_cubit_test.dart:11` — `expect(cubit.state.status, AppStatus.initial)`; `test/app/app_cubit_test.dart:18` — `expect: () => [isA<AppState>().having(..., AppStatus.ready)]` | ✅ PASS |
-| WHEN the initial shell renders THEN it does not depend on event-based BLoC classes. | Shell composition uses the provided `AppCubit`; no event-based `Bloc` class participates. | `test/app/app_test.dart:35` asserts `tester.element(find.text('Biblioteca')).read<AppCubit>()` is `same(cubit)`, but no assertion detects introduction of an event-based BLoC dependency. Repository search found no `extends Bloc`/`Bloc<` implementation, which is implementation inspection rather than discriminating test evidence. | ❌ GAP |
+| # | Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| - | --------- | -------------------- | ---------------------------------- | ------ |
+| 4 | Mutable presentation state is exposed through a Cubit. | `AppCubit` begins at `AppStatus.initial`; `markReady()` emits exactly `AppStatus.ready`. | `test/app/app_cubit_test.dart:11` — `expect(cubit.state.status, AppStatus.initial)`; `:18-23` — `having((state) => state.status, 'status', AppStatus.ready)`. | ✅ PASS |
+| 5 | The initial foundation shell does not depend on event-based BLoC classes. | Foundation application sources contain no declaration extending event-based `Bloc<...>`; Cubit remains allowed. | `test/architecture/foundation_architecture_test.dart:15-23` — scans `lib/main.dart` plus recursive `lib/app/**/*.dart` for `extends Bloc<` and asserts `expect(eventBlocDeclarations, isEmpty)`. | ✅ PASS |
 
 ### FND-03 — Compose dependencies centrally
 
-| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
-| --------- | -------------------- | ---------------------------------- | ------ |
-| WHEN startup runs THEN each foundation dependency is registered exactly once. | One registered `AppDatabase`, `AppCubit`, and `GoRouter`, with repeated setup preserving identity. | `test/app/dependency_injection/configure_dependencies_test.dart:26` — `expect(locator.isRegistered<AppDatabase>(), isTrue)`; lines 27–28 repeat the exact assertion for `AppCubit` and `GoRouter`; lines 42–44 assert each resolved object is `same(...)`. | ✅ PASS |
-| WHEN tests initialize repeatedly THEN setup resets or reuses registrations without duplicate-registration failure. | Second setup completes and returns the same three instances; reset clears and disposes them. | `test/app/dependency_injection/configure_dependencies_test.dart:40` — `await configureDependencies(instance: locator)` followed by lines 42–44 `same(...)`; lines 57–60 assert all registrations are false and `cubit.isClosed` is true after reset. | ✅ PASS |
+| # | Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| - | --------- | -------------------- | ---------------------------------- | ------ |
+| 6 | Startup registers each foundation dependency exactly once. | One registered `AppDatabase`, `AppCubit`, and `GoRouter`; repeated setup preserves each instance identity. | `test/app/dependency_injection/configure_dependencies_test.dart:26-28` — exact registration assertions for all three types; `:42-44` — `same(database)`, `same(cubit)`, and `same(router)`. | ✅ PASS |
+| 7 | Repeated test initialization does not fail on duplicate registration. | A second setup completes and reuses all three instances; reset clears and disposes them. | `test/app/dependency_injection/configure_dependencies_test.dart:40-44` — second `configureDependencies` followed by three `same(...)` assertions; `:55-64` — reset, three unregistered assertions, closed Cubit, and rejected executor query. | ✅ PASS |
 
 ### FND-04 — Provide a local persistence boundary
 
-| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
-| --------- | -------------------- | ---------------------------------- | ------ |
-| WHEN local persistence is requested THEN DI returns a single Drift database abstraction. | `AppDatabase` is registered and repeated setup resolves the identical instance. | `test/app/dependency_injection/configure_dependencies_test.dart:26` — `expect(locator.isRegistered<AppDatabase>(), isTrue)`; line 42 — `expect(locator<AppDatabase>(), same(database))` | ✅ PASS |
-| WHEN a test uses persistence THEN it can substitute an in-memory database. | Injected `NativeDatabase.memory()` executes `SELECT 1 AS value` and yields integer `1` without device filesystem use. | `test/app/dependency_injection/configure_dependencies_test.dart:77` — `expect(result.read<int>('value'), 1)`; `test/core/database/app_database_test.dart:32` repeats the exact result assertion. | ✅ PASS |
-| WHEN the database closes THEN its executor is released without pending operations. | `close()` completes and a subsequent executor query throws `StateError`. | `test/core/database/app_database_test.dart:39` — `await database.close()`; lines 41–44 — `expect(executor.runSelect('SELECT 1', const []), throwsA(isA<StateError>()))` | ✅ PASS |
+| # | Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| - | --------- | -------------------- | ---------------------------------- | ------ |
+| 8 | DI returns a single Drift database abstraction. | `AppDatabase` is registered and repeated setup resolves the identical object. | `test/app/dependency_injection/configure_dependencies_test.dart:26` — `expect(locator.isRegistered<AppDatabase>(), isTrue)`; `:42` — `expect(locator<AppDatabase>(), same(database))`. | ✅ PASS |
+| 9 | Tests can substitute an in-memory database. | Injected `NativeDatabase.memory()` executes `SELECT 1 AS value` and returns integer `1`, without a device filesystem. | `test/app/dependency_injection/configure_dependencies_test.dart:67-77` — injects the memory executor and asserts `expect(result.read<int>('value'), 1)`; corroborated by `test/core/database/app_database_test.dart:24-32`. | ✅ PASS |
+| 10 | Closing the database releases its executor without pending operations. | `close()` completes and a subsequent executor query throws `StateError`. | `test/core/database/app_database_test.dart:39-44` — `await database.close()` then `expect(executor.runSelect(...), throwsA(isA<StateError>()))`. | ✅ PASS |
 
 ### FND-05 — Enforce automated quality gates
 
-| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
-| --------- | -------------------- | ---------------------------------- | ------ |
-| WHEN a commit or pull request reaches GitHub THEN CI runs Flutter static analysis. | Pushes to `main` and pull requests trigger a job containing `flutter analyze`. | No test assertion. Static configuration exists at `.github/workflows/ci.yml:3`–`:7` and `:31`–`:32`, but the suite does not parse/assert triggers or commands. | ❌ GAP |
-| WHEN CI runs THEN it executes the complete Flutter test suite. | Workflow invokes unfiltered `flutter test`. | No test assertion. Static configuration exists at `.github/workflows/ci.yml:34`–`:35`. | ❌ GAP |
-| WHEN analysis and tests pass THEN CI builds a debug Android APK. | `flutter build apk --debug` follows analysis and test steps. | No test assertion. Static configuration exists at `.github/workflows/ci.yml:31`–`:38`; the local build gate proves the command works but does not assert workflow wiring. | ❌ GAP |
-| WHEN a required command fails THEN the workflow fails and cannot subsequently succeed. | Required commands are sequential fail-fast steps with no failure suppression. | No test assertion. The workflow has ordinary sequential steps and no `continue-on-error`, but no executable workflow/configuration test discriminates this behavior. | ❌ GAP |
+| # | Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| - | --------- | -------------------- | ---------------------------------- | ------ |
+| 11 | A push to `main` or pull request runs CI static analysis. | Parsed workflow contains push branch `main`, a `pull_request` trigger, and exact `flutter analyze` in its command sequence. | `test/ci/ci_workflow_test.dart:19-25` — `expect(branches, contains('main'))` and `expect(triggers.containsKey('pull_request'), isTrue)`; `:34-41` includes exact `flutter analyze`. | ✅ PASS |
+| 12 | CI executes the complete Flutter test suite. | Workflow command is the exact unfiltered `flutter test`. | `test/ci/ci_workflow_test.dart:34-41` — `expect(commands, equals([... 'flutter test', ...]))`. | ✅ PASS |
+| 13 | After analysis and tests pass, CI builds a debug Android APK. | Exact sequence is dependency restore → analysis → complete tests → debug APK build. | `test/ci/ci_workflow_test.dart:28-42` — ordered list equality ending in `flutter build apk --debug`. | ✅ PASS |
+| 14 | Any required command failure fails the workflow and prevents later success. | Neither the Android job nor any required command step suppresses failure; commands remain sequential. | `test/ci/ci_workflow_test.dart:45-52` — job lacks `continue-on-error` and `commandSteps.every((step) => !step.containsKey('continue-on-error'))` is `isTrue`; ordered equality at `:34-41` proves the required commands are sequential steps. | ✅ PASS |
 
-**Status**: ❌ 8/14 acceptance criteria have spec-anchored assertion evidence; 6 gaps are evidence-zero.
+**Spec-anchored status**: 14/14 matched exact outcomes; 0 evidence-zero gaps;
+0 spec-precision gaps.
 
-### Payload and Conjunction Review
+## Edge Cases
 
-- Unknown-route behavior is conjunctive: both the exact error title and attempted location are asserted.
-- Dependency registration is conjunctive: all three required types are asserted, repeated identity is asserted for all three, and reset asserts both removal and disposal effects.
-- Persistence substitution asserts the returned payload value (`1`), not merely that a query occurred.
-- CI criteria combine trigger, command, ordering, and failure propagation. Source inspection shows all fields, but no test assertion covers any part, so the conjunction is not counted as covered.
+- [x] Repeated dependency initialization: second setup and identity assertions at
+  `test/app/dependency_injection/configure_dependencies_test.dart:40-44`.
+- [x] Unknown route is not blank: exact error title and attempted path at
+  `test/app/router/app_router_test.dart:23,36`.
+- [x] In-memory persistence needs no device filesystem: injected memory executor
+  and exact query payload at
+  `test/app/dependency_injection/configure_dependencies_test.dart:67-77`.
+- [x] Clean-checkout CI restores dependencies before all gates:
+  `test/ci/ci_workflow_test.dart:34-41` asserts exact ordered commands beginning
+  with `flutter pub get`.
 
-### Necessary/Sufficient Test Review
+## Gate Check
 
-- The Cubit, route output, DI identity/reset, injected executor, and database-close assertions are necessary and sufficiently exact for their claimed outcomes.
-- The app smoke test is insufficient for startup ordering because it constructs `VoxNovelApp` directly rather than invoking the entry point.
-- The supplied-Cubit widget assertion is insufficient to prove the shell has no event-based BLoC dependency.
-- A successful local build gate is necessary but insufficient to prove GitHub workflow triggers, step ordering, and fail-fast semantics.
-
----
+- **Command**: `dart run build_runner build && flutter analyze && flutter test && flutter build apk --debug`
+- **Result**: exit 0
+- **Generation**: succeeded; 0 outputs written because generated output was current
+- **Analysis**: no issues found
+- **Tests**: 24 passed, 0 failed, 0 skipped
+- **Android build**: succeeded at `build/app/outputs/flutter-apk/app-debug.apk`
+- **Test count before feature**: 1 generated scaffold test
+- **Test count after fixes**: 24
+- **Delta**: +23; the obsolete scaffold assertion was replaced, not weakened
+- **Skipped tests**: none
 
 ## Discrimination Sensor
 
-Mutations ran in two isolated copies under `/tmp`; no mutation touched the real working tree.
+All mutations ran in throwaway copies under `/tmp`; the real implementation and
+tests were never mutated.
 
-| Mutation | File:line | Description | Focused command | Killed? |
-| -------- | --------- | ----------- | --------------- | ------- |
-| M1 | `lib/app/app_cubit.dart:12` | Changed emitted readiness status from `AppStatus.ready` to `AppStatus.initial`. | `flutter test test/app/app_cubit_test.dart test/app/app_test.dart` | ✅ Killed — exact ready-state assertions failed. |
-| M2 | `lib/app/router/app_router.dart:16` | Changed navigation error title from `Erro de navegação` to `Falha inesperada`. | `flutter test test/app/router/app_router_test.dart test/app/app_test.dart` | ✅ Killed — exact error-title assertions failed. |
+| Mutation | Scratch fault | Focused command | Result |
+| -------- | ------------- | --------------- | ------ |
+| M1 — bootstrap await/order | Removed the `await` from the injected dependency configurator in `lib/main.dart:26`. | `flutter test test/widget_test.dart` | ✅ Killed — bootstrap-order test failed before dependency registration with an unregistered `AppCubit`. |
+| M2 — event-based Bloc architecture | Added a compiling `FaultBloc extends Bloc<FaultEvent, FaultState>` declaration under `lib/app/`. | `flutter test test/architecture/foundation_architecture_test.dart` | ✅ Killed — `eventBlocDeclarations` contained the injected file. |
+| M3 — CI complete-suite wiring | Changed workflow command `flutter test` to filtered `flutter test test/app`. | `flutter test test/ci/ci_workflow_test.dart` | ✅ Killed — exact ordered-command assertion rejected the filtered command. |
 
-**Sensor depth**: lightweight
-**Result**: 2/2 killed — PASS ✅
+**Sensor depth**: lightweight, three highest-risk mutations
+**Result**: 3/3 killed, 0 survived — PASS ✅
 
-The isolated copies were throwaway scratch state. `git status --short` in the real worktree remained clean before the validation report was added.
+## Test Necessity, Sufficiency, and Quality
 
----
-
-## Interactive UAT Results
-
-Not performed. Foundation behavior is infrastructure and deterministic shell behavior covered by automated gates; no complex visual interaction requires human judgment.
-
----
+- Assertions derive from the acceptance criteria and target exact observable
+  outcomes: labels, state enum values, dependency identity, query payload, thrown
+  error type, parsed triggers, exact commands, ordering, and failure suppression.
+- Payload/conjunction checks are sufficient: unknown routing asserts both title
+  and location; DI asserts all three registrations and identities; CI asserts
+  triggers, all four exact commands, order, and fail-fast settings.
+- The three new contract tests are necessary: each focused behavior fault was
+  empirically killed by its corresponding assertion.
+- All 24 tests map to an AC, edge case, or task Done-when criterion. Schema version,
+  semantics exposure, duplicate-ready suppression, supplied-Cubit composition, and
+  production database construction are legitimate Done-when/design contracts.
+- No test was skipped, deleted to reduce failures, or weakened. No
+  `SPEC_DEVIATION` marker exists in scope.
 
 ## Code Quality
 
 | Principle | Status |
 | --------- | ------ |
-| Minimum code | ✅ Foundation components are small and direct. |
-| Surgical changes | ✅ Product commits are confined to foundation source, tests, dependency/generated files, analyzer configuration, and CI. |
-| No scope creep | ✅ No library data model or later-milestone product behavior was introduced. |
-| Matches patterns | ✅ Feature-first placement, constructor injection outside the composition root, Cubit, `go_router`, and Drift match the approved design. |
-| Spec-anchored outcome check | ❌ Six ACs lack assertion evidence. |
-| Per-layer coverage expectation | ❌ Tested runtime layers meet the matrix, but entry-point ordering and CI behavior have no executable coverage. |
-| Every in-scope test is claimed | ✅ The 19 tests map to an AC, listed edge case, or task Done-when criterion (including schema version and semantics checks). |
-| Documented guidelines followed | ✅ `analysis_options.yaml` includes `flutter_lints`; `flutter analyze` is clean. `docs/spec.md` §24 requires library widget coverage, which is present. |
-| No weakened/deleted tests | ✅ Baseline had 1 generated counter test; the obsolete scaffold test was replaced and the suite increased to 19 relevant tests. |
-| No skipped tests or deviations | ✅ No `skip`, `@Skip`, or `SPEC_DEVIATION` marker was found in scope. |
+| Minimum code / no speculative abstraction | ✅ |
+| Surgical changes / no unrelated refactor | ✅ |
+| No scope creep beyond Foundation | ✅ |
+| Matches approved feature-first, Cubit, DI, router, and Drift design | ✅ |
+| Spec-anchored exact outcome assertions | ✅ |
+| Per-layer coverage expectation | ✅ |
+| Every test claimed by AC, edge case, or Done-when | ✅ |
+| Guidelines followed | ✅ `analysis_options.yaml` uses `flutter_lints`; `docs/spec.md` §24 widget coverage is present |
+| Senior-engineer review bar | ✅ |
 
-Implementation quality is concise and consistent. The FAIL verdict is caused by verification gaps, not an observed runtime defect.
+## Requirement Traceability
 
----
+| Requirement | Validation status |
+| ----------- | ----------------- |
+| FND-01 | ✅ Verified |
+| FND-02 | ✅ Verified |
+| FND-03 | ✅ Verified |
+| FND-04 | ✅ Verified |
+| FND-05 | ✅ Verified |
 
-## Edge Cases
+## Lessons
 
-- [x] Repeated dependency initialization does not duplicate registrations: `test/app/dependency_injection/configure_dependencies_test.dart:40` and identity assertions at lines 42–44.
-- [x] Unknown locations show an error instead of blank content: exact title and attempted path at `test/app/router/app_router_test.dart:23` and `:36`.
-- [x] In-memory persistence needs no device filesystem: injected `NativeDatabase.memory()` and exact query result at `test/core/database/app_database_test.dart:25`–`:32`.
-- [ ] Clean-checkout CI restores dependencies before analysis, test, and build: configuration ordering exists at `.github/workflows/ci.yml:28`–`:38`, but no assertion parses and proves it.
-
----
-
-## Gate Check
-
-- **Gate command**: `dart run build_runner build && flutter analyze && flutter test && flutter build apk --debug`
-- **Result**: exit 0; 19 passed, 0 failed, 0 skipped
-- **Code generation**: succeeded; 0 outputs written because generated output was current
-- **Analysis**: no issues found
-- **Android build**: succeeded; `build/app/outputs/flutter-apk/app-debug.apk`
-- **Test count before feature**: 1
-- **Test count after feature**: 19
-- **Delta**: +18 tests
-- **Skipped tests**: none
-- **Failures**: none
-
----
-
-## Fix Plans
-
-### Fix 1: Add an executable startup-order test
-
-- **Root cause**: The smoke test directly pumps `VoxNovelApp`, so it cannot fail if `runApp` moves before dependency initialization.
-- **Fix task**: Extract or inject the bootstrap boundary minimally, then test that dependency configuration completes before the root app is passed to the runner. Preserve production behavior and avoid filesystem-backed database startup in the test.
-- **Verify**: A behavior mutation that removes the await or runs the app first must fail the new test.
-- **Priority**: Major
-
-### Fix 2: Make the no-event-BLoC architectural constraint executable
-
-- **Root cause**: The test proves the supplied Cubit is available but cannot detect an added event-based BLoC dependency.
-- **Fix task**: Add a focused architecture/source-boundary test or an equivalent enforceable analyzer rule that rejects event-based BLoC classes in the foundation shell while allowing Cubit.
-- **Verify**: Introducing a minimal `Bloc<Event, State>` dependency in scratch state must fail the check.
-- **Priority**: Minor
-
-### Fix 3: Add workflow configuration contract tests
-
-- **Root cause**: Local commands prove the toolchain works, but nothing asserts GitHub triggers, exact unfiltered commands, dependency-restoration ordering, APK ordering, or failure propagation.
-- **Fix task**: Add a YAML workflow contract test that parses `.github/workflows/ci.yml` and asserts push-to-main plus pull-request triggers, then exact ordered commands `flutter pub get` → `flutter analyze` → `flutter test` → `flutter build apk --debug`, with no failure-suppression settings.
-- **Verify**: Mutating each trigger/command/order or adding `continue-on-error: true` must fail the contract test.
-- **Priority**: Major
-
----
-
-## Requirement Traceability Update
-
-The verifier did not modify `spec.md`; these are the recommended status updates.
-
-| Requirement | Previous Status | Recommended Status |
-| ----------- | --------------- | ------------------ |
-| FND-01 | In Tasks | ❌ Needs Fix — startup ordering lacks assertion evidence |
-| FND-02 | In Tasks | ❌ Needs Fix — no-event-BLoC constraint lacks discriminating evidence |
-| FND-03 | In Tasks | ✅ Verified |
-| FND-04 | In Tasks | ✅ Verified |
-| FND-05 | In Tasks | ❌ Needs Fix — workflow behavior lacks contract assertions |
-
----
+This is a clean PASS: no failed/uncovered AC, surviving mutant,
+spec-precision gap, gate failure, or `SPEC_DEVIATION` signal was found. Per the
+lessons protocol, no new lesson is recorded and prior candidates are preserved.
 
 ## Summary
 
-**Overall**: ❌ Not Ready
-
-**Spec-anchored check**: 8/14 ACs matched exact spec outcomes; 6 evidence-zero gaps; 0 spec-precision gaps
-**Sensor**: 2/2 mutations killed
-**Gate**: 19 passed, 0 failed, 0 skipped; analysis and Android debug build passed
-
-**What works**: Runtime shell routing, exact visible states, Cubit transitions, centralized dependency identity/reset, injected in-memory Drift execution, executor disposal, static analysis, the full test suite, and Android APK compilation.
-
-**Issues found**: Startup ordering, the no-event-BLoC constraint, and four CI behaviors have implementation/configuration evidence but no assertion expression, so they cannot pass the verifier's evidence-or-zero and discrimination requirements.
-
-**Next steps**: Implement Fixes 1–3 as atomic tasks, then repeat the build gate and independent verification with scratch mutations targeting startup ordering and workflow wiring.
+**Ready**: ✅
+**ACs**: 14/14 exact spec outcomes
+**Gate**: 24 passed, 0 failed, 0 skipped; analysis and Android build passed
+**Sensor**: 3/3 killed, 0 survived
+**Ranked gaps**: none

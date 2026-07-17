@@ -143,11 +143,11 @@ are detected before changes merge.
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| FND-01 | Run the application shell | Tasks | In Tasks |
-| FND-02 | Manage presentation state with Cubit | Tasks | In Tasks |
-| FND-03 | Compose dependencies centrally | Tasks | In Tasks |
-| FND-04 | Provide a local persistence boundary | Tasks | In Tasks |
-| FND-05 | Enforce automated quality gates | Tasks | In Tasks |
+| FND-01 | Run the application shell | Validation | Verified |
+| FND-02 | Manage presentation state with Cubit | Validation | Verified |
+| FND-03 | Compose dependencies centrally | Validation | Verified |
+| FND-04 | Provide a local persistence boundary | Validation | Verified |
+| FND-05 | Enforce automated quality gates | Validation | Verified |
 
 **Coverage:** 5 total, 5 mapped to tasks, 0 unmapped.
 
