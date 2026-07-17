@@ -10,22 +10,15 @@ GoRouter createAppRouter({WidgetBuilder? libraryPageBuilder}) {
             libraryPageBuilder?.call(context) ??
             Scaffold(
               appBar: AppBar(
-                title: Semantics(
-                  header: true,
-                  child: const Text('Biblioteca'),
-                ),
+                title: Semantics(header: true, child: const Text('Biblioteca')),
               ),
             ),
       ),
     ],
     errorBuilder: (context, state) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Erro de navegação'),
-        ),
-        body: Center(
-          child: Text(state.uri.toString()),
-        ),
+        appBar: AppBar(title: const Text('Erro de navegação')),
+        body: Center(child: Text(state.uri.toString())),
       );
     },
   );

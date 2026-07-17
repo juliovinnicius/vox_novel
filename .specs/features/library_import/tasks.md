@@ -7,7 +7,7 @@ name and follow its Execute flow and Critical Rules.** Do not proceed without th
 per-task gate, atomic commit, adequacy review, and final independent Verifier.
 
 **Design**: `.specs/features/library_import/design.md`
-**Status**: In Progress
+**Status**: Complete
 
 ---
 
@@ -478,14 +478,14 @@ update placeholder test references
 
 **Done when**:
 
-- [ ] Composition registers one repository, picker, storage, domain service, `LibraryCubit`, and `ImportBookCubit`.
-- [ ] Tests can inject database, picker, storage root, clock, and ID seams without global platform calls.
-- [ ] Repeated configuration reuses instances and reset closes Cubits, streams, router, and database.
-- [ ] `/` renders the real empty library and exact `Biblioteca` title.
-- [ ] Unknown routes retain the exact visible navigation error contract.
-- [ ] A root integration test imports a fixture, observes one visible durable book, edits it, and deletes its record/files.
-- [ ] The complete suite count does not decrease and no placeholder references remain.
-- [ ] Build gate passes.
+- [x] Composition registers one repository, picker, storage, domain service, `LibraryCubit`, and `ImportBookCubit`.
+- [x] Tests can inject database, picker, storage root, clock, and ID seams without global platform calls.
+- [x] Repeated configuration reuses instances and reset closes Cubits, streams, router, and database.
+- [x] `/` renders the real empty library and exact `Biblioteca` title.
+- [x] Unknown routes retain the exact visible navigation error contract.
+- [x] A root integration test imports a fixture, observes one visible durable book, edits it, and deletes its record/files.
+- [x] The complete suite count does not decrease and no placeholder references remain.
+- [x] Build gate passes.
 
 **Tests**: integration/widget
 **Gate**: build
