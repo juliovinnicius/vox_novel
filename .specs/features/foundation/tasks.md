@@ -32,7 +32,7 @@ per-task gate, atomic commit, adequacy review, and final independent Verifier.
 | ---------- | ----------- | ------- |
 | Quick | After unit or widget-test tasks | `flutter test` |
 | Full | After integration-level composition tasks | `flutter test` |
-| Build | After phase completion or config-only tasks | `dart run build_runner build --delete-conflicting-outputs && flutter analyze && flutter test && flutter build apk --debug` |
+| Build | After phase completion or config-only tasks | `dart run build_runner build && flutter analyze && flutter test && flutter build apk --debug` |
 
 ## Execution Plan
 
@@ -143,7 +143,7 @@ T8 → T9
 **Expected tests**: 3
 **Commit**: `feat(app): add startup Cubit`
 
-### T4: Create the library placeholder page
+### T4: Create the library placeholder page ✅
 
 **What**: Add the deterministic initial page without library product behavior.
 **Where**: `lib/features/library/presentation/pages/library_placeholder_page.dart`, `test/features/library/presentation/pages/library_placeholder_page_test.dart`
