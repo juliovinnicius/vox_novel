@@ -117,7 +117,7 @@ T8 → T9
 **Expected tests**: 3
 **Commit**: `feat(database): add Drift application database`
 
-### T3: Establish the application Cubit
+### T3: Establish the application Cubit ✅
 
 **What**: Add typed application startup state and its single readiness transition.
 **Where**: `lib/app/app_cubit.dart`, `lib/app/app_state.dart`, `test/app/app_cubit_test.dart`
