@@ -327,7 +327,7 @@ ready state exist before the root widget is returned for rendering.
 **Gate**: build
 **Commit**: `test(app): cover asynchronous bootstrap ordering`
 
-### F2: Enforce the Cubit-only shell constraint
+### F2: Enforce the Cubit-only shell constraint ✅
 
 **What**: Add an executable architecture test that rejects event-based BLoC
 implementations from the foundation shell while allowing Cubit infrastructure.
