@@ -7,7 +7,7 @@ name and follow its Execute flow and Critical Rules.** Do not proceed without th
 per-task gate, atomic commit, adequacy review, and final independent Verifier.
 
 **Design**: `.specs/features/foundation/design.md`
-**Status**: In Progress
+**Status**: Needs Fix — validation iteration 1
 
 ## Test Coverage Matrix
 
@@ -58,6 +58,12 @@ T5 → T6 → T7 → T8
 
 ```text
 T8 → T9
+```
+
+### Phase 5: Validation Fixes
+
+```text
+T9 → F1 → F2 → F3
 ```
 
 ## Task Breakdown
@@ -300,6 +306,66 @@ T8 → T9
 **Tests**: none
 **Gate**: build
 **Commit**: `ci(android): add Flutter quality gate`
+
+### F1: Make startup ordering executable
+
+**What**: Extract an awaitable application factory and prove dependencies and
+ready state exist before the root widget is returned for rendering.
+**Where**: `lib/main.dart`, `test/widget_test.dart`
+**Depends on**: T9
+**Requirement**: FND-01
+
+**Done when**:
+
+- [ ] Production `main` awaits application creation before `runApp`.
+- [ ] The application factory awaits dependency setup with an injectable locator and in-memory database executor.
+- [ ] Before the returned widget is pumped, the test observes all foundation registrations and exact `AppStatus.ready`.
+- [ ] Removing the dependency await causes the focused test to fail.
+- [ ] Build gate passes.
+
+**Tests**: widget/unit bootstrap contract
+**Gate**: build
+**Commit**: `test(app): cover asynchronous bootstrap ordering`
+
+### F2: Enforce the Cubit-only shell constraint
+
+**What**: Add an executable architecture test that rejects event-based BLoC
+implementations from the foundation shell while allowing Cubit infrastructure.
+**Where**: `test/architecture/foundation_architecture_test.dart`
+**Depends on**: F1
+**Requirement**: FND-02
+
+**Done when**:
+
+- [ ] The test scans foundation Dart sources and rejects an `extends Bloc<...>` declaration.
+- [ ] Current Cubit-based sources pass.
+- [ ] A scratch event-based BLoC declaration causes the focused test to fail.
+- [ ] Quick gate passes.
+
+**Tests**: architecture contract
+**Gate**: quick
+**Commit**: `test(architecture): enforce Cubit-only foundation`
+
+### F3: Add executable CI workflow contracts
+
+**What**: Parse the GitHub Actions workflow and assert triggers, exact command
+order, and absence of failure suppression.
+**Where**: `pubspec.yaml`, `pubspec.lock`, `test/ci/ci_workflow_test.dart`
+**Depends on**: F2
+**Requirement**: FND-05
+
+**Done when**:
+
+- [ ] A YAML parser is available as a development-only dependency.
+- [ ] Tests assert push-to-main and pull-request triggers.
+- [ ] Tests assert exact ordered commands: dependency restore, analysis, complete tests, debug APK build.
+- [ ] Tests assert neither the job nor required steps enable `continue-on-error`.
+- [ ] Mutating a trigger, command, order, or failure suppression causes a focused assertion to fail.
+- [ ] Build gate passes.
+
+**Tests**: configuration contract
+**Gate**: build
+**Commit**: `test(ci): enforce Android workflow contract`
 
 ## Phase Execution Map
 

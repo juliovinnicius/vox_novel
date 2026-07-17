@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: foundation / `.specs/features/foundation`
-- **Phase / Task**: Execute — batch 2, T6 through T9
-- **Completed**: project baseline, specification, context, design, T1, T2, T3, T4, T5
+- **Phase / Task**: Validate iteration 1 — fix plan F1 through F3
+- **Completed**: project baseline, specification, context, design, T1 through T9
 - **In-progress** (file:line): none
-- **Next step**: execute batch 2 and dispatch the independent Verifier after T9
+- **Next step**: obtain fix-plan approval, implement F1 through F3, then re-verify
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/foundation/tasks.md`
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/LESSONS.md`, `.specs/features/foundation/tasks.md`, `.specs/features/foundation/validation.md`
 - **Branch**: `main`
