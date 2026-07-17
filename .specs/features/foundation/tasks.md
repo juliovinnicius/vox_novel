@@ -89,10 +89,11 @@ T8 → T9
 **Gate**: build
 **Commit**: `build(foundation): add application dependencies`
 
-### T2: Create the Drift database boundary
+### T2: Create the Drift database boundary ✅
 
 **What**: Add `AppDatabase` with production and injected-executor constructors.
-**Where**: `lib/core/database/app_database.dart`, generated part, `test/core/database/app_database_test.dart`
+**Where**: `lib/core/database/app_database.dart`, generated part,
+`test/core/database/app_database_test.dart`, `analysis_options.yaml`
 **Depends on**: T1
 **Reuses**: Drift's documented custom-executor and `driftDatabase` patterns.
 **Requirement**: FND-04
