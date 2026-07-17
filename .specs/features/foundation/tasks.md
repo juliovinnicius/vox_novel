@@ -221,7 +221,7 @@ T8 → T9
 **Expected tests**: 3
 **Commit**: `feat(app): add root application widget`
 
-### T7: Create the dependency composition root
+### T7: Create the dependency composition root ✅
 
 **What**: Register and reset the database, router, and Cubit deterministically.
 **Where**: `lib/app/dependency_injection/configure_dependencies.dart`, `test/app/dependency_injection/configure_dependencies_test.dart`
