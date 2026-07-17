@@ -275,7 +275,7 @@ T8 → T9
 **Expected tests**: 1 replacement smoke test; total suite must not decrease
 **Commit**: `feat(app): bootstrap application foundation`
 
-### T9: Add the Android continuous integration gate
+### T9: Add the Android continuous integration gate ✅
 
 **What**: Add the ordered GitHub Actions workflow required by FND-05.
 **Where**: `.github/workflows/ci.yml`
