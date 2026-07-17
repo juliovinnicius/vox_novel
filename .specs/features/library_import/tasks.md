@@ -354,15 +354,15 @@ T13 → T14
 
 **Done when**:
 
-- [ ] Initial state defaults to list with no books.
-- [ ] `start()` emits loading then exact ordered repository books.
-- [ ] Stream changes emit one refreshed immutable collection without duplicate IDs.
-- [ ] List/grid methods change layout only and preserve book identity/order/data.
-- [ ] Restarting a new Cubit defaults to list.
-- [ ] Edit/delete errors preserve the last book collection and expose exact required messages.
-- [ ] Stream failure preserves the last successful collection and exposes failure.
-- [ ] Subscription is cancelled when the Cubit closes.
-- [ ] Cubit tests cover every exact transition and build gate passes.
+- [x] Initial state defaults to list with no books.
+- [x] `start()` emits loading then exact ordered repository books.
+- [x] Stream changes emit one refreshed immutable collection without duplicate IDs.
+- [x] List/grid methods change layout only and preserve book identity/order/data.
+- [x] Restarting a new Cubit defaults to list.
+- [x] Edit/delete errors preserve the last book collection and expose exact required messages.
+- [x] Stream failure preserves the last successful collection and exposes failure.
+- [x] Subscription is cancelled when the Cubit closes.
+- [x] Cubit tests cover every exact transition and build gate passes.
 
 **Tests**: unit
 **Gate**: build
