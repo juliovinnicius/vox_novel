@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/core/database/app_database.dart' show AppDatabase;
 import 'package:vox_novel/features/library/data/repositories/drift_book_repository.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
+import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 
 void main() {
   late AppDatabase database;
@@ -140,6 +142,120 @@ void main() {
 
     expect(await repository.findById(first.id), isNull);
     expect(await repository.findById(second.id), second);
+  });
+
+  test('deletion snapshot restores exact active processing dataset', () async {
+    final book = fixture(
+      id: 'book-1',
+      hash: 'hash-1',
+    ).copyWith(status: BookStatus.importing, processingProgress: 0);
+    await repository.insert(book);
+    final processing = DriftTextProcessingRepository(database);
+    final now = DateTime.utc(2026, 7, 18);
+    await processing.createRun(bookId: book.id, runId: 'run-1', startedAt: now);
+    await processing.stageRawPage(
+      'run-1',
+      RawPage(pageNumber: 1, text: 'Raw exato'),
+    );
+    await processing.stageCleanPage(
+      'run-1',
+      CleanPage(pageNumber: 1, text: 'Texto limpo.'),
+    );
+    await processing.stageChaptersAndBlocks(
+      runId: 'run-1',
+      bookId: book.id,
+      chapters: [
+        ChapterDraft(
+          id: 'chapter-1',
+          title: 'Capítulo 1',
+          sortOrder: 0,
+          startPage: 1,
+          endPage: 1,
+          cleanText: 'Texto limpo.',
+        ),
+      ],
+      blocks: [
+        NarrationBlockDraft(
+          id: 'block-1',
+          chapterId: 'chapter-1',
+          sortOrder: 0,
+          originalText: 'Texto limpo.',
+          normalizedText: 'Texto limpo.',
+          characterCount: 12,
+          startPage: 1,
+          endPage: 1,
+        ),
+      ],
+      createdAt: now,
+    );
+    await processing.activateRun(
+      runId: 'run-1',
+      pageCount: 1,
+      chapterCount: 1,
+      blockCount: 1,
+      completedAt: now,
+    );
+    final activeBook = (await repository.findById(book.id))!;
+
+    final snapshot = await repository.deleteForCompensation(activeBook);
+    expect(await repository.findById(book.id), isNull);
+    expect(await database.select(database.processingRuns).get(), isEmpty);
+    expect(await database.select(database.rawPages).get(), isEmpty);
+    expect(await database.select(database.chapters).get(), isEmpty);
+    expect(await database.select(database.narrationBlocks).get(), isEmpty);
+
+    await repository.restoreDeletion(snapshot);
+
+    expect(await repository.findById(book.id), activeBook);
+    final run = await database.select(database.processingRuns).getSingle();
+    final page = await database.select(database.rawPages).getSingle();
+    final chapter = await database.select(database.chapters).getSingle();
+    final block = await database.select(database.narrationBlocks).getSingle();
+    expect(
+      [run.id, run.bookId, run.cleanText, run.state, run.completedAt],
+      ['run-1', book.id, 'Texto limpo.', 'active', now],
+    );
+    expect(
+      [page.runId, page.pageNumber, page.rawText, page.cleanText],
+      ['run-1', 1, 'Raw exato', 'Texto limpo.'],
+    );
+    expect(
+      [
+        chapter.id,
+        chapter.runId,
+        chapter.bookId,
+        chapter.title,
+        chapter.sortOrder,
+        chapter.startPage,
+        chapter.endPage,
+        chapter.cleanText,
+      ],
+      ['chapter-1', 'run-1', book.id, 'Capítulo 1', 0, 1, 1, 'Texto limpo.'],
+    );
+    expect(
+      [
+        block.id,
+        block.runId,
+        block.chapterId,
+        block.sortOrder,
+        block.originalText,
+        block.normalizedText,
+        block.characterCount,
+        block.startPage,
+        block.endPage,
+      ],
+      [
+        'block-1',
+        'run-1',
+        'chapter-1',
+        0,
+        'Texto limpo.',
+        'Texto limpo.',
+        12,
+        1,
+        1,
+      ],
+    );
   });
 
   test(

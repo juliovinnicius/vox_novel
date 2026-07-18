@@ -12,7 +12,7 @@ import 'package:vox_novel/app/app_cubit.dart';
 import 'package:vox_novel/app/app_state.dart';
 import 'package:vox_novel/app/dependency_injection/configure_dependencies.dart';
 import 'package:vox_novel/app/router/app_router.dart';
-import 'package:vox_novel/core/database/app_database.dart';
+import 'package:vox_novel/core/database/app_database.dart' hide RawPage;
 import 'package:vox_novel/features/import_book/data/services/local_book_file_storage.dart';
 import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
 import 'package:vox_novel/features/import_book/presentation/cubit/import_book_cubit.dart';
@@ -22,6 +22,8 @@ import 'package:vox_novel/features/library/domain/repositories/book_repository.d
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_state.dart';
+import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/main.dart' as application;
 
 void main() {
@@ -195,7 +197,7 @@ void main() {
     await cover.create(recursive: true);
     await pdf.writeAsBytes([1]);
     await cover.writeAsBytes([2]);
-    final book = domain.Book(
+    final seedBook = domain.Book(
       id: 'book-id',
       title: 'Título',
       author: 'Autora',
@@ -203,12 +205,59 @@ void main() {
       originalFileName: 'book.pdf',
       storedFilePath: pdf.path,
       fileHash: 'hash',
-      status: domain.BookStatus.ready,
-      processingProgress: 1,
+      status: domain.BookStatus.importing,
+      processingProgress: 0,
       createdAt: DateTime.utc(2026),
       updatedAt: DateTime.utc(2026),
     );
-    await repository.insert(book);
+    await repository.insert(seedBook);
+    final processing = DriftTextProcessingRepository(database);
+    final now = DateTime.utc(2026);
+    await processing.createRun(
+      bookId: seedBook.id,
+      runId: 'run-1',
+      startedAt: now,
+    );
+    await processing.stageRawPage('run-1', RawPage(pageNumber: 1, text: 'Raw'));
+    await processing.stageCleanPage(
+      'run-1',
+      CleanPage(pageNumber: 1, text: 'Texto.'),
+    );
+    await processing.stageChaptersAndBlocks(
+      runId: 'run-1',
+      bookId: seedBook.id,
+      chapters: [
+        ChapterDraft(
+          id: 'chapter-1',
+          title: 'Capítulo 1',
+          sortOrder: 0,
+          startPage: 1,
+          endPage: 1,
+          cleanText: 'Texto.',
+        ),
+      ],
+      blocks: [
+        NarrationBlockDraft(
+          id: 'block-1',
+          chapterId: 'chapter-1',
+          sortOrder: 0,
+          originalText: 'Texto.',
+          normalizedText: 'Texto.',
+          characterCount: 6,
+          startPage: 1,
+          endPage: 1,
+        ),
+      ],
+      createdAt: now,
+    );
+    await processing.activateRun(
+      runId: 'run-1',
+      pageCount: 1,
+      chapterCount: 1,
+      blockCount: 1,
+      completedAt: now,
+    );
+    final book = (await repository.findById(seedBook.id))!;
     final failingStorage = LocalBookFileStorage(
       supportDirectory: root,
       deleteFile: (_) async => throw const FileSystemException('disk failure'),
@@ -226,6 +275,27 @@ void main() {
     database = AppDatabase(NativeDatabase(databaseFile));
     repository = DriftBookRepository(database);
     expect(await repository.findById(book.id), book);
+    final restoredPage = await database.select(database.rawPages).getSingle();
+    final restoredChapter = await database
+        .select(database.chapters)
+        .getSingle();
+    final restoredBlock = await database
+        .select(database.narrationBlocks)
+        .getSingle();
+    expect([restoredPage.rawText, restoredPage.cleanText], ['Raw', 'Texto.']);
+    expect(
+      [restoredChapter.id, restoredChapter.title, restoredChapter.cleanText],
+      ['chapter-1', 'Capítulo 1', 'Texto.'],
+    );
+    expect(
+      [
+        restoredBlock.id,
+        restoredBlock.originalText,
+        restoredBlock.normalizedText,
+        restoredBlock.characterCount,
+      ],
+      ['block-1', 'Texto.', 'Texto.', 6],
+    );
     expect(await pdf.readAsBytes(), [1]);
     expect(await cover.readAsBytes(), [2]);
 
@@ -240,6 +310,10 @@ void main() {
     database = AppDatabase(NativeDatabase(databaseFile));
     repository = DriftBookRepository(database);
     expect(await repository.findById(book.id), isNull);
+    expect(await database.select(database.processingRuns).get(), isEmpty);
+    expect(await database.select(database.rawPages).get(), isEmpty);
+    expect(await database.select(database.chapters).get(), isEmpty);
+    expect(await database.select(database.narrationBlocks).get(), isEmpty);
     expect(await pdf.exists(), isFalse);
     expect(await cover.exists(), isFalse);
     expect(

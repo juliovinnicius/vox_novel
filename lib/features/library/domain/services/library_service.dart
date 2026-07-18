@@ -65,15 +65,22 @@ final class LibraryService {
 
   Future<DeleteBookResult> deleteBook(Book book) async {
     QuarantinedBookFiles? quarantine;
+    BookDeletionSnapshot? snapshot;
     try {
       quarantine = await storage.quarantineOwnedFiles(
         pdfPath: book.storedFilePath,
         coverPath: book.coverPath,
       );
-      await repository.deleteById(book.id);
+      if (repository is CompensatingBookRepository) {
+        final compensating = repository as CompensatingBookRepository;
+        snapshot = await compensating.deleteForCompensation(book);
+      } else {
+        await repository.deleteById(book.id);
+        snapshot = BookDeletionSnapshot(book);
+      }
     } catch (_) {
       if (quarantine != null) {
-        await _restoreDeletion(book, quarantine);
+        await _restoreDeletion(snapshot, book, quarantine);
       }
       return const DeleteBookResult.failure(deleteError);
     }
@@ -81,19 +88,29 @@ final class LibraryService {
     try {
       await storage.discardQuarantine(quarantine);
     } catch (_) {
-      await _restoreDeletion(book, quarantine);
+      await _restoreDeletion(snapshot, book, quarantine);
       return const DeleteBookResult.failure(deleteError);
     }
     return const DeleteBookResult.success();
   }
 
   Future<void> _restoreDeletion(
+    BookDeletionSnapshot? snapshot,
     Book book,
     QuarantinedBookFiles quarantine,
   ) async {
     try {
       if (await repository.findById(book.id) == null) {
-        await repository.insert(book);
+        if (snapshot != null) {
+          if (repository is CompensatingBookRepository) {
+            final compensating = repository as CompensatingBookRepository;
+            await compensating.restoreDeletion(snapshot);
+          } else {
+            await repository.insert(snapshot.book);
+          }
+        } else {
+          await repository.insert(book);
+        }
       }
     } catch (_) {}
     try {

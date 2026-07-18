@@ -1,5 +1,11 @@
 import 'package:vox_novel/features/library/domain/entities/book.dart';
 
+class BookDeletionSnapshot {
+  const BookDeletionSnapshot(this.book);
+
+  final Book book;
+}
+
 abstract interface class BookRepository {
   Stream<List<Book>> watchAll();
 
@@ -27,4 +33,10 @@ abstract interface class BookRepository {
   });
 
   Future<void> deleteById(String id);
+}
+
+abstract interface class CompensatingBookRepository {
+  Future<BookDeletionSnapshot> deleteForCompensation(Book book);
+
+  Future<void> restoreDeletion(BookDeletionSnapshot snapshot);
 }
