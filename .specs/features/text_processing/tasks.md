@@ -62,6 +62,7 @@ order and receive one atomic commit each.
   gate without changing behavior or tests — `7c161c8`
 - [x] T5
 - [x] T6
+- [x] T7
 
 ### Phase 1: PDF boundary and deterministic domain
 
@@ -283,7 +284,7 @@ foreign keys/cascades, migration, and regenerated Drift code.
 **Gate**: full
 **Commit**: `feat(processing): add durable processing schema`
 
-### T7: Implement staged and active Drift processing persistence
+### T7: Implement staged and active Drift processing persistence ✅
 
 **What**: Add the processing repository contract and Drift implementation for
 staging, streaming, monotonic progress, activation, replacement, and discard.
