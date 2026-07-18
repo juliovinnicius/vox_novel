@@ -604,3 +604,66 @@ never split across workers.
 
 All tasks co-locate the required tests. No test-bearing layer defers its tests to
 a later task.
+
+---
+
+## Validation Fix Tasks — Iteration 1
+
+### F1: Execute CPU-bound text transformation off the UI isolate
+
+**What**: Move header/footer profiling, page cleaning, chapter detection, and
+block splitting through an isolate-backed execution seam while preserving
+page/unit progress and cancellation checks.
+**Where**:
+`lib/features/pdf_processing/domain/services/text_processing_service.dart`,
+`test/features/pdf_processing/domain/services/text_processing_service_test.dart`
+**Depends on**: T14
+**Requirement**: TXT-01 (E4), RNF-002
+
+**Done when**:
+
+- [x] Production CPU transformation records worker isolate identities different from the caller isolate.
+- [x] Exact cleaned/chapter/block payloads and all existing cancellation boundaries remain unchanged.
+- [x] Focused, analysis, full-test, and Android build gates pass.
+
+**Tests**: unit/integration
+**Gate**: build
+**Commit**: `fix(processing): isolate CPU text transformation`
+
+### F2: Prove composed terminal processing paths
+
+**What**: Exercise the production dependency graph for no-text, corrupt PDF,
+and cancellation outcomes, including exact messages, durable book status, and
+absence of staged/orphaned content.
+**Where**:
+`test/app/dependency_injection/configure_dependencies_test.dart`
+**Depends on**: F1
+**Requirement**: TXT-05
+
+**Done when**:
+
+- [x] No-text, corrupt, and cancelled runs expose their exact terminal result.
+- [x] Every terminal path leaves zero processing runs, pages, chapters, and blocks.
+
+**Tests**: composition/integration
+**Gate**: full-test
+**Commit**: `test(processing): cover composed terminal paths`
+
+### F3: Prove reset cancels active processing durably
+
+**What**: Reset the production locator during an active extraction, prove the
+extractor receives cancellation, all Cubits close, and reopening the database
+finds no staged run or orphaned content.
+**Where**:
+`test/app/dependency_injection/configure_dependencies_test.dart`
+**Depends on**: F2
+**Requirement**: TXT-05, RNF-002
+
+**Done when**:
+
+- [x] Reset waits for active extraction cancellation and closes registered Cubits.
+- [x] A fresh database connection observes zero staged/orphaned processing rows.
+
+**Tests**: lifecycle/integration
+**Gate**: full-test
+**Commit**: `test(processing): verify reset cancellation cleanup`

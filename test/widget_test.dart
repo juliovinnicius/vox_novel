@@ -27,6 +27,7 @@ import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_p
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
+import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
 import 'package:vox_novel/main.dart' as application;
 
 void main() {
@@ -65,6 +66,8 @@ void main() {
                 String Function()? generateId,
                 PdfTextExtractor? pdfTextExtractor,
                 TextProcessingRepository? textProcessingRepository,
+                ProcessingExecutor processingExecutor =
+                    isolateProcessingExecutor,
                 Future<void> Function()? initializePdfEngine,
               }) async {
                 await allowConfiguration.future;
@@ -77,6 +80,7 @@ void main() {
                   generateId: generateId,
                   pdfTextExtractor: pdfTextExtractor,
                   textProcessingRepository: textProcessingRepository,
+                  processingExecutor: processingExecutor,
                   initializePdfEngine: initializePdfEngine,
                 );
               },
@@ -128,6 +132,7 @@ void main() {
         return ids.current;
       },
       pdfTextExtractor: _TextExtractor(),
+      processingExecutor: inlineProcessingExecutor,
     );
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();

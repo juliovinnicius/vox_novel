@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
@@ -61,6 +62,29 @@ void main() {
       expect(processing.blocks.single.originalText, 'Texto.\nOutro parágrafo.');
     },
   );
+
+  test('CPU-bound pipeline work executes outside the caller isolate', () async {
+    final caller = Isolate.current.hashCode;
+    final workers = <int>[];
+    final target = TextProcessingService(
+      books: books,
+      processing: processing,
+      extractor: extractor,
+      cleaner: const TextCleaner(),
+      chapterDetector: () =>
+          ChapterDetector(idGenerator: () => 'chapter-worker'),
+      blockSplitter: () => NarrationBlockSplitter(() => 'block-worker'),
+      clock: () => now,
+      runId: () => 'run-worker',
+      executor: isolateProcessingExecutor,
+      onCpuWorkerIsolate: workers.add,
+    );
+
+    expect(await target.process('book-1'), const ProcessingResult.completed());
+    expect(workers, isNotEmpty);
+    expect(workers.every((identity) => identity != caller), isTrue);
+    expect(processing.activated, [2, 1, 1]);
+  });
 
   test('pipeline exposes exact monotonic stage ranges incrementally', () async {
     await service().process('book-1');

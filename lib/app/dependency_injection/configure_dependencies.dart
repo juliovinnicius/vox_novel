@@ -39,6 +39,7 @@ Future<void> configureDependencies({
   String Function()? generateId,
   PdfTextExtractor? pdfTextExtractor,
   TextProcessingRepository? textProcessingRepository,
+  ProcessingExecutor processingExecutor = isolateProcessingExecutor,
   Future<void> Function()? initializePdfEngine,
 }) async {
   final locator = instance ?? GetIt.instance;
@@ -118,6 +119,7 @@ Future<void> configureDependencies({
         blockSplitter: () => NarrationBlockSplitter(nextId),
         clock: now,
         runId: nextId,
+        executor: processingExecutor,
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
@@ -38,6 +39,8 @@ typedef ChapterDetectorFactory = ChapterDetector Function();
 typedef NarrationBlockSplitterFactory = NarrationBlockSplitter Function();
 typedef ProcessingClock = DateTime Function();
 typedef ProcessingRunId = String Function();
+typedef ProcessingExecutor =
+    Future<T> Function<T>(FutureOr<T> Function() computation);
 
 final class TextProcessingService {
   TextProcessingService({
@@ -49,8 +52,9 @@ final class TextProcessingService {
     required NarrationBlockSplitterFactory blockSplitter,
     required ProcessingClock clock,
     required ProcessingRunId runId,
-  }) :
-       // Public dependency names intentionally omit private implementation
+    ProcessingExecutor executor = inlineProcessingExecutor,
+    void Function(int workerIdentity)? onCpuWorkerIsolate,
+  }) : // Public dependency names intentionally omit private implementation
        // prefixes while preserving named constructor injection.
        // ignore: prefer_initializing_formals
        _books = books,
@@ -67,7 +71,13 @@ final class TextProcessingService {
        // ignore: prefer_initializing_formals
        _clock = clock,
        // ignore: prefer_initializing_formals
-       _runId = runId;
+       _runId = runId,
+       // Public dependency names intentionally omit private implementation
+       // prefixes while preserving named constructor injection.
+       // ignore: prefer_initializing_formals
+       _executor = executor,
+       // ignore: prefer_initializing_formals
+       _onCpuWorkerIsolate = onCpuWorkerIsolate;
 
   static Future<void> _globalTail = Future.value();
 
@@ -79,6 +89,8 @@ final class TextProcessingService {
   final NarrationBlockSplitterFactory _blockSplitter;
   final ProcessingClock _clock;
   final ProcessingRunId _runId;
+  final ProcessingExecutor _executor;
+  final void Function(int workerIdentity)? _onCpuWorkerIsolate;
   final Map<String, Future<ProcessingResult>> _runs = {};
   final Map<String, _Cancellation> _cancellations = {};
   final Map<String, ProcessingResult> _lastResults = {};
@@ -185,12 +197,14 @@ final class TextProcessingService {
       }
 
       final rawPages = await _processing.streamRawPages(runId).toList();
-      final profile = _cleaner.profile(rawPages);
+      final cleaner = _cleaner;
+      final profile = await _cpu(() => cleaner.profile(rawPages));
       await _progress(bookId, ProcessingStage.cleaning, .40);
       final cleanPages = <CleanPage>[];
       for (var i = 0; i < rawPages.length; i++) {
         _check(cancellation);
-        final clean = _cleaner.clean(rawPages[i], profile);
+        final page = rawPages[i];
+        final clean = await _cpu(() => cleaner.clean(page, profile));
         await _processing.stageCleanPage(runId, clean);
         cleanPages.add(clean);
         await _progress(
@@ -200,25 +214,39 @@ final class TextProcessingService {
         );
       }
 
-      final detector = _chapterDetector();
       for (var i = 0; i < cleanPages.length; i++) {
         _check(cancellation);
-        detector.addPage(cleanPages[i]);
         await _progress(
           bookId,
           ProcessingStage.detectingChapters,
           .60 + .15 * (i + 1) / cleanPages.length,
         );
       }
-      final chapters = detector.finish(book.title);
-      final splitter = _blockSplitter();
-      final blocks = <NarrationBlockDraft>[];
+      final chapterDetector = _chapterDetector;
+      final blockSplitter = _blockSplitter;
+      final transformed = await _cpu(() {
+        final detector = chapterDetector();
+        for (final page in cleanPages) {
+          detector.addPage(page);
+        }
+        final chapters = detector.finish(book.title);
+        final splitter = blockSplitter();
+        return (
+          chapters: chapters,
+          blocks: [for (final chapter in chapters) ...splitter.split(chapter)],
+        );
+      });
+      final chapters = transformed.chapters;
+      final blocks = transformed.blocks;
       if (chapters.isEmpty) {
         await _progress(bookId, ProcessingStage.buildingBlocks, .95);
       } else {
+        var blockOffset = 0;
         for (var i = 0; i < chapters.length; i++) {
           _check(cancellation);
-          final chapterBlocks = splitter.split(chapters[i]).toList();
+          final chapterBlocks = blocks
+              .where((block) => block.chapterId == chapters[i].id)
+              .toList(growable: false);
           if (chapterBlocks.isEmpty) {
             await _progress(
               bookId,
@@ -226,11 +254,13 @@ final class TextProcessingService {
               .75 + .20 * (i + 1) / chapters.length,
             );
           } else {
-            for (var blockIndex = 0;
-                blockIndex < chapterBlocks.length;
-                blockIndex++) {
+            for (
+              var blockIndex = 0;
+              blockIndex < chapterBlocks.length;
+              blockIndex++
+            ) {
               _check(cancellation);
-              blocks.add(chapterBlocks[blockIndex]);
+              blockOffset++;
               final completedChapterFraction =
                   (i + (blockIndex + 1) / chapterBlocks.length) /
                   chapters.length;
@@ -242,6 +272,7 @@ final class TextProcessingService {
             }
           }
         }
+        assert(blockOffset == blocks.length);
       }
       _check(cancellation);
       await _processing.stageChaptersAndBlocks(
@@ -307,7 +338,22 @@ final class TextProcessingService {
   void _check(_Cancellation cancellation) {
     if (cancellation.requested) throw const _ProcessingCancelled();
   }
+
+  Future<T> _cpu<T>(FutureOr<T> Function() computation) async {
+    final result = await _executor(
+      () => (workerIdentity: Isolate.current.hashCode, value: computation()),
+    );
+    _onCpuWorkerIsolate?.call(result.workerIdentity);
+    return await result.value;
+  }
 }
+
+Future<T> isolateProcessingExecutor<T>(FutureOr<T> Function() computation) =>
+    Isolate.run(computation);
+
+Future<T> inlineProcessingExecutor<T>(
+  FutureOr<T> Function() computation,
+) async => await computation();
 
 final class _Cancellation {
   bool requested = false;

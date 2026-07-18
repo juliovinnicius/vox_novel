@@ -10,6 +10,7 @@ import 'package:vox_novel/app/dependency_injection/configure_dependencies.dart';
 import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
+import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
 
 typedef DependencyConfigurator =
     Future<void> Function({
@@ -21,6 +22,7 @@ typedef DependencyConfigurator =
       String Function()? generateId,
       PdfTextExtractor? pdfTextExtractor,
       TextProcessingRepository? textProcessingRepository,
+      ProcessingExecutor processingExecutor,
       Future<void> Function()? initializePdfEngine,
     });
 
@@ -38,6 +40,7 @@ Future<VoxNovelApp> createApplication({
   String Function()? generateId,
   PdfTextExtractor? pdfTextExtractor,
   TextProcessingRepository? textProcessingRepository,
+  ProcessingExecutor processingExecutor = isolateProcessingExecutor,
   Future<void> Function()? initializePdfEngine,
   DependencyConfigurator? configure,
 }) async {
@@ -51,6 +54,7 @@ Future<VoxNovelApp> createApplication({
     generateId: generateId,
     pdfTextExtractor: pdfTextExtractor,
     textProcessingRepository: textProcessingRepository,
+    processingExecutor: processingExecutor,
     initializePdfEngine: initializePdfEngine,
   );
 
@@ -67,6 +71,7 @@ Future<void> _configureDependencies({
   String Function()? generateId,
   PdfTextExtractor? pdfTextExtractor,
   TextProcessingRepository? textProcessingRepository,
+  ProcessingExecutor processingExecutor = isolateProcessingExecutor,
   Future<void> Function()? initializePdfEngine,
 }) {
   return configureDependencies(
@@ -78,6 +83,7 @@ Future<void> _configureDependencies({
     generateId: generateId,
     pdfTextExtractor: pdfTextExtractor,
     textProcessingRepository: textProcessingRepository,
+    processingExecutor: processingExecutor,
     initializePdfEngine: initializePdfEngine,
   );
 }
