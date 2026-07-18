@@ -53,10 +53,10 @@
 ## Handoff
 
 - **Feature**: text_processing / `.specs/features/text_processing`
-- **Phase / Task**: Execute — Phase 2 / T6 next
-- **Completed**: Milestone 1; Milestone 2 T1–T5 and F0 (extractor, domain model, cleaner, chapters, blocks); 160 tests passing
+- **Phase / Task**: Execute — Phase 3 / T10 next
+- **Completed**: Milestone 1; Milestone 2 T1–T9 and F0 (domain, schema, repository, orchestration, Cubit); 204 tests passing
 - **In-progress** (file:line): none
-- **Next step**: execute Phase 2 T6–T9 (schema, repository, orchestration, Cubit)
+- **Next step**: execute Phase 3 T10–T14 (library UI, automatic import processing, deletion, composition)
 - **Blockers**: none
 - **Uncommitted files**: `.specs/STATE.md`, `.specs/features/text_processing/tasks.md`
 - **Branch**: `main`
