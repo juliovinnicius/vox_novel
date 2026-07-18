@@ -64,6 +64,7 @@ order and receive one atomic commit each.
 - [x] T6
 - [x] T7
 - [x] T8
+- [x] T9
 
 ### Phase 1: PDF boundary and deterministic domain
 
@@ -345,7 +346,7 @@ chapters, blocks, progress, typed outcomes, global serialization, and rollback.
 **Gate**: full
 **Commit**: `feat(processing): orchestrate text processing pipeline`
 
-### T9: Create the text-processing Cubit
+### T9: Create the text-processing Cubit ✅
 
 **What**: Add exact processing presentation state and guarded process/cancel/close behavior.
 **Where**: `lib/features/pdf_processing/presentation/cubit/text_processing_cubit.dart`,
