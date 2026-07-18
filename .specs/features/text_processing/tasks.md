@@ -63,6 +63,7 @@ order and receive one atomic commit each.
 - [x] T5
 - [x] T6
 - [x] T7
+- [x] T8
 
 ### Phase 1: PDF boundary and deterministic domain
 
@@ -314,7 +315,7 @@ staging, streaming, monotonic progress, activation, replacement, and discard.
 **Gate**: full
 **Commit**: `feat(processing): persist staged text processing runs`
 
-### T8: Implement text-processing orchestration
+### T8: Implement text-processing orchestration ✅
 
 **What**: Add the domain service coordinating extraction, two-pass cleaning,
 chapters, blocks, progress, typed outcomes, global serialization, and rollback.
