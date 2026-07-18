@@ -16,7 +16,7 @@ void main() {
     );
     final database = AppDatabase.defaults();
 
-    expect(database.schemaVersion, 3);
+    expect(database.schemaVersion, 4);
 
     await database.close();
   });
@@ -63,7 +63,7 @@ void main() {
           .getSingle();
 
       expect(marker.read<String>('value'), 'preserved');
-      expect(database.schemaVersion, 3);
+      expect(database.schemaVersion, 4);
     },
   );
 
@@ -110,6 +110,6 @@ void main() {
       ],
       ['book-1', 0, 0, 0, null, null],
     );
-    expect(database.schemaVersion, 3);
+    expect(database.schemaVersion, 4);
   });
 }

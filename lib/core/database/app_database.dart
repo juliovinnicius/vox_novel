@@ -7,11 +7,22 @@ import 'package:vox_novel/features/pdf_processing/data/database/narration_blocks
 import 'package:vox_novel/features/pdf_processing/data/database/processing_runs.dart';
 import 'package:vox_novel/features/pdf_processing/data/database/raw_pages.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
+import 'package:vox_novel/features/visual_reader/data/database/reader_positions.dart';
+import 'package:vox_novel/features/visual_reader/data/database/reader_settings.dart';
+import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [Books, ProcessingRuns, RawPages, Chapters, NarrationBlocks],
+  tables: [
+    Books,
+    ProcessingRuns,
+    RawPages,
+    Chapters,
+    NarrationBlocks,
+    ReaderSettingsRows,
+    ReaderPositions,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
@@ -19,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.defaults() : this(driftDatabase(name: 'vox_novel'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,6 +55,10 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(rawPages);
         await migrator.createTable(chapters);
         await migrator.createTable(narrationBlocks);
+      }
+      if (from < 4) {
+        await migrator.createTable(readerSettingsRows);
+        await migrator.createTable(readerPositions);
       }
     },
   );
