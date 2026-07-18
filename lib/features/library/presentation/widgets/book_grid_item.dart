@@ -7,11 +7,13 @@ final class BookGridItem extends StatelessWidget {
     required this.book,
     required this.onEdit,
     required this.onDelete,
+    this.onCancelProcessing,
     super.key,
   });
   final Book book;
   final ValueChanged<Book> onEdit;
   final ValueChanged<Book> onDelete;
+  final ValueChanged<Book>? onCancelProcessing;
   @override
   Widget build(BuildContext context) => Card(
     key: ValueKey(book.id),
@@ -23,10 +25,25 @@ final class BookGridItem extends StatelessWidget {
           Text(book.title, style: Theme.of(context).textTheme.titleMedium),
           if (book.author?.isNotEmpty ?? false) Text(book.author!),
           Text(bookStatusLabel(book.status)),
+          if (book.status == BookStatus.processing &&
+              book.processingStage != null) ...[
+            Text(
+              '${book.processingStage!.label} • '
+              '${(book.processingProgress * 100).round()}%',
+            ),
+            LinearProgressIndicator(value: book.processingProgress),
+          ],
           const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              if (book.status == BookStatus.processing &&
+                  onCancelProcessing != null)
+                IconButton(
+                  tooltip: 'Cancelar processamento de ${book.title}',
+                  onPressed: () => onCancelProcessing!(book),
+                  icon: const Icon(Icons.cancel),
+                ),
               IconButton(
                 tooltip: 'Editar ${book.title}',
                 onPressed: () => onEdit(book),
