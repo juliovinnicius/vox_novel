@@ -17,10 +17,10 @@ void main() {
       final states = <VisualReaderState>[];
       final subscription = cubit.stream.listen(states.add);
 
-    await cubit.load('book');
-    await Future<void>.delayed(Duration.zero);
+      await cubit.load('book');
+      await Future<void>.delayed(Duration.zero);
 
-    expect(states.map((state) => state.status), [
+      expect(states.map((state) => state.status), [
         VisualReaderStatus.loading,
         VisualReaderStatus.ready,
       ]);
@@ -128,6 +128,113 @@ void main() {
     expect(cubit.state.status, VisualReaderStatus.ready);
     await cubit.close();
   });
+
+  test(
+    'block chapter and adjacent navigation persist exact positions',
+    () async {
+      final repository = _Repository(content: _navigationContent());
+      final cubit = _cubit(repository);
+      await cubit.load('book');
+
+      cubit.selectBlock('first', 'second-block');
+      cubit.nextChapter();
+      expect([cubit.state.chapterId, cubit.state.blockId], ['empty', null]);
+      cubit.nextChapter();
+      expect([cubit.state.chapterId, cubit.state.blockId], ['empty', null]);
+      cubit.previousChapter();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        [cubit.state.chapterId, cubit.state.blockId],
+        ['first', 'first-block'],
+      );
+      expect(
+        repository.savedPositions.map(
+          (position) => [position.chapterId, position.blockId],
+        ),
+        [
+          ['first', 'second-block'],
+          ['empty', null],
+          ['first', 'first-block'],
+        ],
+      );
+      await cubit.close();
+    },
+  );
+
+  test(
+    'text PDF mapping and page clamp persist full related position',
+    () async {
+      final repository = _Repository(content: _navigationContent());
+      final cubit = _cubit(repository);
+      await cubit.load('book');
+      cubit.selectBlock('first', 'second-block');
+
+      cubit.showPdf();
+      expect([cubit.state.mode, cubit.state.pdfPage], [ReaderMode.pdf, 2]);
+      cubit.pageChanged(99);
+      expect(cubit.state.pdfPage, 3);
+      cubit.showText();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        [cubit.state.mode, cubit.state.chapterId, cubit.state.blockId],
+        [ReaderMode.text, 'empty', null],
+      );
+      final saved = repository.savedPositions.last;
+      expect(
+        [
+          saved.bookId,
+          saved.mode,
+          saved.chapterId,
+          saved.blockId,
+          saved.pdfPage,
+        ],
+        ['book', ReaderMode.text, 'empty', null, 3],
+      );
+      await cubit.close();
+    },
+  );
+
+  test('foreign and repeated selections are idempotent', () async {
+    final repository = _Repository(content: _navigationContent());
+    final cubit = _cubit(repository);
+    await cubit.load('book');
+
+    cubit.selectBlock('foreign', 'first-block');
+    cubit.selectBlock('first', 'foreign');
+    cubit.selectBlock('first', 'first-block');
+    cubit.selectChapter('first');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      [cubit.state.chapterId, cubit.state.blockId],
+      ['first', 'first-block'],
+    );
+    expect(repository.savedPositions, isEmpty);
+    await cubit.close();
+  });
+
+  test(
+    'state changes remain readable while position save is pending',
+    () async {
+      final pending = Completer<void>();
+      final repository = _Repository(
+        content: _navigationContent(),
+        savePositionPending: pending,
+      );
+      final cubit = _cubit(repository);
+      await cubit.load('book');
+
+      cubit.selectBlock('first', 'second-block');
+
+      expect(cubit.state.blockId, 'second-block');
+      expect(cubit.state.status, VisualReaderStatus.ready);
+      pending.complete();
+      await Future<void>.delayed(Duration.zero);
+      await cubit.close();
+    },
+  );
 }
 
 VisualReaderCubit _cubit(_Repository repository) =>
@@ -185,6 +292,69 @@ ReaderBookContent _content({String id = 'book'}) => ReaderBookContent(
   ],
 );
 
+ReaderBookContent _navigationContent() => ReaderBookContent(
+  book: Book(
+    id: 'book',
+    title: 'Book',
+    originalFileName: 'book.pdf',
+    storedFilePath: '/book.pdf',
+    fileHash: 'book',
+    status: BookStatus.ready,
+    processingProgress: 1,
+    pageCount: 3,
+    chapterCount: 2,
+    blockCount: 2,
+    activeContentRunId: 'run',
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  ),
+  chapters: [
+    ReaderChapter(
+      chapter: ChapterDraft(
+        id: 'first',
+        title: 'First',
+        sortOrder: 0,
+        startPage: 1,
+        endPage: 2,
+        cleanText: 'First\n\nSecond',
+      ),
+      blocks: [
+        NarrationBlockDraft(
+          id: 'first-block',
+          chapterId: 'first',
+          sortOrder: 0,
+          originalText: 'First',
+          normalizedText: 'First',
+          characterCount: 5,
+          startPage: 1,
+          endPage: 1,
+        ),
+        NarrationBlockDraft(
+          id: 'second-block',
+          chapterId: 'first',
+          sortOrder: 1,
+          originalText: 'Second',
+          normalizedText: 'Second',
+          characterCount: 6,
+          startPage: 2,
+          endPage: 2,
+        ),
+      ],
+    ),
+    ReaderChapter(
+      chapter: ChapterDraft(
+        id: 'empty',
+        title: 'Empty',
+        sortOrder: 1,
+        startPage: 3,
+        endPage: 3,
+        cleanText: '',
+      ),
+      blocks: const [],
+    ),
+  ],
+);
+
 final class _Repository implements VisualReaderRepository {
   _Repository({
     this.content,
@@ -192,12 +362,14 @@ final class _Repository implements VisualReaderRepository {
     this.position,
     this.contentError,
     this.firstContent,
+    this.savePositionPending,
   });
   final ReaderBookContent? content;
   final ReaderSettings? settings;
   final ReaderPosition? position;
   final Object? contentError;
   final Completer<ReaderBookContent?>? firstContent;
+  final Completer<void>? savePositionPending;
   final savedPositions = <ReaderPosition>[];
   var loads = 0;
 
@@ -214,8 +386,11 @@ final class _Repository implements VisualReaderRepository {
   Future<ReaderSettings> loadSettings() async =>
       settings ?? ReaderSettings.defaults();
   @override
-  Future<void> savePosition(ReaderPosition position) async =>
-      savedPositions.add(position);
+  Future<void> savePosition(ReaderPosition position) async {
+    savedPositions.add(position);
+    await savePositionPending?.future;
+  }
+
   @override
   Future<void> saveSettings(ReaderSettings settings) async {}
 }
