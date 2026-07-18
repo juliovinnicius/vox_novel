@@ -10,7 +10,6 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
 import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
-import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_state.dart';
 
 void main() {
   const selected = PickedPdf(
