@@ -8,7 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vox_novel/app/app_cubit.dart';
 import 'package:vox_novel/app/dependency_injection/configure_dependencies.dart';
-import 'package:vox_novel/core/database/app_database.dart';
+import 'package:vox_novel/core/database/app_database.dart' hide ReaderPosition;
 import 'package:vox_novel/features/import_book/domain/services/book_file_storage.dart';
 import 'package:vox_novel/features/import_book/domain/services/import_book_service.dart';
 import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
@@ -18,9 +18,14 @@ import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
 import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
+import 'package:vox_novel/features/visual_reader/data/repositories/drift_visual_reader_repository.dart';
+import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
+import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
+import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
 
 void main() {
   late GetIt locator;
@@ -54,6 +59,12 @@ void main() {
     expect(locator.isRegistered<TextProcessingRepository>(), isTrue);
     expect(locator.isRegistered<TextProcessingService>(), isTrue);
     expect(locator.isRegistered<TextProcessingCubit>(), isTrue);
+    expect(locator.isRegistered<VisualReaderRepository>(), isTrue);
+    expect(locator.isRegistered<ReaderCubitRegistry>(), isTrue);
+    expect(
+      locator<VisualReaderRepository>(),
+      isA<DriftVisualReaderRepository>(),
+    );
   });
 
   test(
@@ -91,6 +102,7 @@ void main() {
     final router = locator<GoRouter>();
     final libraryCubit = locator<LibraryCubit>();
     final importCubit = locator<ImportBookCubit>();
+    final readerRepository = locator<VisualReaderRepository>();
 
     await configureDependencies(
       instance: locator,
@@ -102,6 +114,68 @@ void main() {
     expect(locator<GoRouter>(), same(router));
     expect(locator<LibraryCubit>(), same(libraryCubit));
     expect(locator<ImportBookCubit>(), same(importCubit));
+    expect(locator<VisualReaderRepository>(), same(readerRepository));
+  });
+
+  test(
+    'reader registry creates and closes one Cubit per route scope',
+    () async {
+      final repository = _ReaderRepository();
+      final created = <VisualReaderCubit>[];
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        visualReaderRepository: repository,
+        visualReaderCubitFactory: (repository, clock) {
+          final cubit = VisualReaderCubit(repository: repository, clock: clock);
+          created.add(cubit);
+          return cubit;
+        },
+      );
+      final registry = locator<ReaderCubitRegistry>();
+      final first = registry.create();
+      final second = registry.create();
+      await first.load('book-id');
+      await second.load('book-id');
+
+      expect(repository.loadCalls, 2);
+      expect(created, [same(first), same(second)]);
+      expect(registry.activeCubits, hasLength(2));
+
+      await registry.close(first);
+      await registry.close(second);
+      expect(first.isClosed, isTrue);
+      expect(second.isClosed, isTrue);
+      expect(registry.activeCubits, isEmpty);
+    },
+  );
+
+  test('reset awaits the latest pending reader write', () async {
+    final repository = _ReaderRepository(pendingSave: Completer<void>());
+    await configureDependencies(
+      instance: locator,
+      databaseExecutor: NativeDatabase.memory(),
+      pdfTextExtractor: _Extractor(),
+      visualReaderRepository: repository,
+    );
+    final cubit = locator<ReaderCubitRegistry>().create();
+    await cubit.load('book-id');
+    cubit.nextChapter();
+    await Future<void>.delayed(Duration.zero);
+
+    var resetCompleted = false;
+    final reset = resetDependencies(
+      instance: locator,
+    ).then((_) => resetCompleted = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(resetCompleted, isFalse);
+
+    repository.pendingSave!.complete();
+    await reset;
+    expect(resetCompleted, isTrue);
+    expect(cubit.isClosed, isTrue);
+    expect(locator.isRegistered<AppDatabase>(), isFalse);
   });
 
   test('reset disposes resources and clears the supplied locator', () async {
@@ -305,6 +379,80 @@ Future<void> _expectNoProcessingRows(AppDatabase database) async {
   expect(await database.select(database.rawPages).get(), isEmpty);
   expect(await database.select(database.chapters).get(), isEmpty);
   expect(await database.select(database.narrationBlocks).get(), isEmpty);
+}
+
+final class _ReaderRepository implements VisualReaderRepository {
+  _ReaderRepository({this.pendingSave});
+
+  final Completer<void>? pendingSave;
+  var loadCalls = 0;
+
+  ReaderBookContent get content {
+    ReaderChapter chapter(String id, int order) {
+      final text = 'Texto $order';
+      final draft = ChapterDraft(
+        id: id,
+        title: 'Capítulo $order',
+        sortOrder: order,
+        startPage: order + 1,
+        endPage: order + 1,
+        cleanText: text,
+      );
+      return ReaderChapter(
+        chapter: draft,
+        blocks: [
+          NarrationBlockDraft(
+            id: '$id-block',
+            chapterId: id,
+            sortOrder: 0,
+            originalText: text,
+            normalizedText: text,
+            characterCount: text.runes.length,
+            startPage: order + 1,
+            endPage: order + 1,
+          ),
+        ],
+      );
+    }
+
+    return ReaderBookContent(
+      book: domain.Book(
+        id: 'book-id',
+        title: 'Livro',
+        originalFileName: 'livro.pdf',
+        storedFilePath: '/books/livro.pdf',
+        fileHash: 'reader-hash',
+        status: domain.BookStatus.ready,
+        processingProgress: 1,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+        pageCount: 2,
+        chapterCount: 2,
+        blockCount: 2,
+        activeContentRunId: 'run-id',
+      ),
+      chapters: [chapter('one', 0), chapter('two', 1)],
+    );
+  }
+
+  @override
+  Future<ReaderBookContent?> loadContent(String bookId) async {
+    loadCalls++;
+    return bookId == 'book-id' ? content : null;
+  }
+
+  @override
+  Future<ReaderPosition?> loadPosition(String bookId) async => null;
+
+  @override
+  Future<ReaderSettings> loadSettings() async => ReaderSettings.defaults();
+
+  @override
+  Future<void> savePosition(ReaderPosition position) =>
+      pendingSave?.future ?? Future.value();
+
+  @override
+  Future<void> saveSettings(ReaderSettings settings) async {}
 }
 
 final class _Extractor implements PdfTextExtractor {

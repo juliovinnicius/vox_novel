@@ -11,6 +11,8 @@ import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
+import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
+import 'package:vox_novel/features/visual_reader/presentation/widgets/original_pdf_view.dart';
 
 typedef DependencyConfigurator =
     Future<void> Function({
@@ -24,6 +26,9 @@ typedef DependencyConfigurator =
       TextProcessingRepository? textProcessingRepository,
       ProcessingExecutor processingExecutor,
       Future<void> Function()? initializePdfEngine,
+      VisualReaderRepository? visualReaderRepository,
+      VisualReaderCubitFactory? visualReaderCubitFactory,
+      PdfSurfaceBuilder pdfSurfaceBuilder,
     });
 
 Future<void> main() async {
@@ -42,6 +47,9 @@ Future<VoxNovelApp> createApplication({
   TextProcessingRepository? textProcessingRepository,
   ProcessingExecutor processingExecutor = isolateProcessingExecutor,
   Future<void> Function()? initializePdfEngine,
+  VisualReaderRepository? visualReaderRepository,
+  VisualReaderCubitFactory? visualReaderCubitFactory,
+  PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
   DependencyConfigurator? configure,
 }) async {
   final locator = instance ?? GetIt.instance;
@@ -56,6 +64,9 @@ Future<VoxNovelApp> createApplication({
     textProcessingRepository: textProcessingRepository,
     processingExecutor: processingExecutor,
     initializePdfEngine: initializePdfEngine,
+    visualReaderRepository: visualReaderRepository,
+    visualReaderCubitFactory: visualReaderCubitFactory,
+    pdfSurfaceBuilder: pdfSurfaceBuilder,
   );
 
   final appCubit = locator<AppCubit>()..markReady();
@@ -73,6 +84,9 @@ Future<void> _configureDependencies({
   TextProcessingRepository? textProcessingRepository,
   ProcessingExecutor processingExecutor = isolateProcessingExecutor,
   Future<void> Function()? initializePdfEngine,
+  VisualReaderRepository? visualReaderRepository,
+  VisualReaderCubitFactory? visualReaderCubitFactory,
+  PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
 }) {
   return configureDependencies(
     instance: instance,
@@ -85,5 +99,8 @@ Future<void> _configureDependencies({
     textProcessingRepository: textProcessingRepository,
     processingExecutor: processingExecutor,
     initializePdfEngine: initializePdfEngine,
+    visualReaderRepository: visualReaderRepository,
+    visualReaderCubitFactory: visualReaderCubitFactory,
+    pdfSurfaceBuilder: pdfSurfaceBuilder,
   );
 }

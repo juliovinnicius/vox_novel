@@ -28,6 +28,8 @@ import 'package:vox_novel/features/pdf_processing/domain/entities/text_processin
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
+import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
+import 'package:vox_novel/features/visual_reader/presentation/widgets/original_pdf_view.dart';
 import 'package:vox_novel/main.dart' as application;
 
 void main() {
@@ -69,6 +71,9 @@ void main() {
                 ProcessingExecutor processingExecutor =
                     isolateProcessingExecutor,
                 Future<void> Function()? initializePdfEngine,
+                VisualReaderRepository? visualReaderRepository,
+                VisualReaderCubitFactory? visualReaderCubitFactory,
+                PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
               }) async {
                 await allowConfiguration.future;
                 await configureDependencies(
@@ -82,6 +87,9 @@ void main() {
                   textProcessingRepository: textProcessingRepository,
                   processingExecutor: processingExecutor,
                   initializePdfEngine: initializePdfEngine,
+                  visualReaderRepository: visualReaderRepository,
+                  visualReaderCubitFactory: visualReaderCubitFactory,
+                  pdfSurfaceBuilder: pdfSurfaceBuilder,
                 );
               },
         )

@@ -16,12 +16,14 @@ final class ReaderPage extends StatefulWidget {
     required this.bookId,
     required this.cubit,
     this.pdfSurfaceBuilder = buildPdfrxSurface,
+    this.closeCubit,
     super.key,
   });
 
   final String bookId;
   final VisualReaderCubit cubit;
   final PdfSurfaceBuilder pdfSurfaceBuilder;
+  final Future<void> Function(VisualReaderCubit cubit)? closeCubit;
 
   @override
   State<ReaderPage> createState() => _ReaderPageState();
@@ -43,7 +45,7 @@ final class _ReaderPageState extends State<ReaderPage> {
     for (final controller in _scrollControllers.values) {
       controller.dispose();
     }
-    unawaited(widget.cubit.close());
+    unawaited(widget.closeCubit?.call(widget.cubit) ?? widget.cubit.close());
     super.dispose();
   }
 

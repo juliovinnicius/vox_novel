@@ -27,6 +27,48 @@ import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extra
 import 'package:vox_novel/features/pdf_processing/domain/services/text_cleaner.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
 import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
+import 'package:vox_novel/features/visual_reader/data/repositories/drift_visual_reader_repository.dart';
+import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
+import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
+import 'package:vox_novel/features/visual_reader/presentation/pages/reader_page.dart';
+import 'package:vox_novel/features/visual_reader/presentation/widgets/original_pdf_view.dart';
+
+typedef VisualReaderCubitFactory =
+    VisualReaderCubit Function(
+      VisualReaderRepository repository,
+      DateTime Function() clock,
+    );
+
+final class ReaderCubitRegistry {
+  ReaderCubitRegistry(this._repository, this._clock, this._factory);
+
+  final VisualReaderRepository _repository;
+  final DateTime Function() _clock;
+  final VisualReaderCubitFactory _factory;
+  final Map<VisualReaderCubit, Future<void>?> _active = {};
+
+  Iterable<VisualReaderCubit> get activeCubits =>
+      List.unmodifiable(_active.keys);
+
+  VisualReaderCubit create() {
+    final cubit = _factory(_repository, _clock);
+    _active[cubit] = null;
+    return cubit;
+  }
+
+  Future<void> close(VisualReaderCubit cubit) {
+    final pending = _active[cubit];
+    if (pending != null) return pending;
+    if (!_active.containsKey(cubit)) return Future.value();
+    final future = cubit.close();
+    _active[cubit] = future;
+    return future.whenComplete(() => _active.remove(cubit));
+  }
+
+  Future<void> closeAll() async {
+    await Future.wait([..._active.keys].map(close));
+  }
+}
 
 Future<void> configureDependencies({
   GetIt? instance,
@@ -40,6 +82,9 @@ Future<void> configureDependencies({
   ProcessingExecutor processingExecutor = isolateProcessingExecutor,
   void Function(int workerIdentity)? onCpuWorkerIsolate,
   Future<void> Function()? initializePdfEngine,
+  VisualReaderRepository? visualReaderRepository,
+  VisualReaderCubitFactory? visualReaderCubitFactory,
+  PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
 }) async {
   final locator = instance ?? GetIt.instance;
 
@@ -151,6 +196,25 @@ Future<void> configureDependencies({
     );
   }
 
+  if (!locator.isRegistered<VisualReaderRepository>()) {
+    locator.registerSingleton<VisualReaderRepository>(
+      visualReaderRepository ??
+          DriftVisualReaderRepository(locator<AppDatabase>()),
+    );
+  }
+  if (!locator.isRegistered<ReaderCubitRegistry>()) {
+    locator.registerSingleton(
+      ReaderCubitRegistry(
+        locator(),
+        now,
+        visualReaderCubitFactory ??
+            (repository, clock) =>
+                VisualReaderCubit(repository: repository, clock: clock),
+      ),
+      dispose: (registry) => registry.closeAll(),
+    );
+  }
+
   if (!locator.isRegistered<GoRouter>()) {
     locator.registerSingleton<GoRouter>(
       createAppRouter(
@@ -159,12 +223,26 @@ Future<void> configureDependencies({
           importBookCubit: locator(),
           textProcessingCubit: locator(),
         ),
+        readerPageBuilder: (_, bookId) {
+          final registry = locator<ReaderCubitRegistry>();
+          final cubit = registry.create();
+          return ReaderPage(
+            bookId: bookId,
+            cubit: cubit,
+            closeCubit: registry.close,
+            pdfSurfaceBuilder: pdfSurfaceBuilder,
+          );
+        },
       ),
       dispose: (router) => router.dispose(),
     );
   }
 }
 
-Future<void> resetDependencies({GetIt? instance}) {
-  return (instance ?? GetIt.instance).reset();
+Future<void> resetDependencies({GetIt? instance}) async {
+  final locator = instance ?? GetIt.instance;
+  if (locator.isRegistered<ReaderCubitRegistry>()) {
+    await locator<ReaderCubitRegistry>().closeAll();
+  }
+  await locator.reset();
 }
