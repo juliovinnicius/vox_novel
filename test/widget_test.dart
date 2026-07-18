@@ -16,6 +16,7 @@ import 'package:vox_novel/core/database/app_database.dart' hide RawPage;
 import 'package:vox_novel/features/import_book/data/services/local_book_file_storage.dart';
 import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
 import 'package:vox_novel/features/import_book/presentation/cubit/import_book_cubit.dart';
+import 'package:vox_novel/features/import_book/presentation/cubit/import_book_state.dart';
 import 'package:vox_novel/features/library/data/repositories/drift_book_repository.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
@@ -24,6 +25,8 @@ import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart
 import 'package:vox_novel/features/library/presentation/cubit/library_state.dart';
 import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
+import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 import 'package:vox_novel/main.dart' as application;
 
 void main() {
@@ -51,6 +54,7 @@ void main() {
           instance: locator,
           databaseExecutor: NativeDatabase.memory(),
           supportDirectory: Directory.systemTemp,
+          pdfTextExtractor: _TextExtractor(),
           configure:
               ({
                 required instance,
@@ -59,6 +63,9 @@ void main() {
                 PdfPicker? pdfPicker,
                 DateTime Function()? clock,
                 String Function()? generateId,
+                PdfTextExtractor? pdfTextExtractor,
+                TextProcessingRepository? textProcessingRepository,
+                Future<void> Function()? initializePdfEngine,
               }) async {
                 await allowConfiguration.future;
                 await configureDependencies(
@@ -68,6 +75,9 @@ void main() {
                   pdfPicker: pdfPicker,
                   clock: clock,
                   generateId: generateId,
+                  pdfTextExtractor: pdfTextExtractor,
+                  textProcessingRepository: textProcessingRepository,
+                  initializePdfEngine: initializePdfEngine,
                 );
               },
         )
@@ -93,33 +103,124 @@ void main() {
   testWidgets('root imports, edits and completely deletes a durable book', (
     tester,
   ) async {
-    final locator = GetIt.asNewInstance();
+    var locator = GetIt.asNewInstance();
     final root = await tester.runAsync(
       () => Directory.systemTemp.createTemp('vox_novel_root_'),
     );
     final source = File('${root!.path}/fixture.pdf');
+    final databaseFile = File('${root.path}/library.sqlite');
     await tester.runAsync(() => source.writeAsBytes([1, 2, 3]));
     addTearDown(() async {
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
       await resetDependencies(instance: locator);
       if (await root.exists()) await root.delete(recursive: true);
     });
+    final ids = ['book-id', 'run-id', 'chapter-id', 'block-id'].iterator;
 
     final app = await application.createApplication(
       instance: locator,
-      databaseExecutor: NativeDatabase.memory(),
+      databaseExecutor: NativeDatabase(databaseFile),
       supportDirectory: root,
       pdfPicker: _FixturePicker(source.path),
       clock: () => DateTime(2026),
-      generateId: () => 'book-id',
+      generateId: () {
+        if (!ids.moveNext()) throw StateError('Unexpected generated ID');
+        return ids.current;
+      },
+      pdfTextExtractor: _TextExtractor(),
     );
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
 
-    await tester.runAsync(() => locator<ImportBookCubit>().importPdf());
+    await tester.tap(find.text('Importar PDF'));
+    for (var frame = 0; frame < 100; frame++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+      if (locator<ImportBookCubit>().state.status == ImportBookStatus.idle) {
+        break;
+      }
+    }
+    expect(locator<ImportBookCubit>().state.status, ImportBookStatus.idle);
     await tester.pump();
     expect(find.text('fixture'), findsOneWidget);
     expect(File('${root.path}/books/book-id.pdf').existsSync(), isTrue);
+    domain.Book? ready = await tester.runAsync<domain.Book?>(
+      () => locator<BookRepository>().findById('book-id'),
+    );
+    expect(ready?.status, domain.BookStatus.ready);
+    expect(ready?.processingProgress, 1);
+    expect(ready?.processingStage, ProcessingStage.completed);
+    expect(ready?.activeContentRunId, 'run-id');
+    expect(ready?.pageCount, 1);
+    expect(ready?.chapterCount, 1);
+    expect(ready?.blockCount, 1);
+    var database = locator<AppDatabase>();
+    expect(
+      await tester.runAsync(() => database.select(database.rawPages).get()),
+      hasLength(1),
+    );
+    expect(
+      (await tester.runAsync(
+        () => database.select(database.rawPages).getSingle(),
+      ))?.rawText,
+      'Capítulo 1\nTexto narrável.',
+    );
+    expect(
+      (await tester.runAsync(
+        () => database.select(database.rawPages).getSingle(),
+      ))?.cleanText,
+      'Capítulo 1\nTexto narrável.',
+    );
+    expect(
+      (await tester.runAsync(
+        () => database.select(database.chapters).getSingle(),
+      ))?.title,
+      'Capítulo 1',
+    );
+    expect(
+      (await tester.runAsync(
+        () => database.select(database.narrationBlocks).getSingle(),
+      ))?.originalText,
+      'Texto narrável.',
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.runAsync(() => resetDependencies(instance: locator));
+    locator = GetIt.asNewInstance();
+    final restarted = await tester.runAsync(
+      () => application.createApplication(
+        instance: locator,
+        databaseExecutor: NativeDatabase(databaseFile),
+        supportDirectory: root,
+        pdfTextExtractor: _TextExtractor(),
+      ),
+    );
+    await tester.pumpWidget(restarted!);
+    await tester.pumpAndSettle();
+    expect(find.text('fixture'), findsOneWidget);
+    ready = await tester.runAsync<domain.Book?>(
+      () => locator<BookRepository>().findById('book-id'),
+    );
+    expect(ready?.status, domain.BookStatus.ready);
+    expect(ready?.activeContentRunId, 'run-id');
+    database = locator<AppDatabase>();
+    expect(
+      await tester.runAsync(() => database.select(database.rawPages).get()),
+      hasLength(1),
+    );
+    expect(
+      await tester.runAsync(() => database.select(database.chapters).get()),
+      hasLength(1),
+    );
+    expect(
+      await tester.runAsync(
+        () => database.select(database.narrationBlocks).get(),
+      ),
+      hasLength(1),
+    );
+
     final cover = File('${root.path}/books/book-id.jpg');
     await tester.runAsync(() => cover.writeAsBytes([4, 5, 6]));
     await tester.runAsync(
@@ -134,10 +235,10 @@ void main() {
       () => locator<BookRepository>().findById('book-id'),
     );
     await tester.tap(find.byTooltip('Editar fixture'));
-    await tester.pumpAndSettle();
+    await _pumpTransition(tester);
     await tester.enterText(find.byType(TextFormField).first, 'Discarded edit');
     await tester.tap(find.text('Cancelar'));
-    await tester.pumpAndSettle();
+    await _pumpTransition(tester);
     expect(
       await tester.runAsync(
         () => locator<BookRepository>().findById('book-id'),
@@ -146,9 +247,9 @@ void main() {
     );
 
     await tester.tap(find.byTooltip('Excluir fixture'));
-    await tester.pumpAndSettle();
+    await _pumpTransition(tester);
     await tester.tap(find.text('Cancelar'));
-    await tester.pumpAndSettle();
+    await _pumpTransition(tester);
     expect(
       await tester.runAsync(
         () => locator<BookRepository>().findById('book-id'),
@@ -169,7 +270,7 @@ void main() {
         title: '  Renomeado  ',
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpTransition(tester);
     expect(find.text('Renomeado'), findsOneWidget);
 
     final renamed = await tester.runAsync(
@@ -357,6 +458,7 @@ void main() {
             instance: locator,
             databaseExecutor: NativeDatabase(databaseFile),
             supportDirectory: root,
+            pdfTextExtractor: _TextExtractor(),
           ),
         );
         await tester.pumpWidget(app!);
@@ -390,6 +492,11 @@ void main() {
   );
 }
 
+Future<void> _pumpTransition(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
 domain.Book _persistedBook({
   required String id,
   required String title,
@@ -410,6 +517,19 @@ final class _FixturePicker implements PdfPicker {
   const _FixturePicker(this.path);
   final String path;
   @override
-  Future<PickedPdf?> pickPdf() async =>
-      PickedPdf(sourcePath: path, originalFileName: 'fixture.pdf');
+  Future<PickedPdf?> pickPdf() async {
+    return PickedPdf(sourcePath: path, originalFileName: 'fixture.pdf');
+  }
+}
+
+final class _TextExtractor implements PdfTextExtractor {
+  @override
+  Stream<PdfExtractionEvent> extract(PdfExtractionRequest request) async* {
+    yield PdfExtractionOpened(request.runId, 1, 99);
+    yield PdfExtractionPage(request.runId, 1, 1, 'Capítulo 1\nTexto narrável.');
+    yield PdfExtractionCompleted(request.runId, 1);
+  }
+
+  @override
+  Future<void> cancel(String runId) async {}
 }

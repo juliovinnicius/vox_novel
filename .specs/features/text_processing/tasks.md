@@ -374,7 +374,7 @@ chapters, blocks, progress, typed outcomes, global serialization, and rollback.
 **Gate**: build
 **Commit**: `feat(processing): add text processing Cubit`
 
-### T10: Add per-book processing controls to library items
+### T10: Add per-book processing controls to library items ✅
 
 **What**: Extend list/grid book items with exact determinate stage/percentage
 display and accessible cancellation for actively processing books.
@@ -402,7 +402,7 @@ display and accessible cancellation for actively processing books.
 **Gate**: quick
 **Commit**: `feat(library): show book processing progress`
 
-### T11: Integrate processing actions and feedback into the library page
+### T11: Integrate processing actions and feedback into the library page ✅
 
 **What**: Provide the processing Cubit, route exact cancel actions, and surface
 cancel/no-text/failure feedback while preserving library behavior.
@@ -430,7 +430,7 @@ cancel/no-text/failure feedback while preserving library behavior.
 **Gate**: quick
 **Commit**: `feat(library): integrate processing controls`
 
-### T12: Start processing automatically after import
+### T12: Start processing automatically after import ✅
 
 **What**: Connect the committed import result to `TextProcessingCubit` and extend
 the import state sequence through automatic processing.
@@ -459,7 +459,7 @@ the import state sequence through automatic processing.
 **Gate**: quick
 **Commit**: `feat(import): start automatic text processing`
 
-### T13: Preserve derived content through compensated deletion
+### T13: Preserve derived content through compensated deletion ✅
 
 **What**: Extend library deletion persistence so successful deletion cascades all
 processing data and failed permanent file cleanup restores the exact active dataset.
@@ -490,7 +490,7 @@ processing data and failed permanent file cleanup restores the exact active data
 **Gate**: full
 **Commit**: `fix(library): preserve processed content on deletion rollback`
 
-### T14: Compose and verify the complete text-processing flow
+### T14: Compose and verify the complete text-processing flow ✅
 
 **What**: Register all processing dependencies, initialize `pdfrx`, inject test
 seams, wire the real page/Cubits, and prove import→process→restart/delete end to end.

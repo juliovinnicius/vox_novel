@@ -8,6 +8,8 @@ import 'package:vox_novel/app/app.dart';
 import 'package:vox_novel/app/app_cubit.dart';
 import 'package:vox_novel/app/dependency_injection/configure_dependencies.dart';
 import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
+import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 
 typedef DependencyConfigurator =
     Future<void> Function({
@@ -17,6 +19,9 @@ typedef DependencyConfigurator =
       PdfPicker? pdfPicker,
       DateTime Function()? clock,
       String Function()? generateId,
+      PdfTextExtractor? pdfTextExtractor,
+      TextProcessingRepository? textProcessingRepository,
+      Future<void> Function()? initializePdfEngine,
     });
 
 Future<void> main() async {
@@ -31,6 +36,9 @@ Future<VoxNovelApp> createApplication({
   PdfPicker? pdfPicker,
   DateTime Function()? clock,
   String Function()? generateId,
+  PdfTextExtractor? pdfTextExtractor,
+  TextProcessingRepository? textProcessingRepository,
+  Future<void> Function()? initializePdfEngine,
   DependencyConfigurator? configure,
 }) async {
   final locator = instance ?? GetIt.instance;
@@ -41,6 +49,9 @@ Future<VoxNovelApp> createApplication({
     pdfPicker: pdfPicker,
     clock: clock,
     generateId: generateId,
+    pdfTextExtractor: pdfTextExtractor,
+    textProcessingRepository: textProcessingRepository,
+    initializePdfEngine: initializePdfEngine,
   );
 
   final appCubit = locator<AppCubit>()..markReady();
@@ -54,6 +65,9 @@ Future<void> _configureDependencies({
   PdfPicker? pdfPicker,
   DateTime Function()? clock,
   String Function()? generateId,
+  PdfTextExtractor? pdfTextExtractor,
+  TextProcessingRepository? textProcessingRepository,
+  Future<void> Function()? initializePdfEngine,
 }) {
   return configureDependencies(
     instance: instance,
@@ -62,5 +76,8 @@ Future<void> _configureDependencies({
     pdfPicker: pdfPicker,
     clock: clock,
     generateId: generateId,
+    pdfTextExtractor: pdfTextExtractor,
+    textProcessingRepository: textProcessingRepository,
+    initializePdfEngine: initializePdfEngine,
   );
 }
