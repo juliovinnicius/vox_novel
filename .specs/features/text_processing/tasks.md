@@ -61,6 +61,7 @@ order and receive one atomic commit each.
 - [x] F0 — Resolve committed domain analyzer findings before the Phase 1 build
   gate without changing behavior or tests — `7c161c8`
 - [x] T5
+- [x] T6
 
 ### Phase 1: PDF boundary and deterministic domain
 
@@ -249,7 +250,7 @@ domain tasks without changing behavior or tests.
 **Gate**: build
 **Commit**: `fix(processing): satisfy domain analysis gate`
 
-### T6: Add the version-3 processing schema and migration
+### T6: Add the version-3 processing schema and migration ✅
 
 **What**: Add feature-owned processing tables, book processing columns, indexes,
 foreign keys/cascades, migration, and regenerated Drift code.

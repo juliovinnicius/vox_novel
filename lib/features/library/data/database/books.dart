@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 
 class BookStatusConverter extends TypeConverter<BookStatus, String> {
   const BookStatusConverter();
@@ -22,6 +23,19 @@ class UtcDateTimeConverter extends TypeConverter<DateTime, int> {
   int toSql(DateTime value) => value.millisecondsSinceEpoch;
 }
 
+class ProcessingStageConverter extends TypeConverter<ProcessingStage, String> {
+  const ProcessingStageConverter();
+
+  @override
+  ProcessingStage fromSql(String fromDb) => ProcessingStage.values.firstWhere(
+    (stage) => stage.name == fromDb,
+    orElse: () => throw FormatException('Unknown processing stage: $fromDb'),
+  );
+
+  @override
+  String toSql(ProcessingStage value) => value.name;
+}
+
 @TableIndex(name: 'books_file_hash_unique', columns: {#fileHash}, unique: true)
 class Books extends Table {
   TextColumn get id => text()();
@@ -33,6 +47,15 @@ class Books extends Table {
   TextColumn get fileHash => text()();
   TextColumn get status => text().map(const BookStatusConverter())();
   RealColumn get processingProgress => real()();
+  IntColumn get pageCount => integer().withDefault(const Constant(0))();
+  IntColumn get chapterCount => integer().withDefault(const Constant(0))();
+  IntColumn get blockCount => integer().withDefault(const Constant(0))();
+  TextColumn get processingStage => text()
+      .map(NullAwareTypeConverter.wrap(const ProcessingStageConverter()))
+      .nullable()();
+  TextColumn get activeContentRunId => text().nullable().customConstraint(
+    'NULL REFERENCES processing_runs(id) ON DELETE SET NULL',
+  )();
   IntColumn get createdAt => integer().map(const UtcDateTimeConverter())();
   IntColumn get updatedAt => integer().map(const UtcDateTimeConverter())();
 
