@@ -57,6 +57,9 @@ void main() {
       ]);
       expect(processing.chapters.single.title, 'Capítulo 1');
       expect(processing.blocks.single.originalText, 'Texto.\nOutro parágrafo.');
+      expect(processing.chapters.single.id, 'chapter-2');
+      expect(processing.blocks.single.id, 'block-3');
+      expect(processing.blocks.single.chapterId, processing.chapters.single.id);
     },
   );
 
