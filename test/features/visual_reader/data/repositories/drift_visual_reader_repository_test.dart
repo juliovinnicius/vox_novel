@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart' show Value;
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/core/database/app_database.dart' hide ReaderPosition;
@@ -106,6 +108,64 @@ void main() {
     );
     expect(await database.select(database.readerPositions).get(), hasLength(1));
   });
+
+  test(
+    'physical position writes start serially and persist the second',
+    () async {
+      final firstStarted = Completer<void>();
+      final releaseFirst = Completer<void>();
+      final starts = <String?>[];
+      repository = DriftVisualReaderRepository(
+        database,
+        beforePositionWrite: (position) async {
+          starts.add(position.blockId);
+          if (position.blockId == '9') {
+            firstStarted.complete();
+            await releaseFirst.future;
+          }
+        },
+      );
+      final first = ReaderPosition(
+        bookId: 'book',
+        mode: ReaderMode.text,
+        chapterId: 'z',
+        blockId: '9',
+        pdfPage: 1,
+        updatedAt: DateTime.utc(2026, 2, 1),
+      );
+      final second = ReaderPosition(
+        bookId: 'book',
+        mode: ReaderMode.pdf,
+        chapterId: 'a',
+        blockId: '1',
+        pdfPage: 2,
+        updatedAt: DateTime.utc(2026, 2, 2),
+      );
+
+      final firstWrite = repository.savePosition(first);
+      await firstStarted.future;
+      final secondWrite = repository.savePosition(second);
+      await Future<void>.delayed(Duration.zero);
+      final startsBeforeRelease = [...starts];
+
+      releaseFirst.complete();
+      await Future.wait([firstWrite, secondWrite]);
+      expect(startsBeforeRelease, ['9']);
+      expect(starts, ['9', '1']);
+      final durable = await repository.loadPosition('book');
+      expect(
+        [
+          durable?.bookId,
+          durable?.mode,
+          durable?.chapterId,
+          durable?.blockId,
+          durable?.pdfPage,
+          durable?.updatedAt,
+        ],
+        ['book', ReaderMode.pdf, 'a', '1', 2, DateTime.utc(2026, 2, 2)],
+      );
+    },
+  );
 
   test('query and save errors propagate without partial content', () async {
     await database.close();

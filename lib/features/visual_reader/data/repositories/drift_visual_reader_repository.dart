@@ -6,9 +6,15 @@ import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.d
 import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
 
 final class DriftVisualReaderRepository implements VisualReaderRepository {
-  DriftVisualReaderRepository(this._database);
+  DriftVisualReaderRepository(
+    this._database, {
+    Future<void> Function(ReaderPosition position)? beforePositionWrite,
+  }) : // Public seam name intentionally omits a private prefix.
+       // ignore: prefer_initializing_formals
+       _beforePositionWrite = beforePositionWrite;
 
   final db.AppDatabase _database;
+  final Future<void> Function(ReaderPosition position)? _beforePositionWrite;
   final Map<String, Future<void>> _positionTails = {};
 
   @override
@@ -130,22 +136,21 @@ final class DriftVisualReaderRepository implements VisualReaderRepository {
   @override
   Future<void> savePosition(ReaderPosition position) {
     final previous = _positionTails[position.bookId] ?? Future.value();
-    final next = previous
-        .catchError((_) {})
-        .then(
-          (_) => _database
-              .into(_database.readerPositions)
-              .insertOnConflictUpdate(
-                db.ReaderPositionsCompanion.insert(
-                  bookId: position.bookId,
-                  mode: position.mode,
-                  chapterId: Value(position.chapterId),
-                  blockId: Value(position.blockId),
-                  pdfPage: Value(position.pdfPage),
-                  updatedAt: position.updatedAt,
-                ),
-              ),
-        );
+    final next = previous.catchError((_) {}).then((_) async {
+      await _beforePositionWrite?.call(position);
+      await _database
+          .into(_database.readerPositions)
+          .insertOnConflictUpdate(
+            db.ReaderPositionsCompanion.insert(
+              bookId: position.bookId,
+              mode: position.mode,
+              chapterId: Value(position.chapterId),
+              blockId: Value(position.blockId),
+              pdfPage: Value(position.pdfPage),
+              updatedAt: position.updatedAt,
+            ),
+          );
+    });
     _positionTails[position.bookId] = next;
     return next.whenComplete(() {
       if (identical(_positionTails[position.bookId], next)) {
