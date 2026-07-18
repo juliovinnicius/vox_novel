@@ -84,7 +84,7 @@ void main() {
 
   test('stale identity and out-of-range page repair and persist', () async {
     final repository = _Repository(
-      content: _content(),
+      content: _navigationContent(),
       position: ReaderPosition(
         bookId: 'book',
         mode: ReaderMode.pdf,
@@ -105,11 +105,11 @@ void main() {
         cubit.state.blockId,
         cubit.state.pdfPage,
       ],
-      [ReaderMode.text, 'chapter', 'block', 1],
+      [ReaderMode.text, 'first', 'first-block', 1],
     );
     expect(repository.savedPositions, hasLength(1));
-    expect(repository.savedPositions.single.chapterId, 'chapter');
-    expect(repository.savedPositions.single.blockId, 'block');
+    expect(repository.savedPositions.single.chapterId, 'first');
+    expect(repository.savedPositions.single.blockId, 'first-block');
     await cubit.close();
   });
 

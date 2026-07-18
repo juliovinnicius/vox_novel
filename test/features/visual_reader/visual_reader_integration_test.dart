@@ -105,6 +105,8 @@ void main() {
 
     final cubit = _cubit(repository);
     await cubit.load('book-id');
+    expect(cubit.state.chapterId, 'chapter-1');
+    expect(cubit.state.blockId, 'block-1');
     await cubit.close();
 
     final repaired = await repository.loadPosition('book-id');
@@ -231,6 +233,16 @@ Future<void> _seedReadyBook(AppDatabase database) async {
       endPage: 1,
     ),
     NarrationBlockDraft(
+      id: 'block-1-last',
+      chapterId: 'chapter-1',
+      sortOrder: 1,
+      originalText: 'Último texto um',
+      normalizedText: 'Último texto um',
+      characterCount: 'Último texto um'.runes.length,
+      startPage: 1,
+      endPage: 1,
+    ),
+    NarrationBlockDraft(
       id: 'block-2',
       chapterId: 'chapter-2',
       sortOrder: 0,
@@ -252,7 +264,7 @@ Future<void> _seedReadyBook(AppDatabase database) async {
     runId: 'run-id',
     pageCount: 2,
     chapterCount: 2,
-    blockCount: 2,
+    blockCount: 3,
     completedAt: now,
   );
 }
