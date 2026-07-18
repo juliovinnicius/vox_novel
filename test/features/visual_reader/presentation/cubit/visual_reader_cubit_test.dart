@@ -235,6 +235,92 @@ void main() {
       await cubit.close();
     },
   );
+
+  test(
+    'settings persist complete bounded values and repeated values are no-op',
+    () async {
+      final repository = _Repository(content: _content());
+      final cubit = _cubit(repository);
+      await cubit.load('book');
+      cubit.setTheme(ReaderTheme.sepia);
+      cubit.setFontFamily(ReaderFontFamily.serif);
+      cubit.setLineHeight(2);
+      for (var step = 0; step < 10; step++) {
+        cubit.increaseFont();
+      }
+      cubit.increaseFont();
+      cubit.setTheme(ReaderTheme.sepia);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        [
+          cubit.state.settings?.theme,
+          cubit.state.settings?.fontFamily,
+          cubit.state.settings?.fontSize,
+          cubit.state.settings?.lineHeight,
+        ],
+        [ReaderTheme.sepia, ReaderFontFamily.serif, 32, 2.0],
+      );
+      await cubit.close();
+      final saved = repository.savedSettings.last;
+      expect(
+        [saved.theme, saved.fontFamily, saved.fontSize, saved.lineHeight],
+        [ReaderTheme.sepia, ReaderFontFamily.serif, 32, 2.0],
+      );
+    },
+  );
+
+  test(
+    'write failures retain state show exact messages and later continue',
+    () async {
+      final repository = _Repository(
+        content: _navigationContent(),
+        failNextPosition: true,
+        failNextSettings: true,
+      );
+      final cubit = _cubit(repository);
+      await cubit.load('book');
+      cubit.selectBlock('first', 'second-block');
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.message, 'Não foi possível salvar sua posição');
+      expect(cubit.state.blockId, 'second-block');
+      cubit.clearMessage();
+      cubit.setTheme(ReaderTheme.dark);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.message, 'Não foi possível salvar suas configurações');
+      expect(cubit.state.settings?.theme, ReaderTheme.dark);
+      cubit.clearMessage();
+      cubit.selectBlock('first', 'first-block');
+      await cubit.close();
+      expect(repository.savedPositions.last.blockId, 'first-block');
+    },
+  );
+
+  test('close awaits ordered pending position and settings writes', () async {
+    final positionPending = Completer<void>();
+    final settingsPending = Completer<void>();
+    final repository = _Repository(
+      content: _navigationContent(),
+      savePositionPending: positionPending,
+      saveSettingsPending: settingsPending,
+    );
+    final cubit = _cubit(repository);
+    await cubit.load('book');
+    cubit.selectBlock('first', 'second-block');
+    cubit.setTheme(ReaderTheme.dark);
+    var closed = false;
+    final close = cubit.close().then((_) => closed = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(closed, isFalse);
+    positionPending.complete();
+    await Future<void>.delayed(Duration.zero);
+    expect(closed, isFalse);
+    settingsPending.complete();
+    await close;
+    expect(closed, isTrue);
+  });
 }
 
 VisualReaderCubit _cubit(_Repository repository) =>
@@ -363,6 +449,9 @@ final class _Repository implements VisualReaderRepository {
     this.contentError,
     this.firstContent,
     this.savePositionPending,
+    this.saveSettingsPending,
+    this.failNextPosition = false,
+    this.failNextSettings = false,
   });
   final ReaderBookContent? content;
   final ReaderSettings? settings;
@@ -370,7 +459,11 @@ final class _Repository implements VisualReaderRepository {
   final Object? contentError;
   final Completer<ReaderBookContent?>? firstContent;
   final Completer<void>? savePositionPending;
+  final Completer<void>? saveSettingsPending;
   final savedPositions = <ReaderPosition>[];
+  final savedSettings = <ReaderSettings>[];
+  bool failNextPosition;
+  bool failNextSettings;
   var loads = 0;
 
   @override
@@ -388,9 +481,20 @@ final class _Repository implements VisualReaderRepository {
   @override
   Future<void> savePosition(ReaderPosition position) async {
     savedPositions.add(position);
+    if (failNextPosition) {
+      failNextPosition = false;
+      throw StateError('position');
+    }
     await savePositionPending?.future;
   }
 
   @override
-  Future<void> saveSettings(ReaderSettings settings) async {}
+  Future<void> saveSettings(ReaderSettings settings) async {
+    savedSettings.add(settings);
+    if (failNextSettings) {
+      failNextSettings = false;
+      throw StateError('settings');
+    }
+    await saveSettingsPending?.future;
+  }
 }

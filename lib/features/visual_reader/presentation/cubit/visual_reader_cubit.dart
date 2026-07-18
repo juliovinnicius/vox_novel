@@ -204,6 +204,69 @@ final class VisualReaderCubit extends Cubit<VisualReaderState> {
         });
     unawaited(_writeTail);
   }
+
+  void setTheme(ReaderTheme theme) {
+    final settings = state.settings;
+    if (settings == null || settings.theme == theme) return;
+    _applySettings(settings.copyWith(theme: theme));
+  }
+
+  void setFontFamily(ReaderFontFamily family) {
+    final settings = state.settings;
+    if (settings == null || settings.fontFamily == family) return;
+    _applySettings(settings.copyWith(fontFamily: family));
+  }
+
+  void setLineHeight(double lineHeight) {
+    final settings = state.settings;
+    if (settings == null ||
+        settings.lineHeight == lineHeight ||
+        !const [1.2, 1.5, 1.8, 2.0].contains(lineHeight)) {
+      return;
+    }
+    _applySettings(settings.copyWith(lineHeight: lineHeight));
+  }
+
+  void increaseFont() => _changeFont(2);
+  void decreaseFont() => _changeFont(-2);
+
+  void _changeFont(int delta) {
+    final settings = state.settings;
+    if (settings == null) return;
+    final size = settings.fontSize + delta;
+    if (size < 14 || size > 32) return;
+    _applySettings(settings.copyWith(fontSize: size));
+  }
+
+  void _applySettings(ReaderSettings settings) {
+    emit(state.copyWith(settings: settings, message: null));
+    _writeTail = _writeTail
+        .catchError((_) {})
+        .then((_) => _repository.saveSettings(settings))
+        .catchError((_) {
+          if (!isClosed) {
+            emit(
+              state.copyWith(
+                message: 'Não foi possível salvar suas configurações',
+              ),
+            );
+          }
+        });
+    unawaited(_writeTail);
+  }
+
+  void clearMessage() {
+    if (state.message != null && !isClosed) {
+      emit(state.copyWith(message: null));
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    _loadToken++;
+    await _writeTail.catchError((_) {});
+    return super.close();
+  }
 }
 
 const Object _navigationUnset = Object();
