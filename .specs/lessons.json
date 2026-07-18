@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 6,
+  "next_id": 11,
   "lessons": [
     {
       "id": "L-001",
@@ -94,6 +94,96 @@
       ],
       "created": "2026-07-17T20:01:11Z",
       "last_seen": "2026-07-17T20:01:11Z"
+    },
+    {
+      "id": "L-006",
+      "key": "ac_gap::exercise ui responsiveness with cpu bound work not only suspended asynchronous futures",
+      "text": "Exercise UI responsiveness with CPU-bound work, not only suspended asynchronous futures",
+      "signal": "ac_gap",
+      "scope": "processing-ui",
+      "status": "candidate",
+      "features": [
+        "text_processing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md E4 (processing-ui)"
+      ],
+      "created": "2026-07-18T17:38:59Z",
+      "last_seen": "2026-07-18T17:38:59Z"
+    },
+    {
+      "id": "L-007",
+      "key": "ac_gap::exercise every composed terminal path with exact status message and orphan state assertions",
+      "text": "Exercise every composed terminal path with exact status, message, and orphan-state assertions",
+      "signal": "ac_gap",
+      "scope": "composition",
+      "status": "candidate",
+      "features": [
+        "text_processing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Pass B terminal-path integration coverage (composition)"
+      ],
+      "created": "2026-07-18T17:42:23Z",
+      "last_seen": "2026-07-18T17:42:23Z"
+    },
+    {
+      "id": "L-008",
+      "key": "ac_gap::verify dependency reset with an active worker and assert cancellation disposal and staged state cleanup",
+      "text": "Verify dependency reset with an active worker and assert cancellation, disposal, and staged-state cleanup",
+      "signal": "ac_gap",
+      "scope": "composition",
+      "status": "candidate",
+      "features": [
+        "text_processing"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Pass B reset lifecycle coverage (composition)"
+      ],
+      "created": "2026-07-18T17:42:23Z",
+      "last_seen": "2026-07-18T17:42:23Z"
+    },
+    {
+      "id": "L-009",
+      "key": "surviving_mutant::assert production dependency defaults through observable behavior not only explicitly injected test seams",
+      "text": "Assert production dependency defaults through observable behavior, not only explicitly injected test seams",
+      "signal": "surviving_mutant",
+      "scope": "composition",
+      "status": "candidate",
+      "features": [
+        "text_processing_reverification"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md mutation: DI default isolate to inline (composition)"
+      ],
+      "created": "2026-07-18T20:01:00Z",
+      "last_seen": "2026-07-18T20:01:00Z"
+    },
+    {
+      "id": "L-010",
+      "key": "surviving_mutant::assert caller remapped ids and foreign key conjunctions at worker boundaries",
+      "text": "Assert caller-remapped IDs and foreign-key conjunctions at worker boundaries",
+      "signal": "surviving_mutant",
+      "scope": "processing-payload",
+      "status": "candidate",
+      "features": [
+        "text_processing_id_followup"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md mutation: temporary worker block ID persisted (processing-payload)"
+      ],
+      "created": "2026-07-18T20:16:15Z",
+      "last_seen": "2026-07-18T20:16:15Z"
     }
   ]
 }

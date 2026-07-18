@@ -13,7 +13,7 @@ without it.**
 ---
 
 **Design**: `.specs/features/text_processing/design.md`
-**Status**: In Progress
+**Status**: Done
 
 ---
 

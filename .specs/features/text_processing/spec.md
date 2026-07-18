@@ -10,11 +10,11 @@ future reprocessing.
 
 ## Goals
 
-- [ ] Extract selectable text per PDF page outside the UI isolate and persist the raw result.
-- [ ] Conservatively clean extracted text without removing narrative content.
-- [ ] Detect ordered chapters and always provide a one-chapter fallback.
-- [ ] Produce stable, ordered narration blocks no longer than 3,000 characters.
-- [ ] Expose deterministic processing stages, progress, cancellation, and failures.
+- [x] Extract selectable text per PDF page outside the UI isolate and persist the raw result.
+- [x] Conservatively clean extracted text without removing narrative content.
+- [x] Detect ordered chapters and always provide a one-chapter fallback.
+- [x] Produce stable, ordered narration blocks no longer than 3,000 characters.
+- [x] Expose deterministic processing stages, progress, cancellation, and failures.
 
 ## Out of Scope
 

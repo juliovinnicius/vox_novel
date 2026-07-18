@@ -44,6 +44,36 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: Edge Cases; validation.md Fix 4 (filesystem testing)
 - last seen: 2026-07-17T20:01:11Z
 
+### L-006 — Exercise UI responsiveness with CPU-bound work, not only suspended asynchronous futures
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `processing-ui` · harmful: 0
+- features: text_processing
+- evidence: validation.md E4 (processing-ui)
+- last seen: 2026-07-18T17:38:59Z
+
+### L-007 — Exercise every composed terminal path with exact status, message, and orphan-state assertions
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `composition` · harmful: 0
+- features: text_processing
+- evidence: validation.md Pass B terminal-path integration coverage (composition)
+- last seen: 2026-07-18T17:42:23Z
+
+### L-008 — Verify dependency reset with an active worker and assert cancellation, disposal, and staged-state cleanup
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `composition` · harmful: 0
+- features: text_processing
+- evidence: validation.md Pass B reset lifecycle coverage (composition)
+- last seen: 2026-07-18T17:42:23Z
+
+### L-009 — Assert production dependency defaults through observable behavior, not only explicitly injected test seams
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `composition` · harmful: 0
+- features: text_processing_reverification
+- evidence: validation.md mutation: DI default isolate to inline (composition)
+- last seen: 2026-07-18T20:01:00Z
+
+### L-010 — Assert caller-remapped IDs and foreign-key conjunctions at worker boundaries
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `processing-payload` · harmful: 0
+- features: text_processing_id_followup
+- evidence: validation.md mutation: temporary worker block ID persisted (processing-payload)
+- last seen: 2026-07-18T20:16:15Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
