@@ -1,4 +1,4 @@
-enum ImportBookStatus { idle, selecting, importing }
+enum ImportBookStatus { idle, selecting, importing, processing }
 
 final class ImportBookState {
   const ImportBookState({

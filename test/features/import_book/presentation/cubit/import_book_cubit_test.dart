@@ -8,6 +8,9 @@ import 'package:vox_novel/features/import_book/presentation/cubit/import_book_cu
 import 'package:vox_novel/features/import_book/presentation/cubit/import_book_state.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
+import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
+import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_state.dart';
 
 void main() {
   const selected = PickedPdf(
@@ -20,8 +23,9 @@ void main() {
     expect(cubit.state, const ImportBookState());
   });
 
-  test('emits selecting, importing, and idle on success', () async {
-    final cubit = _cubit(_Picker(selected));
+  test('starts the exact returned book and completes back at idle', () async {
+    final processing = _Processing();
+    final cubit = _cubit(_Picker(selected), processing: processing);
     final states = <ImportBookState>[];
     final subscription = cubit.stream.listen(states.add);
     await cubit.importPdf();
@@ -29,10 +33,36 @@ void main() {
     expect(states, const [
       ImportBookState(status: ImportBookStatus.selecting),
       ImportBookState(status: ImportBookStatus.importing),
+      ImportBookState(status: ImportBookStatus.processing),
       ImportBookState(),
     ]);
+    expect(processing.processedBookIds, ['id']);
     await subscription.cancel();
   });
+
+  for (final result in [
+    const ProcessingResult.cancelled(),
+    const ProcessingResult.unsupported('Este PDF não possui texto extraível'),
+    const ProcessingResult.failed('Não foi possível processar este PDF'),
+  ]) {
+    test('processing ${result.outcome.name} exposes only its exact message', () async {
+      final processing = _Processing(result: result);
+      final cubit = _cubit(_Picker(selected), processing: processing);
+
+      await cubit.importPdf();
+
+      expect(cubit.state, const ImportBookState());
+      expect(
+        processing.cubit.state.message,
+        switch (result.outcome) {
+          ProcessingOutcome.cancelled => 'Processamento cancelado',
+          ProcessingOutcome.unsupported ||
+          ProcessingOutcome.failed => result.message,
+          ProcessingOutcome.completed => null,
+        },
+      );
+    });
+  }
 
   test('cancellation returns from selecting to idle without error', () async {
     final cubit = _cubit(_Picker(null));
@@ -50,10 +80,16 @@ void main() {
     'picker and import failures expose the exact standard message',
     () async {
       for (final picker in [_Picker.failure(), _Picker(selected)]) {
-        final cubit = _cubit(picker, failImport: picker.value != null);
+        final processing = _Processing();
+        final cubit = _cubit(
+          picker,
+          failImport: picker.value != null,
+          processing: processing,
+        );
         await cubit.importPdf();
         expect(cubit.state.status, ImportBookStatus.idle);
         expect(cubit.state.errorMessage, 'Não foi possível importar este PDF');
+        expect(processing.processedBookIds, isEmpty);
       }
     },
   );
@@ -83,12 +119,31 @@ void main() {
     storage.pending!.complete();
     await first;
   });
+
+  test('pending processing remains readable and ignores a second import', () async {
+    final processing = _Processing(pending: Completer<ProcessingResult>());
+    final picker = _Picker(selected);
+    final cubit = _cubit(picker, processing: processing);
+    final first = cubit.importPdf();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(cubit.state.status, ImportBookStatus.processing);
+    await cubit.importPdf();
+    expect(picker.calls, 1);
+    expect(processing.processedBookIds, ['id']);
+
+    processing.pending!.complete(const ProcessingResult.completed());
+    await first;
+    expect(cubit.state, const ImportBookState());
+  });
 }
 
 ImportBookCubit _cubit(
   _Picker picker, {
   bool failImport = false,
   _Storage? storage,
+  _Processing? processing,
 }) {
   final actualStorage = storage ?? _Storage();
   actualStorage.fail = failImport;
@@ -100,7 +155,29 @@ ImportBookCubit _cubit(
       generateId: () => 'id',
       clock: () => DateTime(2026),
     ),
+    textProcessingCubit: processing?.cubit,
   );
+}
+
+final class _Processing {
+  _Processing({
+    this.result = const ProcessingResult.completed(),
+    this.pending,
+  }) {
+    cubit = TextProcessingCubit(
+      processBook: (bookId) {
+        processedBookIds.add(bookId);
+        return pending?.future ?? Future.value(result);
+      },
+      cancelBook: (_) async => const ProcessingResult.cancelled(),
+      closeService: () async {},
+    );
+  }
+
+  final ProcessingResult result;
+  final Completer<ProcessingResult>? pending;
+  final processedBookIds = <String>[];
+  late final TextProcessingCubit cubit;
 }
 
 final class _Picker implements PdfPicker {
