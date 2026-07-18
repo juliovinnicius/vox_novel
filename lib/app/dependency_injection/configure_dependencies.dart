@@ -23,8 +23,6 @@ import 'package:vox_novel/features/library/presentation/pages/library_page.dart'
 import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/data/services/pdfrx_pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
-import 'package:vox_novel/features/pdf_processing/domain/services/chapter_detector.dart';
-import 'package:vox_novel/features/pdf_processing/domain/services/narration_block_splitter.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_cleaner.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
@@ -40,6 +38,7 @@ Future<void> configureDependencies({
   PdfTextExtractor? pdfTextExtractor,
   TextProcessingRepository? textProcessingRepository,
   ProcessingExecutor processingExecutor = isolateProcessingExecutor,
+  void Function(int workerIdentity)? onCpuWorkerIsolate,
   Future<void> Function()? initializePdfEngine,
 }) async {
   final locator = instance ?? GetIt.instance;
@@ -115,11 +114,12 @@ Future<void> configureDependencies({
         processing: locator(),
         extractor: locator(),
         cleaner: const TextCleaner(),
-        chapterDetector: () => ChapterDetector(idGenerator: nextId),
-        blockSplitter: () => NarrationBlockSplitter(nextId),
+        chapterId: nextId,
+        blockId: nextId,
         clock: now,
         runId: nextId,
         executor: processingExecutor,
+        onCpuWorkerIsolate: onCpuWorkerIsolate,
       ),
     );
   }

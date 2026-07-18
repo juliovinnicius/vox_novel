@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +144,28 @@ void main() {
 
     expect(result.read<int>('value'), 1);
   });
+
+  test(
+    'production composition keeps CPU work off the caller isolate',
+    () async {
+      final caller = Isolate.current.hashCode;
+      final workers = <int>[];
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _SelectableTextExtractor(),
+        onCpuWorkerIsolate: workers.add,
+      );
+      await _seedBook(locator<BookRepository>());
+
+      expect(
+        await locator<TextProcessingService>().process('book-id'),
+        const ProcessingResult.completed(),
+      );
+      expect(workers, isNotEmpty);
+      expect(workers.every((identity) => identity != caller), isTrue);
+    },
+  );
 
   test(
     'composed no-text, corrupt, and cancel paths leave no staging',
@@ -298,6 +321,18 @@ final class _NoTextExtractor implements PdfTextExtractor {
   Stream<PdfExtractionEvent> extract(PdfExtractionRequest request) async* {
     yield PdfExtractionOpened(request.runId, 1, 1);
     yield PdfExtractionPage(request.runId, 1, 1, ' \n\t');
+    yield PdfExtractionCompleted(request.runId, 1);
+  }
+
+  @override
+  Future<void> cancel(String runId) async {}
+}
+
+final class _SelectableTextExtractor implements PdfTextExtractor {
+  @override
+  Stream<PdfExtractionEvent> extract(PdfExtractionRequest request) async* {
+    yield PdfExtractionOpened(request.runId, 1, 1);
+    yield PdfExtractionPage(request.runId, 1, 1, 'Capítulo 1\nTexto.');
     yield PdfExtractionCompleted(request.runId, 1);
   }
 

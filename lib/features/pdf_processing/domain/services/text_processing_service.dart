@@ -35,8 +35,6 @@ final class ProcessingResult {
   int get hashCode => Object.hash(outcome, message);
 }
 
-typedef ChapterDetectorFactory = ChapterDetector Function();
-typedef NarrationBlockSplitterFactory = NarrationBlockSplitter Function();
 typedef ProcessingClock = DateTime Function();
 typedef ProcessingRunId = String Function();
 typedef ProcessingExecutor =
@@ -48,8 +46,8 @@ final class TextProcessingService {
     required TextProcessingRepository processing,
     required PdfTextExtractor extractor,
     required TextCleaner cleaner,
-    required ChapterDetectorFactory chapterDetector,
-    required NarrationBlockSplitterFactory blockSplitter,
+    required ProcessingIdGenerator chapterId,
+    required ProcessingIdGenerator blockId,
     required ProcessingClock clock,
     required ProcessingRunId runId,
     ProcessingExecutor executor = inlineProcessingExecutor,
@@ -65,9 +63,9 @@ final class TextProcessingService {
        // ignore: prefer_initializing_formals
        _cleaner = cleaner,
        // ignore: prefer_initializing_formals
-       _chapterDetector = chapterDetector,
+       _chapterId = chapterId,
        // ignore: prefer_initializing_formals
-       _blockSplitter = blockSplitter,
+       _blockId = blockId,
        // ignore: prefer_initializing_formals
        _clock = clock,
        // ignore: prefer_initializing_formals
@@ -85,8 +83,8 @@ final class TextProcessingService {
   final TextProcessingRepository _processing;
   final PdfTextExtractor _extractor;
   final TextCleaner _cleaner;
-  final ChapterDetectorFactory _chapterDetector;
-  final NarrationBlockSplitterFactory _blockSplitter;
+  final ProcessingIdGenerator _chapterId;
+  final ProcessingIdGenerator _blockId;
   final ProcessingClock _clock;
   final ProcessingRunId _runId;
   final ProcessingExecutor _executor;
@@ -222,22 +220,42 @@ final class TextProcessingService {
           .60 + .15 * (i + 1) / cleanPages.length,
         );
       }
-      final chapterDetector = _chapterDetector;
-      final blockSplitter = _blockSplitter;
-      final transformed = await _cpu(() {
-        final detector = chapterDetector();
+      final detected = await _cpu(() {
+        final detector = ChapterDetector(idGenerator: _workerId);
         for (final page in cleanPages) {
           detector.addPage(page);
         }
-        final chapters = detector.finish(book.title);
-        final splitter = blockSplitter();
-        return (
-          chapters: chapters,
-          blocks: [for (final chapter in chapters) ...splitter.split(chapter)],
-        );
+        return detector.finish(book.title);
       });
-      final chapters = transformed.chapters;
-      final blocks = transformed.blocks;
+      final chapterIds = <String, String>{};
+      final chapters = [
+        for (final chapter in detected)
+          ChapterDraft(
+            id: chapterIds[chapter.id] = _chapterId(),
+            title: chapter.title,
+            sortOrder: chapter.sortOrder,
+            startPage: chapter.startPage,
+            endPage: chapter.endPage,
+            cleanText: chapter.cleanText,
+          ),
+      ];
+      final splitBlocks = await _cpu(() {
+        final splitter = NarrationBlockSplitter(_workerId);
+        return [for (final chapter in detected) ...splitter.split(chapter)];
+      });
+      final blocks = [
+        for (final block in splitBlocks)
+          NarrationBlockDraft(
+            id: _blockId(),
+            chapterId: chapterIds[block.chapterId]!,
+            sortOrder: block.sortOrder,
+            originalText: block.originalText,
+            normalizedText: block.normalizedText,
+            characterCount: block.characterCount,
+            startPage: block.startPage,
+            endPage: block.endPage,
+          ),
+      ];
       if (chapters.isEmpty) {
         await _progress(bookId, ProcessingStage.buildingBlocks, .95);
       } else {
@@ -354,6 +372,9 @@ Future<T> isolateProcessingExecutor<T>(FutureOr<T> Function() computation) =>
 Future<T> inlineProcessingExecutor<T>(
   FutureOr<T> Function() computation,
 ) async => await computation();
+
+var _workerIdSequence = 0;
+String _workerId() => 'worker-${_workerIdSequence++}';
 
 final class _Cancellation {
   bool requested = false;

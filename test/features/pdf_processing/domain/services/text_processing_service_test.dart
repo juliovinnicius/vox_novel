@@ -6,8 +6,6 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
-import 'package:vox_novel/features/pdf_processing/domain/services/chapter_detector.dart';
-import 'package:vox_novel/features/pdf_processing/domain/services/narration_block_splitter.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_cleaner.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
@@ -24,9 +22,8 @@ void main() {
     processing: processing,
     extractor: extractor,
     cleaner: const TextCleaner(),
-    chapterDetector: () =>
-        ChapterDetector(idGenerator: () => 'chapter-${++nextId}'),
-    blockSplitter: () => NarrationBlockSplitter(() => 'block-${++nextId}'),
+    chapterId: () => 'chapter-${++nextId}',
+    blockId: () => 'block-${++nextId}',
     clock: () => now,
     runId: () => 'run-${++nextId}',
   );
@@ -71,9 +68,8 @@ void main() {
       processing: processing,
       extractor: extractor,
       cleaner: const TextCleaner(),
-      chapterDetector: () =>
-          ChapterDetector(idGenerator: () => 'chapter-worker'),
-      blockSplitter: () => NarrationBlockSplitter(() => 'block-worker'),
+      chapterId: () => 'chapter-worker',
+      blockId: () => 'block-worker',
       clock: () => now,
       runId: () => 'run-worker',
       executor: isolateProcessingExecutor,
@@ -162,8 +158,8 @@ void main() {
       processing: processing,
       extractor: extractor,
       cleaner: const TextCleaner(),
-      chapterDetector: () => throw StateError('algorithm'),
-      blockSplitter: () => NarrationBlockSplitter(() => 'block'),
+      chapterId: () => throw StateError('algorithm'),
+      blockId: () => 'block',
       clock: () => now,
       runId: () => 'run-1',
     );
@@ -271,8 +267,8 @@ void main() {
         processing: _ProcessingRepository(),
         extractor: secondExtractor,
         cleaner: const TextCleaner(),
-        chapterDetector: () => ChapterDetector(idGenerator: () => 'c2'),
-        blockSplitter: () => NarrationBlockSplitter(() => 'b2'),
+        chapterId: () => 'c2',
+        blockId: () => 'b2',
         clock: () => now,
         runId: () => 'run-second',
       );
