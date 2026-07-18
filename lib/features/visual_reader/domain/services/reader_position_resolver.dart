@@ -29,8 +29,9 @@ final class ReaderPositionResolver {
         .firstOrNull;
     if (position.bookId != content.book.id ||
         chapter == null ||
-        position.blockId != null && block == null)
+        position.blockId != null && block == null) {
       return fallback(content, updatedAt);
+    }
     return position.copyWith(
       pdfPage: position.pdfPage.clamp(1, pageCount < 1 ? 1 : pageCount),
     );
@@ -47,8 +48,9 @@ final class ReaderPositionResolver {
     DateTime updatedAt,
   ) {
     for (final chapter in content.chapters) {
-      if (page < chapter.chapter.startPage || page > chapter.chapter.endPage)
+      if (page < chapter.chapter.startPage || page > chapter.chapter.endPage) {
         continue;
+      }
       final block = chapter.blocks
           .where((b) => page >= b.startPage && page <= b.endPage)
           .firstOrNull;
