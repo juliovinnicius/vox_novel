@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vox_novel/features/import_book/presentation/cubit/import_book_cubit.dart';
 import 'package:vox_novel/features/import_book/presentation/cubit/import_book_state.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
@@ -17,11 +18,13 @@ final class LibraryPage extends StatefulWidget {
     required this.libraryCubit,
     required this.importBookCubit,
     this.textProcessingCubit,
+    this.onOpenBook,
     super.key,
   });
   final LibraryCubit libraryCubit;
   final ImportBookCubit importBookCubit;
   final TextProcessingCubit? textProcessingCubit;
+  final ValueChanged<Book>? onOpenBook;
   @override
   State<LibraryPage> createState() => _LibraryPageState();
 }
@@ -69,7 +72,10 @@ final class _LibraryPageState extends State<LibraryPage> {
               },
             ),
         ],
-        child: _LibraryView(processingCubit: processingCubit),
+        child: _LibraryView(
+          processingCubit: processingCubit,
+          onOpenBook: widget.onOpenBook,
+        ),
       ),
     );
   }
@@ -82,8 +88,9 @@ final class _LibraryPageState extends State<LibraryPage> {
 }
 
 final class _LibraryView extends StatelessWidget {
-  const _LibraryView({required this.processingCubit});
+  const _LibraryView({required this.processingCubit, required this.onOpenBook});
   final TextProcessingCubit? processingCubit;
+  final ValueChanged<Book>? onOpenBook;
   @override
   Widget build(BuildContext context) {
     final state = context.watch<LibraryCubit>().state;
@@ -146,6 +153,7 @@ final class _LibraryView extends StatelessWidget {
     book: book,
     onEdit: (book) => _edit(context, book),
     onDelete: (book) => _delete(context, book),
+    onOpen: (book) => _open(context, book),
     onCancelProcessing: processingCubit == null
         ? null
         : (book) => processingCubit!.cancel(book.id),
@@ -154,10 +162,20 @@ final class _LibraryView extends StatelessWidget {
     book: book,
     onEdit: (book) => _edit(context, book),
     onDelete: (book) => _delete(context, book),
+    onOpen: (book) => _open(context, book),
     onCancelProcessing: processingCubit == null
         ? null
         : (book) => processingCubit!.cancel(book.id),
   );
+  void _open(BuildContext context, Book book) {
+    final callback = onOpenBook;
+    if (callback != null) {
+      callback(book);
+      return;
+    }
+    context.push('/reader/${Uri.encodeComponent(book.id)}');
+  }
+
   Future<void> _edit(BuildContext context, Book book) async {
     final metadata = await showEditBookDialog(context, book);
     if (metadata != null && context.mounted) {

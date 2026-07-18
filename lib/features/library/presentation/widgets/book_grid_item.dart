@@ -7,12 +7,14 @@ final class BookGridItem extends StatelessWidget {
     required this.book,
     required this.onEdit,
     required this.onDelete,
+    this.onOpen,
     this.onCancelProcessing,
     super.key,
   });
   final Book book;
   final ValueChanged<Book> onEdit;
   final ValueChanged<Book> onDelete;
+  final ValueChanged<Book>? onOpen;
   final ValueChanged<Book>? onCancelProcessing;
   @override
   Widget build(BuildContext context) => Card(
@@ -37,6 +39,12 @@ final class BookGridItem extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              if (book.status == BookStatus.ready && onOpen != null)
+                IconButton(
+                  tooltip: 'Abrir ${book.title}',
+                  onPressed: () => onOpen!(book),
+                  icon: const Icon(Icons.chrome_reader_mode),
+                ),
               if (book.status == BookStatus.processing &&
                   onCancelProcessing != null)
                 IconButton(

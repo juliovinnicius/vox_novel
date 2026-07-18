@@ -47,6 +47,20 @@ void main() {
     expect(find.byKey(const ValueKey('1')), findsOneWidget);
   });
 
+  testWidgets('routes the exact ready book through the injected callback', (
+    tester,
+  ) async {
+    final fixture = _Fixture();
+    Book? opened;
+    await tester.pumpWidget(fixture.app(onOpenBook: (book) => opened = book));
+    final ready = _book('ready', status: BookStatus.ready);
+    fixture.repository.controller.add([ready]);
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Abrir Book ready'));
+    expect(opened, same(ready));
+  });
+
   testWidgets('pending import shows indicator and disables import action', (
     tester,
   ) async {
@@ -164,7 +178,7 @@ final class _Fixture {
   final cancelledBookIds = <String>[];
   late final TextProcessingCubit processingCubit;
   Completer<void>? pending;
-  Widget app() {
+  Widget app({ValueChanged<Book>? onOpenBook}) {
     final storage = _Storage(() => pending?.future);
     return MaterialApp(
       home: LibraryPage(
@@ -186,6 +200,7 @@ final class _Fixture {
           ),
         ),
         textProcessingCubit: processingCubit,
+        onOpenBook: onOpenBook,
       ),
     );
   }

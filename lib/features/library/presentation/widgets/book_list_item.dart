@@ -14,12 +14,14 @@ final class BookListItem extends StatelessWidget {
     required this.book,
     required this.onEdit,
     required this.onDelete,
+    this.onOpen,
     this.onCancelProcessing,
     super.key,
   });
   final Book book;
   final ValueChanged<Book> onEdit;
   final ValueChanged<Book> onDelete;
+  final ValueChanged<Book>? onOpen;
   final ValueChanged<Book>? onCancelProcessing;
 
   @override
@@ -47,6 +49,7 @@ final class BookListItem extends StatelessWidget {
         book: book,
         onEdit: onEdit,
         onDelete: onDelete,
+        onOpen: onOpen,
         onCancelProcessing: onCancelProcessing,
       ),
     ),
@@ -61,18 +64,25 @@ final class _BookActions extends StatelessWidget {
     required this.book,
     required this.onEdit,
     required this.onDelete,
+    required this.onOpen,
     required this.onCancelProcessing,
   });
   final Book book;
   final ValueChanged<Book> onEdit;
   final ValueChanged<Book> onDelete;
+  final ValueChanged<Book>? onOpen;
   final ValueChanged<Book>? onCancelProcessing;
   @override
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      if (book.status == BookStatus.processing &&
-          onCancelProcessing != null)
+      if (book.status == BookStatus.ready && onOpen != null)
+        IconButton(
+          tooltip: 'Abrir ${book.title}',
+          onPressed: () => onOpen!(book),
+          icon: const Icon(Icons.chrome_reader_mode),
+        ),
+      if (book.status == BookStatus.processing && onCancelProcessing != null)
         IconButton(
           tooltip: 'Cancelar processamento de ${book.title}',
           onPressed: () => onCancelProcessing!(book),

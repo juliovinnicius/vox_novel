@@ -7,6 +7,32 @@ import 'package:vox_novel/features/pdf_processing/domain/entities/text_processin
 
 void main() {
   for (final grid in [false, true]) {
+    testWidgets('${grid ? 'grid' : 'list'} opens ready books only', (
+      tester,
+    ) async {
+      Book? opened;
+      Widget item(Book book) => grid
+          ? BookGridItem(
+              book: book,
+              onEdit: (_) {},
+              onDelete: (_) {},
+              onOpen: (value) => opened = value,
+            )
+          : BookListItem(
+              book: book,
+              onEdit: (_) {},
+              onDelete: (_) {},
+              onOpen: (value) => opened = value,
+            );
+      final ready = _book(status: BookStatus.ready);
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: item(ready))));
+      await tester.tap(find.byTooltip('Abrir Title'));
+      expect(opened, same(ready));
+
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: item(_book()))));
+      expect(find.byTooltip('Abrir Title'), findsNothing);
+    });
+
     testWidgets(
       '${grid ? 'grid' : 'list'} renders metadata and exact actions',
       (tester) async {
@@ -116,9 +142,7 @@ void main() {
           );
 
           expect(
-            find.text(
-              '${entry.value.$1} • ${(entry.value.$2 * 100).round()}%',
-            ),
+            find.text('${entry.value.$1} • ${(entry.value.$2 * 100).round()}%'),
             findsOneWidget,
           );
           expect(find.byType(LinearProgressIndicator), findsOneWidget);
@@ -126,9 +150,7 @@ void main() {
             find.byType(LinearProgressIndicator),
           );
           expect(indicator.value, entry.value.$2);
-          await tester.tap(
-            find.byTooltip('Cancelar processamento de Title'),
-          );
+          await tester.tap(find.byTooltip('Cancelar processamento de Title'));
           expect(cancelled, same(book));
         },
       );
@@ -136,41 +158,39 @@ void main() {
   }
 
   for (final grid in [false, true]) {
-    testWidgets('${grid ? 'grid' : 'list'} hides processing controls otherwise', (
-      tester,
-    ) async {
-      final book = _book(
-        status: BookStatus.ready,
-        stage: ProcessingStage.completed,
-        progress: 1,
-      );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: grid
-                ? BookGridItem(
-                    book: book,
-                    onEdit: (_) {},
-                    onDelete: (_) {},
-                    onCancelProcessing: (_) {},
-                  )
-                : BookListItem(
-                    book: book,
-                    onEdit: (_) {},
-                    onDelete: (_) {},
-                    onCancelProcessing: (_) {},
-                  ),
+    testWidgets(
+      '${grid ? 'grid' : 'list'} hides processing controls otherwise',
+      (tester) async {
+        final book = _book(
+          status: BookStatus.ready,
+          stage: ProcessingStage.completed,
+          progress: 1,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: grid
+                  ? BookGridItem(
+                      book: book,
+                      onEdit: (_) {},
+                      onDelete: (_) {},
+                      onCancelProcessing: (_) {},
+                    )
+                  : BookListItem(
+                      book: book,
+                      onEdit: (_) {},
+                      onDelete: (_) {},
+                      onCancelProcessing: (_) {},
+                    ),
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.byType(LinearProgressIndicator), findsNothing);
-      expect(find.textContaining('Concluído'), findsNothing);
-      expect(
-        find.byTooltip('Cancelar processamento de Title'),
-        findsNothing,
-      );
-    });
+        expect(find.byType(LinearProgressIndicator), findsNothing);
+        expect(find.textContaining('Concluído'), findsNothing);
+        expect(find.byTooltip('Cancelar processamento de Title'), findsNothing);
+      },
+    );
   }
 }
 
