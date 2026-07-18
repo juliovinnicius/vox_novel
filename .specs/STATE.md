@@ -50,13 +50,21 @@
 - **Date**: 2026-07-17
 - **Status**: active
 
+### AD-007
+- **Decision**: Persist visual reader position separately from narration/playback progress.
+- **Reason**: Browsing text or PDF must not silently advance or rewind the durable audio position introduced by Milestone 4.
+- **Trade-off**: The application stores and coordinates two related position models instead of one shared record.
+- **Scope**: Visual reader, narration, playback restoration, and book deletion lifecycle.
+- **Date**: 2026-07-18
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: text_processing / `.specs/features/text_processing`
-- **Phase / Task**: Validate — complete
-- **Completed**: Milestone 1; Milestone 2 T1–T14 and F0–F3; independent verification PASS; 231 tests passing
+- **Feature**: visual_reader / `.specs/features/visual_reader`
+- **Phase / Task**: Execute — Batch 1, T1 next
+- **Completed**: Milestones 1–2; Milestone 3 specification, context, design, and tasks approved
 - **In-progress** (file:line): none
-- **Next step**: select and specify Milestone 3
+- **Next step**: execute Phase 1–2 tasks T1–T6 sequentially with the approved batch worker
 - **Blockers**: none
-- **Uncommitted files**: validation and milestone-close documentation only
+- **Uncommitted files**: Milestone 3 planning checkpoint
 - **Branch**: `main`
