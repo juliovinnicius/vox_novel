@@ -11,6 +11,9 @@ import 'package:vox_novel/features/library/domain/repositories/book_repository.d
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
 import 'package:vox_novel/features/library/presentation/pages/library_page.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
+import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
+import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
 
 void main() {
   testWidgets('shows exact empty state, title and accessible import action', (
@@ -61,10 +64,105 @@ void main() {
     fixture.pending!.complete();
     await tester.pump();
   });
+
+  for (final grid in [false, true]) {
+    testWidgets(
+      '${grid ? 'grid' : 'list'} routes exact processing book cancel',
+      (tester) async {
+        final pending = Completer<ProcessingResult>();
+        final fixture = _Fixture(processBook: (_) => pending.future);
+        await tester.pumpWidget(fixture.app());
+        fixture.repository.controller.add([
+          _book(
+            '2',
+            status: BookStatus.processing,
+            stage: ProcessingStage.extracting,
+          ),
+        ]);
+        unawaited(fixture.processingCubit.process('2'));
+        await tester.pump();
+        if (grid) {
+          await tester.tap(find.byTooltip('Visualização em grade'));
+          await tester.pump();
+        }
+
+        await tester.tap(find.byTooltip('Cancelar processamento de Book 2'));
+        await tester.pump();
+
+        expect(fixture.cancelledBookIds, ['2']);
+        expect(find.text('Processamento cancelado'), findsOneWidget);
+        pending.complete(const ProcessingResult.cancelled());
+        await _drainAsyncCubit(tester);
+      },
+    );
+  }
+
+  for (final result in [
+    const ProcessingResult.unsupported('Este PDF não possui texto extraível'),
+    const ProcessingResult.failed('Não foi possível processar este PDF'),
+  ]) {
+    testWidgets('shows processing ${result.outcome.name} feedback once', (
+      tester,
+    ) async {
+      final fixture = _Fixture(processBook: (_) async => result);
+      await tester.pumpWidget(fixture.app());
+
+      unawaited(fixture.processingCubit.process('2'));
+      await _drainAsyncCubit(tester);
+
+      expect(find.text(result.message!), findsOneWidget);
+      expect(fixture.processingCubit.state.message, isNull);
+      await tester.pump();
+      expect(find.text(result.message!), findsOneWidget);
+    });
+  }
+
+  testWidgets(
+    'pending processing remains frame-responsive and disables import',
+    (tester) async {
+      final pending = Completer<ProcessingResult>();
+      final fixture = _Fixture(processBook: (_) => pending.future);
+      await tester.pumpWidget(fixture.app());
+
+      fixture.processingCubit.process('2');
+      await tester.pump();
+
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      final button = tester.widget<FloatingActionButton>(
+        find.byType(FloatingActionButton),
+      );
+      expect(button.onPressed, isNull);
+      expect(find.text('Biblioteca'), findsOneWidget);
+      pending.complete(const ProcessingResult.completed());
+      await _drainAsyncCubit(tester);
+    },
+  );
+}
+
+Future<void> _drainAsyncCubit(WidgetTester tester) async {
+  for (var turn = 0; turn < 6; turn++) {
+    await tester.pump(const Duration(milliseconds: 1));
+  }
 }
 
 final class _Fixture {
+  _Fixture({ProcessBook? processBook})
+    : _processBook =
+          processBook ?? ((_) async => const ProcessingResult.completed()) {
+    processingCubit = TextProcessingCubit(
+      processBook: _processBook,
+      cancelBook: (bookId) async {
+        cancelledBookIds.add(bookId);
+        return const ProcessingResult.cancelled();
+      },
+      closeService: () async {},
+    );
+  }
+
   final repository = _Repository();
+  final ProcessBook _processBook;
+  final cancelledBookIds = <String>[];
+  late final TextProcessingCubit processingCubit;
   Completer<void>? pending;
   Widget app() {
     final storage = _Storage(() => pending?.future);
@@ -87,19 +185,25 @@ final class _Fixture {
             clock: () => DateTime(2026),
           ),
         ),
+        textProcessingCubit: processingCubit,
       ),
     );
   }
 }
 
-Book _book(String id) => Book(
+Book _book(
+  String id, {
+  BookStatus status = BookStatus.importing,
+  ProcessingStage? stage,
+}) => Book(
   id: id,
   title: 'Book $id',
   originalFileName: '$id.pdf',
   storedFilePath: '/$id.pdf',
   fileHash: id,
-  status: BookStatus.importing,
+  status: status,
   processingProgress: 0,
+  processingStage: stage,
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
 );

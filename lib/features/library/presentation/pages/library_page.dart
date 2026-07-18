@@ -9,15 +9,19 @@ import 'package:vox_novel/features/library/presentation/widgets/book_grid_item.d
 import 'package:vox_novel/features/library/presentation/widgets/book_list_item.dart';
 import 'package:vox_novel/features/library/presentation/widgets/delete_book_dialog.dart';
 import 'package:vox_novel/features/library/presentation/widgets/edit_book_dialog.dart';
+import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
+import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_state.dart';
 
 final class LibraryPage extends StatefulWidget {
   const LibraryPage({
     required this.libraryCubit,
     required this.importBookCubit,
+    this.textProcessingCubit,
     super.key,
   });
   final LibraryCubit libraryCubit;
   final ImportBookCubit importBookCubit;
+  final TextProcessingCubit? textProcessingCubit;
   @override
   State<LibraryPage> createState() => _LibraryPageState();
 }
@@ -30,29 +34,45 @@ final class _LibraryPageState extends State<LibraryPage> {
   }
 
   @override
-  Widget build(BuildContext context) => MultiBlocProvider(
-    providers: [
-      BlocProvider.value(value: widget.libraryCubit),
-      BlocProvider.value(value: widget.importBookCubit),
-    ],
-    child: MultiBlocListener(
-      listeners: [
-        BlocListener<ImportBookCubit, ImportBookState>(
-          listenWhen: (previous, current) =>
-              previous.errorMessage != current.errorMessage &&
-              current.errorMessage != null,
-          listener: (context, state) => _message(context, state.errorMessage!),
-        ),
-        BlocListener<LibraryCubit, LibraryState>(
-          listenWhen: (previous, current) =>
-              previous.errorMessage != current.errorMessage &&
-              current.errorMessage != null,
-          listener: (context, state) => _message(context, state.errorMessage!),
-        ),
+  Widget build(BuildContext context) {
+    final processingCubit = widget.textProcessingCubit;
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: widget.libraryCubit),
+        BlocProvider.value(value: widget.importBookCubit),
+        if (processingCubit != null) BlocProvider.value(value: processingCubit),
       ],
-      child: const _LibraryView(),
-    ),
-  );
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<ImportBookCubit, ImportBookState>(
+            listenWhen: (previous, current) =>
+                previous.errorMessage != current.errorMessage &&
+                current.errorMessage != null,
+            listener: (context, state) =>
+                _message(context, state.errorMessage!),
+          ),
+          BlocListener<LibraryCubit, LibraryState>(
+            listenWhen: (previous, current) =>
+                previous.errorMessage != current.errorMessage &&
+                current.errorMessage != null,
+            listener: (context, state) =>
+                _message(context, state.errorMessage!),
+          ),
+          if (processingCubit != null)
+            BlocListener<TextProcessingCubit, TextProcessingState>(
+              listenWhen: (previous, current) =>
+                  previous.message != current.message &&
+                  current.message != null,
+              listener: (context, state) {
+                _message(context, state.message!);
+                processingCubit.clearMessage();
+              },
+            ),
+        ],
+        child: _LibraryView(processingCubit: processingCubit),
+      ),
+    );
+  }
 
   void _message(BuildContext context, String message) {
     ScaffoldMessenger.of(
@@ -62,12 +82,18 @@ final class _LibraryPageState extends State<LibraryPage> {
 }
 
 final class _LibraryView extends StatelessWidget {
-  const _LibraryView();
+  const _LibraryView({required this.processingCubit});
+  final TextProcessingCubit? processingCubit;
   @override
   Widget build(BuildContext context) {
     final state = context.watch<LibraryCubit>().state;
     final importing =
         context.watch<ImportBookCubit>().state.status != ImportBookStatus.idle;
+    final processing =
+        processingCubit != null &&
+        context.watch<TextProcessingCubit>().state.status !=
+            TextProcessingStatus.idle;
+    final busy = importing || processing;
     return Scaffold(
       appBar: AppBar(
         title: Semantics(header: true, child: const Text('Biblioteca')),
@@ -105,11 +131,11 @@ final class _LibraryView extends StatelessWidget {
               itemBuilder: (context, index) =>
                   _gridItem(context, state.books[index]),
             ),
-          if (importing) const LinearProgressIndicator(),
+          if (busy) const LinearProgressIndicator(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: importing ? null : context.read<ImportBookCubit>().importPdf,
+        onPressed: busy ? null : context.read<ImportBookCubit>().importPdf,
         icon: const Icon(Icons.picture_as_pdf),
         label: const Text('Importar PDF'),
       ),
@@ -120,11 +146,17 @@ final class _LibraryView extends StatelessWidget {
     book: book,
     onEdit: (book) => _edit(context, book),
     onDelete: (book) => _delete(context, book),
+    onCancelProcessing: processingCubit == null
+        ? null
+        : (book) => processingCubit!.cancel(book.id),
   );
   Widget _gridItem(BuildContext context, Book book) => BookGridItem(
     book: book,
     onEdit: (book) => _edit(context, book),
     onDelete: (book) => _delete(context, book),
+    onCancelProcessing: processingCubit == null
+        ? null
+        : (book) => processingCubit!.cancel(book.id),
   );
   Future<void> _edit(BuildContext context, Book book) async {
     final metadata = await showEditBookDialog(context, book);
