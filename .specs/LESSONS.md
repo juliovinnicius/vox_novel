@@ -86,6 +86,30 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md mutant 7 stale repair (stale-repair)
 - last seen: 2026-07-18T23:19:37Z
 
+### L-013 — Assert exact latency bounds with controlled timing rather than inferring them from responsive state changes
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `presentation` · harmful: 0
+- features: narration
+- evidence: NAR-04 AC 8 (presentation)
+- last seen: 2026-07-19T15:06:22Z
+
+### L-014 — Table-drive every enumerated lifecycle state when each state is part of the required behavior
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `lifecycle` · harmful: 0
+- features: narration
+- evidence: NAR-06 AC 5 (lifecycle)
+- last seen: 2026-07-19T15:06:23Z
+
+### L-015 — Test active-content replacement during an open controller through the next user operation, not only during initial restore
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `narration` · harmful: 0
+- features: narration
+- evidence: Edge case: active run replaced while playback is open (narration)
+- last seen: 2026-07-19T15:06:23Z
+
+### L-016 — Assert disposal behavior explicitly for empty controller state, including side-effect counts
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `lifecycle` · harmful: 0
+- features: narration
+- evidence: Edge case: dispose with no current block (lifecycle)
+- last seen: 2026-07-19T15:06:23Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

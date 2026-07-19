@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 13,
+  "next_id": 17,
   "lessons": [
     {
       "id": "L-001",
@@ -220,6 +220,78 @@
       ],
       "created": "2026-07-18T23:19:37Z",
       "last_seen": "2026-07-18T23:19:37Z"
+    },
+    {
+      "id": "L-013",
+      "key": "ac_gap::assert exact latency bounds with controlled timing rather than inferring them from responsive state changes",
+      "text": "Assert exact latency bounds with controlled timing rather than inferring them from responsive state changes",
+      "signal": "ac_gap",
+      "scope": "presentation",
+      "status": "candidate",
+      "features": [
+        "narration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "NAR-04 AC 8 (presentation)"
+      ],
+      "created": "2026-07-19T15:06:22Z",
+      "last_seen": "2026-07-19T15:06:22Z"
+    },
+    {
+      "id": "L-014",
+      "key": "ac_gap::table drive every enumerated lifecycle state when each state is part of the required behavior",
+      "text": "Table-drive every enumerated lifecycle state when each state is part of the required behavior",
+      "signal": "ac_gap",
+      "scope": "lifecycle",
+      "status": "candidate",
+      "features": [
+        "narration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "NAR-06 AC 5 (lifecycle)"
+      ],
+      "created": "2026-07-19T15:06:23Z",
+      "last_seen": "2026-07-19T15:06:23Z"
+    },
+    {
+      "id": "L-015",
+      "key": "ac_gap::test active content replacement during an open controller through the next user operation not only during initial restore",
+      "text": "Test active-content replacement during an open controller through the next user operation, not only during initial restore",
+      "signal": "ac_gap",
+      "scope": "narration",
+      "status": "candidate",
+      "features": [
+        "narration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "Edge case: active run replaced while playback is open (narration)"
+      ],
+      "created": "2026-07-19T15:06:23Z",
+      "last_seen": "2026-07-19T15:06:23Z"
+    },
+    {
+      "id": "L-016",
+      "key": "ac_gap::assert disposal behavior explicitly for empty controller state including side effect counts",
+      "text": "Assert disposal behavior explicitly for empty controller state, including side-effect counts",
+      "signal": "ac_gap",
+      "scope": "lifecycle",
+      "status": "candidate",
+      "features": [
+        "narration"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "Edge case: dispose with no current block (lifecycle)"
+      ],
+      "created": "2026-07-19T15:06:23Z",
+      "last_seen": "2026-07-19T15:06:23Z"
     }
   ]
 }

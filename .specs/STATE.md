@@ -69,10 +69,10 @@
 ## Handoff
 
 - **Feature**: narration / `.specs/features/narration`
-- **Phase / Task**: Execute — Phase 1, T1 next
-- **Completed**: Milestones 1–3; Milestone 4 specification, design, and tasks approved
-- **In-progress** (file:line): `.specs/features/narration/tasks.md:79`
-- **Next step**: execute Phase 1 tasks T1–T5; run combined Milestone 3–4 UAT after automated validation
+- **Phase / Task**: Validate — automated PASS; combined Milestone 3–4 UAT deferred
+- **Completed**: Milestones 1–4; narration 50/50 ACs reviewed, 15/15 mutants, 370 tests, APK debug
+- **In-progress** (file:line): none
+- **Next step**: execute `.specs/features/narration/uat.md` when the user has device access, then begin Milestone 5
 - **Blockers**: none
-- **Uncommitted files**: Milestone 4 planning documents
+- **Uncommitted files**: narration validation, traceability, and verifier-generated lessons
 - **Branch**: `main`

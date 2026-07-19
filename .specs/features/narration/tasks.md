@@ -14,7 +14,7 @@ without it.**
 ---
 
 **Design**: `.specs/features/narration/design.md`
-**Status**: In Progress
+**Status**: Done
 
 ---
 
