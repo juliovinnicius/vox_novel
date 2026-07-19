@@ -44,6 +44,7 @@ final class PdfrxPdfTextExtractor implements PdfTextExtractor {
         request.runId,
         request.filePath,
         pdfiumModulePath,
+        Pdfrx.cacheDirectoryPath,
       ), onError: port.sendPort);
     } catch (_) {
       controller.add(
@@ -120,13 +121,14 @@ final class _ActiveExtraction {
 }
 
 Future<void> _extractInWorker(
-  (SendPort, String, String, String?) arguments,
+  (SendPort, String, String, String?, String?) arguments,
 ) async {
-  final (sendPort, _, filePath, modulePath) = arguments;
+  final (sendPort, _, filePath, modulePath, cacheDirectoryPath) = arguments;
   PdfDocument? document;
   try {
     Pdfrx.pdfiumModulePath = modulePath;
-    await pdfrxInitialize();
+    Pdfrx.cacheDirectoryPath = cacheDirectoryPath;
+    await pdfrxInitialize(tmpPath: cacheDirectoryPath);
     document = await PdfDocument.openFile(filePath);
     final pageCount = document.pages.length;
     sendPort.send({
