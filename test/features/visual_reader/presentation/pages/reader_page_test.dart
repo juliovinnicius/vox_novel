@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
+import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
+import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
@@ -66,6 +70,7 @@ void main() {
     WidgetTester tester,
     _Repository repository, {
     Size size = const Size(800, 600),
+    NarrationCubit? narrationCubit,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -80,6 +85,7 @@ void main() {
         home: ReaderPage(
           bookId: 'book',
           cubit: cubit,
+          narrationCubit: narrationCubit,
           pdfSurfaceBuilder: (spec) => const ColoredBox(color: Colors.grey),
         ),
       ),
@@ -166,12 +172,53 @@ void main() {
     expect(cubit.state.settings!.theme, ReaderTheme.sepia);
     expect(find.text('Texto dois'), findsOneWidget);
   });
+
+  testWidgets(
+    'explicit tap sets play origin and narration focus does not save visual position',
+    (tester) async {
+      final repository = _Repository(load: () async => content());
+      final narrationRepository = _NarrationRepository();
+      final engine = _NarrationEngine();
+      final narrationCubit = NarrationCubit(
+        repository: narrationRepository,
+        engine: engine,
+        clock: () => DateTime.utc(2025),
+      );
+      final cubit = await pumpPage(
+        tester,
+        repository,
+        narrationCubit: narrationCubit,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Capítulos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Segundo'));
+      await tester.pumpAndSettle();
+      tester
+          .widget<InkWell>(find.byKey(const ValueKey('reader-block-two-block')))
+          .onTap!();
+      cubit.previousChapter();
+      await tester.pump();
+      final savesBeforePlay = repository.savedPositions.length;
+      expect(cubit.state.chapterId, 'one');
+      expect(narrationRepository.progress, isNull);
+
+      await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
+      await tester.pump();
+      expect(engine.spoken, ['Texto dois']);
+      expect(cubit.state.chapterId, 'two');
+      expect(cubit.state.blockId, 'two-block');
+      expect(repository.savedPositions.length, savesBeforePlay);
+    },
+  );
 }
 
 final class _Repository implements VisualReaderRepository {
   _Repository({required this.load, this.failPosition = false});
   final Future<ReaderBookContent?> Function() load;
   final bool failPosition;
+  final savedPositions = <ReaderPosition>[];
 
   @override
   Future<ReaderBookContent?> loadContent(String bookId) => load();
@@ -182,8 +229,64 @@ final class _Repository implements VisualReaderRepository {
   @override
   Future<void> savePosition(ReaderPosition position) async {
     if (failPosition) throw StateError('failed');
+    savedPositions.add(position);
   }
 
   @override
   Future<void> saveSettings(ReaderSettings settings) async {}
+}
+
+final class _NarrationEngine implements NarrationEngine {
+  final spoken = <String>[];
+  final pendingSpeech = Completer<void>();
+
+  @override
+  Future<List<NarrationVoice>> initialize() async => [
+    NarrationVoice(name: 'Ana', locale: 'pt-BR'),
+  ];
+  @override
+  Future<void> configure(NarrationVoice voice, double rate) async {}
+  @override
+  Future<void> speak(String text) {
+    spoken.add(text);
+    return pendingSpeech.future;
+  }
+
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> close() async {}
+}
+
+final class _NarrationRepository implements NarrationRepository {
+  NarrationProgress? progress;
+  var global = NarrationSettings.defaults();
+  BookNarrationOverride? bookOverride;
+
+  @override
+  Future<NarrationSettings> loadGlobalSettings() async => global;
+  @override
+  Future<void> saveGlobalSettings(NarrationSettings settings) async {
+    global = settings;
+  }
+
+  @override
+  Future<BookNarrationOverride?> loadBookOverride(String bookId) async =>
+      bookOverride;
+  @override
+  Future<void> saveBookOverride(BookNarrationOverride value) async {
+    bookOverride = value;
+  }
+
+  @override
+  Future<void> deleteBookOverride(String bookId) async {
+    bookOverride = null;
+  }
+
+  @override
+  Future<NarrationProgress?> loadProgress(String bookId) async => progress;
+  @override
+  Future<void> saveProgress(NarrationProgress value) async {
+    progress = value;
+  }
 }

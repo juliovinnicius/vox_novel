@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
+import 'package:vox_novel/features/narration/presentation/widgets/reader_narration_host.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
 import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_state.dart';
@@ -17,6 +19,8 @@ final class ReaderPage extends StatefulWidget {
     required this.cubit,
     this.pdfSurfaceBuilder = buildPdfrxSurface,
     this.closeCubit,
+    this.narrationCubit,
+    this.closeNarrationCubit,
     super.key,
   });
 
@@ -24,6 +28,8 @@ final class ReaderPage extends StatefulWidget {
   final VisualReaderCubit cubit;
   final PdfSurfaceBuilder pdfSurfaceBuilder;
   final Future<void> Function(VisualReaderCubit cubit)? closeCubit;
+  final NarrationCubit? narrationCubit;
+  final Future<void> Function(NarrationCubit cubit)? closeNarrationCubit;
 
   @override
   State<ReaderPage> createState() => _ReaderPageState();
@@ -108,9 +114,10 @@ final class _ReaderPageState extends State<ReaderPage> {
     final palette = ReaderVisualTheme.palette(settings.theme);
     _scheduleScroll(chapter, state.blockId);
 
-    return Scaffold(
+    Widget buildReader(Widget? playerBar) => Scaffold(
       key: _scaffoldKey,
       backgroundColor: palette.background,
+      bottomNavigationBar: playerBar,
       endDrawer: ChapterDrawer(
         chapters: content.chapters,
         currentChapterId: state.chapterId,
@@ -167,7 +174,7 @@ final class _ReaderPageState extends State<ReaderPage> {
                 chapter: chapter,
                 selectedBlockId: state.blockId,
                 onBlockSelected: (blockId) =>
-                    widget.cubit.selectBlock(chapter.chapter.id, blockId),
+                    _selectBlock(chapter.chapter.id, blockId),
                 onPreviousChapter: widget.cubit.previousChapter,
                 onNextChapter: widget.cubit.nextChapter,
                 hasPreviousChapter: chapter.chapter.sortOrder > 0,
@@ -181,6 +188,21 @@ final class _ReaderPageState extends State<ReaderPage> {
               ),
             ),
     );
+
+    final narrationCubit = widget.narrationCubit;
+    if (narrationCubit == null) return buildReader(null);
+    return ReaderNarrationHost(
+      content: content,
+      cubit: narrationCubit,
+      onNarrationFocus: widget.cubit.followNarration,
+      closeCubit: widget.closeNarrationCubit,
+      builder: (_, playerBar) => buildReader(playerBar),
+    );
+  }
+
+  void _selectBlock(String chapterId, String blockId) {
+    widget.cubit.selectBlock(chapterId, blockId);
+    widget.narrationCubit?.setPendingStart(chapterId, blockId);
   }
 
   void _showSettings(BuildContext context) {
