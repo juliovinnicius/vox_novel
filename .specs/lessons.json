@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 11,
+  "next_id": 13,
   "lessons": [
     {
       "id": "L-001",
@@ -184,6 +184,42 @@
       ],
       "created": "2026-07-18T20:16:15Z",
       "last_seen": "2026-07-18T20:16:15Z"
+    },
+    {
+      "id": "L-011",
+      "key": "surviving_mutant::test serialized writes with adversarial physical completion order",
+      "text": "Test serialized writes with adversarial physical completion order",
+      "signal": "surviving_mutant",
+      "scope": "persistence-concurrency",
+      "status": "candidate",
+      "features": [
+        "visual_reader"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md mutant 6 newest-wins (persistence-concurrency)"
+      ],
+      "created": "2026-07-18T23:19:37Z",
+      "last_seen": "2026-07-18T23:19:37Z"
+    },
+    {
+      "id": "L-012",
+      "key": "surviving_mutant::use multi candidate fixtures when asserting deterministic first item fallback",
+      "text": "Use multi-candidate fixtures when asserting deterministic first-item fallback",
+      "signal": "surviving_mutant",
+      "scope": "stale-repair",
+      "status": "candidate",
+      "features": [
+        "visual_reader"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md mutant 7 stale repair (stale-repair)"
+      ],
+      "created": "2026-07-18T23:19:37Z",
+      "last_seen": "2026-07-18T23:19:37Z"
     }
   ]
 }

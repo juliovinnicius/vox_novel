@@ -13,7 +13,7 @@ without it.**
 ---
 
 **Design**: `.specs/features/visual_reader/design.md`
-**Status**: In Progress
+**Status**: Done
 
 ---
 
@@ -579,3 +579,50 @@ they are not executed twice.
 
 Every test-bearing layer is tested in the same task that changes it; no tests
 are deferred to a later task.
+
+---
+
+## Validation Fix Tasks — Iteration 1
+
+### F1: Discriminate serialized newest-wins position writes
+
+**What**: Add a controllable repository write seam and an adversarial test that
+holds the first physical write, requests a second position, and proves the
+second write starts only after the first before asserting the durable newest
+position.
+**Where**:
+`lib/features/visual_reader/data/repositories/drift_visual_reader_repository.dart`,
+`test/features/visual_reader/data/repositories/drift_visual_reader_repository_test.dart`
+**Depends on**: T14
+**Requirement**: READ-05 AC 2
+
+**Done when**:
+
+- [ ] The test observes exact physical write start order under a held first write.
+- [ ] The final durable record is the complete second requested position.
+- [ ] Removing `_positionTails` makes the focused test fail.
+
+**Tests**: integration
+**Gate**: full
+**Commit**: `test(reader): prove serialized position writes`
+
+### F2: Discriminate first-block stale repair
+
+**What**: Seed a stale position against a first chapter containing at least two
+distinct blocks and assert both session state and durable repair select the
+numeric first block.
+**Where**:
+`test/features/visual_reader/presentation/cubit/visual_reader_cubit_test.dart`,
+`test/features/visual_reader/visual_reader_integration_test.dart`
+**Depends on**: F1
+**Requirement**: READ-05 AC 4
+
+**Done when**:
+
+- [ ] The fixture distinguishes first and last block IDs in the first chapter.
+- [ ] Session and durable repaired `blockId` equal the first block.
+- [ ] Replacing first-block fallback with last-block fallback makes focused tests fail.
+
+**Tests**: unit/integration
+**Gate**: full, then build
+**Commit**: `test(reader): prove first-block stale repair`

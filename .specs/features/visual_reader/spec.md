@@ -10,11 +10,11 @@ reading context.
 
 ## Goals
 
-- [ ] Open every ready book in a readable text-first experience.
-- [ ] Navigate chapters and select an exact paragraph without losing source order.
-- [ ] View and navigate the original PDF and switch modes at a related position.
-- [ ] Customize and persist theme and typography within defined bounds.
-- [ ] Restore a durable per-book visual position without conflating it with narration progress.
+- [x] Open every ready book in a readable text-first experience.
+- [x] Navigate chapters and select an exact paragraph without losing source order.
+- [x] View and navigate the original PDF and switch modes at a related position.
+- [x] Customize and persist theme and typography within defined bounds.
+- [x] Restore a durable per-book visual position without conflating it with narration progress.
 
 ## Out of Scope
 
@@ -197,11 +197,11 @@ cascade outcomes.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| READ-01 | Open and read reformatted text | Execute | Implementing |
-| READ-02 | Navigate chapters | Execute | Implementing |
-| READ-03 | View and navigate original PDF | Execute | Implementing |
-| READ-04 | Customize the reading surface | Execute | Implementing |
-| READ-05 | Restore visual reading position | Execute | Implementing |
+| READ-01 | Open and read reformatted text | Validate | Verified |
+| READ-02 | Navigate chapters | Validate | Verified |
+| READ-03 | View and navigate original PDF | Validate | Verified |
+| READ-04 | Customize the reading surface | Validate | Verified |
+| READ-05 | Restore visual reading position | Validate | Verified |
 
 **Coverage:** 5 total, 5 mapped to tasks, 0 unmapped.
 
@@ -209,8 +209,8 @@ cascade outcomes.
 
 ## Success Criteria
 
-- [ ] A ready book opens in text mode and exposes exact ordered chapter/block content.
-- [ ] Text↔PDF switching lands on deterministic related positions.
-- [ ] Theme and typography survive a full application/database restart.
-- [ ] Each book restores its latest valid visual position and safely repairs stale state.
-- [ ] Reader loading, navigation, settings, and persistence pass accessibility, full-test, analysis, and Android build gates.
+- [x] A ready book opens in text mode and exposes exact ordered chapter/block content.
+- [x] Text↔PDF switching lands on deterministic related positions.
+- [x] Theme and typography survive a full application/database restart.
+- [x] Each book restores its latest valid visual position and safely repairs stale state.
+- [x] Reader loading, navigation, settings, and persistence pass accessibility, full-test, analysis, and Android build gates.

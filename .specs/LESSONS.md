@@ -74,6 +74,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md mutation: temporary worker block ID persisted (processing-payload)
 - last seen: 2026-07-18T20:16:15Z
 
+### L-011 — Test serialized writes with adversarial physical completion order
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `persistence-concurrency` · harmful: 0
+- features: visual_reader
+- evidence: validation.md mutant 6 newest-wins (persistence-concurrency)
+- last seen: 2026-07-18T23:19:37Z
+
+### L-012 — Use multi-candidate fixtures when asserting deterministic first-item fallback
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `stale-repair` · harmful: 0
+- features: visual_reader
+- evidence: validation.md mutant 7 stale repair (stale-repair)
+- last seen: 2026-07-18T23:19:37Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

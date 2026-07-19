@@ -61,10 +61,10 @@
 ## Handoff
 
 - **Feature**: visual_reader / `.specs/features/visual_reader`
-- **Phase / Task**: Execute — Batch 1, T1 next
-- **Completed**: Milestones 1–2; Milestone 3 specification, context, design, and tasks approved
+- **Phase / Task**: Validate — automated PASS; UAT deferred
+- **Completed**: Milestones 1–3; visual reader 34/34 ACs, 8/8 mutants, 291 tests, APK debug
 - **In-progress** (file:line): none
-- **Next step**: execute Phase 1–2 tasks T1–T6 sequentially with the approved batch worker
+- **Next step**: specify Milestone 4 narration; run combined Milestone 3–4 UAT at its end
 - **Blockers**: none
-- **Uncommitted files**: Milestone 3 planning checkpoint
+- **Uncommitted files**: Milestone 3 validation/lessons and closeout documentation
 - **Branch**: `main`
