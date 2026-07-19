@@ -315,7 +315,7 @@ reader focus without queueing a visual-position write.
 **Gate**: quick
 **Commit**: `feat(reader): follow narration without saving position`
 
-### T10: Build the foreground narration player bar
+### T10: Build the foreground narration player bar ✅
 
 **What**: Add the persistent player bar for status, chapter, play/pause,
 previous/next, settings, messages, and retry.
@@ -341,7 +341,7 @@ previous/next, settings, messages, and retry.
 **Gate**: quick
 **Commit**: `feat(narration): add accessible player bar`
 
-### T11: Build voice and speed settings sheet
+### T11: Build voice and speed settings sheet ✅
 
 **What**: Add sorted voice selection/preview, global/book scope, and bounded
 rate controls.
@@ -367,7 +367,7 @@ rate controls.
 **Gate**: quick
 **Commit**: `feat(narration): add voice and speed controls`
 
-### T12: Compose narration with the reader
+### T12: Compose narration with the reader ✅
 
 **What**: Add `ReaderNarrationHost` and minimally adapt `ReaderPage` so user
 selection sets pending narration origin while playback focus follows visually.
@@ -395,7 +395,7 @@ selection sets pending narration origin while playback focus follows visually.
 **Gate**: full
 **Commit**: `feat(reader): compose foreground narration`
 
-### T13: Register single engine and route narration ownership
+### T13: Register single engine and route narration ownership ✅
 
 **What**: Extend dependency injection with the engine/repository singletons and
 a route registry that safely transfers foreground engine ownership and awaits
@@ -423,7 +423,7 @@ shutdown.
 **Gate**: full
 **Commit**: `feat(app): register foreground narration lifecycle`
 
-### T14: Verify the complete persisted foreground narration flow
+### T14: Verify the complete persisted foreground narration flow ✅
 
 **What**: Add the file-backed end-to-end feature integration suite and the
 combined Milestone 3–4 UAT checklist, then run all release gates.

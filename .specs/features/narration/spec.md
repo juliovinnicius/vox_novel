@@ -229,12 +229,12 @@ manual UAT checklist on a device.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| NAR-01 | Initialize foreground narration | Tasks | Planned |
-| NAR-02 | Select and preview voice and speed | Tasks | Planned |
-| NAR-03 | Play and pause current block | Tasks | Planned |
-| NAR-04 | Advance through narration queue | Tasks | Planned |
-| NAR-05 | Persist and restore narration progress | Tasks | Planned |
-| NAR-06 | Accessible foreground player | Tasks | Planned |
+| NAR-01 | Initialize foreground narration | Validate | Implemented |
+| NAR-02 | Select and preview voice and speed | Validate | Implemented |
+| NAR-03 | Play and pause current block | Validate | Implemented |
+| NAR-04 | Advance through narration queue | Validate | Implemented |
+| NAR-05 | Persist and restore narration progress | Validate | Implemented |
+| NAR-06 | Accessible foreground player | Validate | Implemented |
 
 **Coverage:** 6 total, 6 mapped to tasks, 0 pending design.
 
