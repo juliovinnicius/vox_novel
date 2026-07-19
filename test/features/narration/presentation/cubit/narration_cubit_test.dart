@@ -234,6 +234,208 @@ void main() {
       [NarrationStatus.ready, 'new'],
     );
   });
+
+  test('selected play pauses and stale completion cannot advance', () async {
+    final completion = Completer<void>();
+    final repository = _FakeRepository();
+    final engine = _FakeEngine(voices: [ana], speakFuture: completion.future);
+    final cubit = _cubit(repository, engine);
+    addTearDown(cubit.close);
+    await cubit.load(_content());
+    cubit.setPendingStart('chapter-1', 'block-2');
+
+    final playing = cubit.play();
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      [cubit.state.status, cubit.state.blockId, engine.spoken],
+      [
+        NarrationStatus.playing,
+        'block-2',
+        ['Dois'],
+      ],
+    );
+    await cubit.pause();
+    completion.complete();
+    await playing;
+
+    expect(
+      [
+        cubit.state.status,
+        cubit.state.blockId,
+        engine.stopCalls,
+        repository.progressSaves.last.completed,
+      ],
+      [NarrationStatus.paused, 'block-2', 1, false],
+    );
+    await cubit.play();
+    expect(engine.spoken, ['Dois', 'Dois']);
+  });
+
+  test(
+    'automatic advance persists before speak and completes without wrap',
+    () async {
+      final events = <String>[];
+      final repository = _FakeRepository(events: events);
+      final engine = _FakeEngine(voices: [ana], events: events);
+      final cubit = _cubit(repository, engine);
+      addTearDown(cubit.close);
+      await cubit.load(_content());
+      events.clear();
+
+      await cubit.play();
+
+      expect(events, [
+        'speak:Um',
+        'save:block-1:false',
+        'save:block-2:false',
+        'speak:Dois',
+        'save:block-2:true',
+      ]);
+      expect(
+        [cubit.state.status, cubit.state.blockId, engine.spoken],
+        [
+          NarrationStatus.completed,
+          'block-2',
+          ['Um', 'Dois'],
+        ],
+      );
+      await cubit.next();
+      expect(engine.spoken, ['Um', 'Dois']);
+    },
+  );
+
+  test(
+    'manual navigation persists target and speaks only while playing',
+    () async {
+      final repository = _FakeRepository();
+      final engine = _FakeEngine(voices: [ana]);
+      final cubit = _cubit(repository, engine);
+      addTearDown(cubit.close);
+      await cubit.load(_content());
+
+      await cubit.next();
+      expect(
+        [
+          cubit.state.blockId,
+          cubit.state.status,
+          repository.progressSaves.last.blockId,
+          engine.spoken,
+        ],
+        ['block-2', NarrationStatus.ready, 'block-2', isEmpty],
+      );
+      await cubit.previous();
+      expect(cubit.state.blockId, 'block-1');
+      await cubit.previous();
+      expect(repository.progressSaves, hasLength(2));
+    },
+  );
+
+  test('manual next invalidates speech and narrates target once', () async {
+    final firstSpeech = Completer<void>();
+    final repository = _FakeRepository();
+    final engine = _FakeEngine(voices: [ana], speakFuture: firstSpeech.future);
+    final cubit = _cubit(repository, engine);
+    addTearDown(cubit.close);
+    await cubit.load(_content());
+    final firstPlay = cubit.play();
+    await Future<void>.delayed(Duration.zero);
+    engine.speakFuture = null;
+
+    await cubit.next();
+    firstSpeech.complete();
+    await firstPlay;
+
+    expect(
+      [
+        cubit.state.status,
+        cubit.state.blockId,
+        engine.stopCalls,
+        engine.spoken,
+        repository.progressSaves.last.blockId,
+      ],
+      [
+        NarrationStatus.completed,
+        'block-2',
+        1,
+        ['Um', 'Dois'],
+        'block-2',
+      ],
+    );
+  });
+
+  test('close awaits stop before persisting current block', () async {
+    final stop = Completer<void>();
+    final repository = _FakeRepository();
+    final engine = _FakeEngine(voices: [ana], stopFuture: stop.future);
+    final cubit = _cubit(repository, engine);
+    await cubit.load(_content());
+    var closed = false;
+
+    final closing = cubit.close().then((_) => closed = true);
+    await Future<void>.delayed(Duration.zero);
+    expect([closed, repository.progressSaves], [false, isEmpty]);
+    stop.complete();
+    await closing;
+
+    expect(
+      [closed, repository.progressSaves.single.blockId],
+      [true, 'block-1'],
+    );
+  });
+
+  test('lifecycle pauses synchronously and awaits stop and progress', () async {
+    final stop = Completer<void>();
+    final speech = Completer<void>();
+    final repository = _FakeRepository();
+    final engine = _FakeEngine(
+      voices: [ana],
+      speakFuture: speech.future,
+      stopFuture: stop.future,
+    );
+    final cubit = _cubit(repository, engine);
+    addTearDown(cubit.close);
+    await cubit.load(_content());
+    final playing = cubit.play();
+    await Future<void>.delayed(Duration.zero);
+
+    final lifecycle = cubit.onAppLifecyclePause();
+    expect(cubit.state.status, NarrationStatus.paused);
+    expect(repository.progressSaves, isEmpty);
+    stop.complete();
+    await lifecycle;
+    expect(repository.progressSaves.single.blockId, 'block-1');
+    speech.complete();
+    await playing;
+    expect(cubit.state.status, NarrationStatus.paused);
+  });
+
+  test(
+    'speak and progress failures retain block with exact messages',
+    () async {
+      final repository = _FakeRepository();
+      final engine = _FakeEngine(
+        voices: [ana],
+        speakError: StateError('speak'),
+      );
+      final cubit = _cubit(repository, engine);
+      addTearDown(cubit.close);
+      await cubit.load(_content());
+
+      await cubit.play();
+      expect(
+        [cubit.state.status, cubit.state.blockId, cubit.state.message],
+        [NarrationStatus.paused, 'block-1', NarrationCubit.speechMessage],
+      );
+
+      engine.speakError = null;
+      repository.failProgressSave = true;
+      await cubit.play();
+      expect(
+        [cubit.state.status, cubit.state.blockId, cubit.state.message],
+        [NarrationStatus.paused, 'block-1', NarrationCubit.progressMessage],
+      );
+    },
+  );
 }
 
 NarrationCubit _cubit(_FakeRepository repository, _FakeEngine engine) =>
@@ -249,14 +451,21 @@ final class _FakeEngine implements NarrationEngine {
     this.initializeError,
     this.initializeFuture,
     this.speakFuture,
+    this.stopFuture,
+    this.speakError,
+    this.events,
   });
 
   List<NarrationVoice> voices;
   Object? initializeError;
   Future<List<NarrationVoice>>? initializeFuture;
   Future<void>? speakFuture;
+  Future<void>? stopFuture;
+  Object? speakError;
+  final List<String>? events;
   final spoken = <String>[];
   final configurations = <String>[];
+  var stopCalls = 0;
 
   @override
   Future<List<NarrationVoice>> initialize() async {
@@ -274,19 +483,28 @@ final class _FakeEngine implements NarrationEngine {
   @override
   Future<void> speak(String text) async {
     spoken.add(text);
+    events?.add('speak:$text');
+    if (speakError != null) throw speakError!;
     await speakFuture;
   }
 
   @override
-  Future<void> stop() async {}
+  Future<void> stop() async {
+    stopCalls++;
+    await stopFuture;
+  }
 
   @override
   Future<void> close() async {}
 }
 
 final class _FakeRepository implements NarrationRepository {
-  _FakeRepository({NarrationSettings? global, this.bookOverride, this.progress})
-    : global = global ?? NarrationSettings.defaults();
+  _FakeRepository({
+    NarrationSettings? global,
+    this.bookOverride,
+    this.progress,
+    this.events,
+  }) : global = global ?? NarrationSettings.defaults();
 
   NarrationSettings global;
   BookNarrationOverride? bookOverride;
@@ -295,7 +513,9 @@ final class _FakeRepository implements NarrationRepository {
   final overrideSaves = <BookNarrationOverride>[];
   final progressSaves = <NarrationProgress>[];
   final deletedOverrides = <String>[];
+  final List<String>? events;
   var failGlobalSave = false;
+  var failProgressSave = false;
 
   @override
   Future<NarrationSettings> loadGlobalSettings() async => global;
@@ -328,8 +548,10 @@ final class _FakeRepository implements NarrationRepository {
 
   @override
   Future<void> saveProgress(NarrationProgress value) async {
+    if (failProgressSave) throw StateError('progress failed');
     progress = value;
     progressSaves.add(value);
+    events?.add('save:${value.blockId}:${value.completed}');
   }
 }
 
