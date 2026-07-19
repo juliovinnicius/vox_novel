@@ -7,7 +7,9 @@ final class DriftNarrationRepository implements NarrationRepository {
   DriftNarrationRepository(
     this._database, {
     Future<void> Function(NarrationProgress progress)? beforeProgressWrite,
-  }) : _beforeProgressWrite = beforeProgressWrite;
+  }) : // Public seam name intentionally omits a private prefix.
+       // ignore: prefer_initializing_formals
+       _beforeProgressWrite = beforeProgressWrite;
 
   final db.AppDatabase _database;
   final Future<void> Function(NarrationProgress progress)? _beforeProgressWrite;
