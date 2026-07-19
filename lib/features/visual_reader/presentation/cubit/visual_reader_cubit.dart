@@ -102,6 +102,17 @@ final class VisualReaderCubit extends Cubit<VisualReaderState> {
     _apply(chapterId: chapterId, blockId: blockId);
   }
 
+  void followNarration(String chapterId, String blockId) {
+    if (state.status != VisualReaderStatus.ready) return;
+    final chapter = _chapter(chapterId);
+    if (chapter == null ||
+        !chapter.blocks.any((block) => block.id == blockId) ||
+        state.chapterId == chapterId && state.blockId == blockId) {
+      return;
+    }
+    emit(state.copyWith(chapterId: chapterId, blockId: blockId, message: null));
+  }
+
   void selectChapter(String chapterId) {
     final chapter = _chapter(chapterId);
     if (chapter == null || state.chapterId == chapterId) return;

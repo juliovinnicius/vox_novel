@@ -216,6 +216,35 @@ void main() {
   });
 
   test(
+    'narration follow validates focus without saving visual position',
+    () async {
+      final repository = _Repository(content: _navigationContent());
+      final cubit = _cubit(repository);
+      await cubit.load('book');
+
+      cubit.followNarration('first', 'second-block');
+      expect(
+        [cubit.state.chapterId, cubit.state.blockId],
+        ['first', 'second-block'],
+      );
+      expect(repository.savedPositions, isEmpty);
+
+      cubit.followNarration('foreign', 'second-block');
+      cubit.followNarration('first', 'foreign');
+      cubit.followNarration('first', 'second-block');
+      expect(
+        [cubit.state.chapterId, cubit.state.blockId],
+        ['first', 'second-block'],
+      );
+      expect(repository.savedPositions, isEmpty);
+
+      cubit.selectBlock('first', 'first-block');
+      await cubit.close();
+      expect(repository.savedPositions.single.blockId, 'first-block');
+    },
+  );
+
+  test(
     'state changes remain readable while position save is pending',
     () async {
       final pending = Completer<void>();
