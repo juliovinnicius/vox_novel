@@ -524,12 +524,8 @@ final class _FakeEngine implements NarrationEngine {
 }
 
 final class _FakeRepository implements NarrationRepository {
-  _FakeRepository({
-    NarrationSettings? global,
-    this.bookOverride,
-    this.progress,
-    this.events,
-  }) : global = global ?? NarrationSettings.defaults();
+  _FakeRepository({NarrationSettings? global, this.progress, this.events})
+    : global = global ?? NarrationSettings.defaults();
 
   NarrationSettings global;
   BookNarrationOverride? bookOverride;

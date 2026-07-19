@@ -108,8 +108,8 @@ final class NarrationCubit extends Cubit<NarrationState> {
       }
       if (!_active(generation)) return;
       _emitEntry(
-        entry!,
-        status: valid && saved!.completed
+        entry,
+        status: valid && saved.completed
             ? NarrationStatus.completed
             : NarrationStatus.ready,
         voices: _resolver.sortVoices(voices),
