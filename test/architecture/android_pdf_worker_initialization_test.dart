@@ -9,6 +9,7 @@ void main() {
       'pdfrx_pdf_text_extractor.dart',
     ).readAsStringSync();
 
+    expect(source, contains('Pdfrx.cacheDirectoryPath,'));
     expect(source, contains('pdfrxInitialize(tmpPath: cacheDirectoryPath)'));
   });
 }
