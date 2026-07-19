@@ -206,7 +206,7 @@ per-book newest-request write tail that survives failures.
 **Gate**: full
 **Commit**: `feat(narration): persist settings and progress`
 
-### T6: Integrate the Flutter TTS adapter
+### T6: Integrate the Flutter TTS adapter ✅
 
 **What**: Add `flutter_tts`, Android TTS-service visibility, and the adapter
 that initializes once and strictly maps plugin behavior to the engine contract.
@@ -233,7 +233,7 @@ that initializes once and strictly maps plugin behavior to the engine contract.
 **Gate**: build
 **Commit**: `feat(narration): adapt on-device text to speech`
 
-### T7: Implement narration state and load/settings behavior
+### T7: Implement narration state and load/settings behavior ✅
 
 **What**: Add state and the first cohesive Cubit slice for initialization,
 progress restore/repair, voice/rate persistence, override scope, retry, and
@@ -261,7 +261,7 @@ preview.
 **Gate**: quick
 **Commit**: `feat(narration): load narration preferences and progress`
 
-### T8: Implement generation-safe playback and traversal
+### T8: Implement generation-safe playback and traversal ✅
 
 **What**: Complete Cubit play, pause, previous, next, automatic advance,
 failure, completion, lifecycle, reload, and close behavior.
@@ -288,7 +288,7 @@ failure, completion, lifecycle, reload, and close behavior.
 **Gate**: quick
 **Commit**: `feat(narration): control foreground playback queue`
 
-### T9: Add non-persisting visual narration follow
+### T9: Add non-persisting visual narration follow ✅
 
 **What**: Add a validated `followNarration` transition that changes in-memory
 reader focus without queueing a visual-position write.
