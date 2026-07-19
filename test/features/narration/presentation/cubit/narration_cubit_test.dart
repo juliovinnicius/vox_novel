@@ -436,6 +436,24 @@ void main() {
       );
     },
   );
+
+  test('missing selected voice repairs once and retries same block', () async {
+    final zeca = NarrationVoice(name: 'Zeca', locale: 'pt-BR');
+    final repository = _FakeRepository(
+      global: NarrationSettings(voice: ana, rate: 1),
+    );
+    final engine = _FakeEngine(voices: [ana, zeca], configureFailures: 1);
+    final cubit = _cubit(repository, engine);
+    addTearDown(cubit.close);
+    await cubit.load(_content());
+
+    await cubit.play();
+
+    expect(engine.configurations.take(2), ['Ana:pt-BR:1.0', 'Zeca:pt-BR:1.0']);
+    expect(engine.spoken, ['Um', 'Dois']);
+    expect(cubit.state.settings?.voice, zeca);
+    expect(repository.globalSaves.last.voice, zeca);
+  });
 }
 
 NarrationCubit _cubit(_FakeRepository repository, _FakeEngine engine) =>
@@ -454,6 +472,7 @@ final class _FakeEngine implements NarrationEngine {
     this.stopFuture,
     this.speakError,
     this.events,
+    this.configureFailures = 0,
   });
 
   List<NarrationVoice> voices;
@@ -463,6 +482,7 @@ final class _FakeEngine implements NarrationEngine {
   Future<void>? stopFuture;
   Object? speakError;
   final List<String>? events;
+  int configureFailures;
   final spoken = <String>[];
   final configurations = <String>[];
   var stopCalls = 0;
@@ -477,8 +497,13 @@ final class _FakeEngine implements NarrationEngine {
   }
 
   @override
-  Future<void> configure(NarrationVoice voice, double rate) async =>
-      configurations.add('${voice.name}:${voice.locale}:$rate');
+  Future<void> configure(NarrationVoice voice, double rate) async {
+    configurations.add('${voice.name}:${voice.locale}:$rate');
+    if (configureFailures > 0) {
+      configureFailures--;
+      throw StateError('voice missing');
+    }
+  }
 
   @override
   Future<void> speak(String text) async {

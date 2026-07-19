@@ -239,13 +239,46 @@ final class NarrationCubit extends Cubit<NarrationState> {
     final generation = ++_generation;
     _emitPlaybackEntry(entry, NarrationStatus.playing);
     try {
-      await _engine.configure(state.settings!.voice!, state.settings!.rate);
-      if (!_active(generation)) return;
-      await _engine.speak(entry.normalizedText);
+      await _speakWithVoiceRepair(entry, generation);
       if (!_active(generation)) return;
       await _complete(entry, generation);
     } catch (_) {
       if (_active(generation)) await _speechFailure(entry, generation);
+    }
+  }
+
+  Future<void> _speakWithVoiceRepair(
+    NarrationQueueEntry entry,
+    int generation,
+  ) async {
+    final original = state.settings!;
+    try {
+      await _engine.configure(original.voice!, original.rate);
+      if (!_active(generation)) return;
+      await _engine.speak(entry.normalizedText);
+      return;
+    } catch (_) {
+      if (!_active(generation)) return;
+      final fallback = state.voices
+          .where((voice) => voice != original.voice)
+          .firstOrNull;
+      if (fallback == null) rethrow;
+      final repaired = NarrationSettings(voice: fallback, rate: original.rate);
+      emit(state.copyWith(settings: repaired));
+      if (state.usesBookOverride) {
+        await _repository.saveBookOverride(
+          BookNarrationOverride(
+            bookId: state.bookId!,
+            settings: repaired,
+            updatedAt: _clock().toUtc(),
+          ),
+        );
+      } else {
+        await _repository.saveGlobalSettings(repaired);
+      }
+      await _engine.configure(fallback, repaired.rate);
+      if (!_active(generation)) return;
+      await _engine.speak(entry.normalizedText);
     }
   }
 
