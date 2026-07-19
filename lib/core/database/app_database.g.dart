@@ -3683,6 +3683,1351 @@ class ReaderPositionsCompanion extends UpdateCompanion<ReaderPosition> {
   }
 }
 
+class $NarrationSettingsRowsTable extends NarrationSettingsRows
+    with TableInfo<$NarrationSettingsRowsTable, NarrationSettingsRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NarrationSettingsRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL CHECK (id = 1)',
+  );
+  static const VerificationMeta _voiceNameMeta = const VerificationMeta(
+    'voiceName',
+  );
+  @override
+  late final GeneratedColumn<String> voiceName = GeneratedColumn<String>(
+    'voice_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NULL CHECK (voice_name IS NULL OR length(trim(voice_name)) > 0)',
+  );
+  static const VerificationMeta _voiceLocaleMeta = const VerificationMeta(
+    'voiceLocale',
+  );
+  @override
+  late final GeneratedColumn<String> voiceLocale = GeneratedColumn<String>(
+    'voice_locale',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NULL CHECK (voice_locale IS NULL OR length(trim(voice_locale)) > 0)',
+  );
+  static const VerificationMeta _speechRateMeta = const VerificationMeta(
+    'speechRate',
+  );
+  @override
+  late final GeneratedColumn<double> speechRate = GeneratedColumn<double>(
+    'speech_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (speech_rate IN (0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0))',
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
+      GeneratedColumn<int>(
+        'updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $NarrationSettingsRowsTable.$converterupdatedAt,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    voiceName,
+    voiceLocale,
+    speechRate,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'narration_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NarrationSettingsRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('voice_name')) {
+      context.handle(
+        _voiceNameMeta,
+        voiceName.isAcceptableOrUnknown(data['voice_name']!, _voiceNameMeta),
+      );
+    }
+    if (data.containsKey('voice_locale')) {
+      context.handle(
+        _voiceLocaleMeta,
+        voiceLocale.isAcceptableOrUnknown(
+          data['voice_locale']!,
+          _voiceLocaleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('speech_rate')) {
+      context.handle(
+        _speechRateMeta,
+        speechRate.isAcceptableOrUnknown(data['speech_rate']!, _speechRateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_speechRateMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NarrationSettingsRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NarrationSettingsRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      voiceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voice_name'],
+      ),
+      voiceLocale: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voice_locale'],
+      ),
+      speechRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}speech_rate'],
+      )!,
+      updatedAt: $NarrationSettingsRowsTable.$converterupdatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $NarrationSettingsRowsTable createAlias(String alias) {
+    return $NarrationSettingsRowsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterupdatedAt =
+      const UtcDateTimeConverter();
+}
+
+class NarrationSettingsRow extends DataClass
+    implements Insertable<NarrationSettingsRow> {
+  final int id;
+  final String? voiceName;
+  final String? voiceLocale;
+  final double speechRate;
+  final DateTime updatedAt;
+  const NarrationSettingsRow({
+    required this.id,
+    this.voiceName,
+    this.voiceLocale,
+    required this.speechRate,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || voiceName != null) {
+      map['voice_name'] = Variable<String>(voiceName);
+    }
+    if (!nullToAbsent || voiceLocale != null) {
+      map['voice_locale'] = Variable<String>(voiceLocale);
+    }
+    map['speech_rate'] = Variable<double>(speechRate);
+    {
+      map['updated_at'] = Variable<int>(
+        $NarrationSettingsRowsTable.$converterupdatedAt.toSql(updatedAt),
+      );
+    }
+    return map;
+  }
+
+  NarrationSettingsRowsCompanion toCompanion(bool nullToAbsent) {
+    return NarrationSettingsRowsCompanion(
+      id: Value(id),
+      voiceName: voiceName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voiceName),
+      voiceLocale: voiceLocale == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voiceLocale),
+      speechRate: Value(speechRate),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory NarrationSettingsRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NarrationSettingsRow(
+      id: serializer.fromJson<int>(json['id']),
+      voiceName: serializer.fromJson<String?>(json['voiceName']),
+      voiceLocale: serializer.fromJson<String?>(json['voiceLocale']),
+      speechRate: serializer.fromJson<double>(json['speechRate']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'voiceName': serializer.toJson<String?>(voiceName),
+      'voiceLocale': serializer.toJson<String?>(voiceLocale),
+      'speechRate': serializer.toJson<double>(speechRate),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  NarrationSettingsRow copyWith({
+    int? id,
+    Value<String?> voiceName = const Value.absent(),
+    Value<String?> voiceLocale = const Value.absent(),
+    double? speechRate,
+    DateTime? updatedAt,
+  }) => NarrationSettingsRow(
+    id: id ?? this.id,
+    voiceName: voiceName.present ? voiceName.value : this.voiceName,
+    voiceLocale: voiceLocale.present ? voiceLocale.value : this.voiceLocale,
+    speechRate: speechRate ?? this.speechRate,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  NarrationSettingsRow copyWithCompanion(NarrationSettingsRowsCompanion data) {
+    return NarrationSettingsRow(
+      id: data.id.present ? data.id.value : this.id,
+      voiceName: data.voiceName.present ? data.voiceName.value : this.voiceName,
+      voiceLocale: data.voiceLocale.present
+          ? data.voiceLocale.value
+          : this.voiceLocale,
+      speechRate: data.speechRate.present
+          ? data.speechRate.value
+          : this.speechRate,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NarrationSettingsRow(')
+          ..write('id: $id, ')
+          ..write('voiceName: $voiceName, ')
+          ..write('voiceLocale: $voiceLocale, ')
+          ..write('speechRate: $speechRate, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, voiceName, voiceLocale, speechRate, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NarrationSettingsRow &&
+          other.id == this.id &&
+          other.voiceName == this.voiceName &&
+          other.voiceLocale == this.voiceLocale &&
+          other.speechRate == this.speechRate &&
+          other.updatedAt == this.updatedAt);
+}
+
+class NarrationSettingsRowsCompanion
+    extends UpdateCompanion<NarrationSettingsRow> {
+  final Value<int> id;
+  final Value<String?> voiceName;
+  final Value<String?> voiceLocale;
+  final Value<double> speechRate;
+  final Value<DateTime> updatedAt;
+  const NarrationSettingsRowsCompanion({
+    this.id = const Value.absent(),
+    this.voiceName = const Value.absent(),
+    this.voiceLocale = const Value.absent(),
+    this.speechRate = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  NarrationSettingsRowsCompanion.insert({
+    this.id = const Value.absent(),
+    this.voiceName = const Value.absent(),
+    this.voiceLocale = const Value.absent(),
+    required double speechRate,
+    required DateTime updatedAt,
+  }) : speechRate = Value(speechRate),
+       updatedAt = Value(updatedAt);
+  static Insertable<NarrationSettingsRow> custom({
+    Expression<int>? id,
+    Expression<String>? voiceName,
+    Expression<String>? voiceLocale,
+    Expression<double>? speechRate,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (voiceName != null) 'voice_name': voiceName,
+      if (voiceLocale != null) 'voice_locale': voiceLocale,
+      if (speechRate != null) 'speech_rate': speechRate,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  NarrationSettingsRowsCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? voiceName,
+    Value<String?>? voiceLocale,
+    Value<double>? speechRate,
+    Value<DateTime>? updatedAt,
+  }) {
+    return NarrationSettingsRowsCompanion(
+      id: id ?? this.id,
+      voiceName: voiceName ?? this.voiceName,
+      voiceLocale: voiceLocale ?? this.voiceLocale,
+      speechRate: speechRate ?? this.speechRate,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (voiceName.present) {
+      map['voice_name'] = Variable<String>(voiceName.value);
+    }
+    if (voiceLocale.present) {
+      map['voice_locale'] = Variable<String>(voiceLocale.value);
+    }
+    if (speechRate.present) {
+      map['speech_rate'] = Variable<double>(speechRate.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(
+        $NarrationSettingsRowsTable.$converterupdatedAt.toSql(updatedAt.value),
+      );
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NarrationSettingsRowsCompanion(')
+          ..write('id: $id, ')
+          ..write('voiceName: $voiceName, ')
+          ..write('voiceLocale: $voiceLocale, ')
+          ..write('speechRate: $speechRate, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BookNarrationSettingsTable extends BookNarrationSettings
+    with TableInfo<$BookNarrationSettingsTable, BookNarrationSetting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BookNarrationSettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+    'book_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES books (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _voiceNameMeta = const VerificationMeta(
+    'voiceName',
+  );
+  @override
+  late final GeneratedColumn<String> voiceName = GeneratedColumn<String>(
+    'voice_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(trim(voice_name)) > 0)',
+  );
+  static const VerificationMeta _voiceLocaleMeta = const VerificationMeta(
+    'voiceLocale',
+  );
+  @override
+  late final GeneratedColumn<String> voiceLocale = GeneratedColumn<String>(
+    'voice_locale',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(trim(voice_locale)) > 0)',
+  );
+  static const VerificationMeta _speechRateMeta = const VerificationMeta(
+    'speechRate',
+  );
+  @override
+  late final GeneratedColumn<double> speechRate = GeneratedColumn<double>(
+    'speech_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (speech_rate IN (0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0))',
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
+      GeneratedColumn<int>(
+        'updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $BookNarrationSettingsTable.$converterupdatedAt,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    bookId,
+    voiceName,
+    voiceLocale,
+    speechRate,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'book_narration_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BookNarrationSetting> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('book_id')) {
+      context.handle(
+        _bookIdMeta,
+        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('voice_name')) {
+      context.handle(
+        _voiceNameMeta,
+        voiceName.isAcceptableOrUnknown(data['voice_name']!, _voiceNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_voiceNameMeta);
+    }
+    if (data.containsKey('voice_locale')) {
+      context.handle(
+        _voiceLocaleMeta,
+        voiceLocale.isAcceptableOrUnknown(
+          data['voice_locale']!,
+          _voiceLocaleMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_voiceLocaleMeta);
+    }
+    if (data.containsKey('speech_rate')) {
+      context.handle(
+        _speechRateMeta,
+        speechRate.isAcceptableOrUnknown(data['speech_rate']!, _speechRateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_speechRateMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {bookId};
+  @override
+  BookNarrationSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BookNarrationSetting(
+      bookId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}book_id'],
+      )!,
+      voiceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voice_name'],
+      )!,
+      voiceLocale: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voice_locale'],
+      )!,
+      speechRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}speech_rate'],
+      )!,
+      updatedAt: $BookNarrationSettingsTable.$converterupdatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $BookNarrationSettingsTable createAlias(String alias) {
+    return $BookNarrationSettingsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterupdatedAt =
+      const UtcDateTimeConverter();
+}
+
+class BookNarrationSetting extends DataClass
+    implements Insertable<BookNarrationSetting> {
+  final String bookId;
+  final String voiceName;
+  final String voiceLocale;
+  final double speechRate;
+  final DateTime updatedAt;
+  const BookNarrationSetting({
+    required this.bookId,
+    required this.voiceName,
+    required this.voiceLocale,
+    required this.speechRate,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['book_id'] = Variable<String>(bookId);
+    map['voice_name'] = Variable<String>(voiceName);
+    map['voice_locale'] = Variable<String>(voiceLocale);
+    map['speech_rate'] = Variable<double>(speechRate);
+    {
+      map['updated_at'] = Variable<int>(
+        $BookNarrationSettingsTable.$converterupdatedAt.toSql(updatedAt),
+      );
+    }
+    return map;
+  }
+
+  BookNarrationSettingsCompanion toCompanion(bool nullToAbsent) {
+    return BookNarrationSettingsCompanion(
+      bookId: Value(bookId),
+      voiceName: Value(voiceName),
+      voiceLocale: Value(voiceLocale),
+      speechRate: Value(speechRate),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory BookNarrationSetting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BookNarrationSetting(
+      bookId: serializer.fromJson<String>(json['bookId']),
+      voiceName: serializer.fromJson<String>(json['voiceName']),
+      voiceLocale: serializer.fromJson<String>(json['voiceLocale']),
+      speechRate: serializer.fromJson<double>(json['speechRate']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'bookId': serializer.toJson<String>(bookId),
+      'voiceName': serializer.toJson<String>(voiceName),
+      'voiceLocale': serializer.toJson<String>(voiceLocale),
+      'speechRate': serializer.toJson<double>(speechRate),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  BookNarrationSetting copyWith({
+    String? bookId,
+    String? voiceName,
+    String? voiceLocale,
+    double? speechRate,
+    DateTime? updatedAt,
+  }) => BookNarrationSetting(
+    bookId: bookId ?? this.bookId,
+    voiceName: voiceName ?? this.voiceName,
+    voiceLocale: voiceLocale ?? this.voiceLocale,
+    speechRate: speechRate ?? this.speechRate,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  BookNarrationSetting copyWithCompanion(BookNarrationSettingsCompanion data) {
+    return BookNarrationSetting(
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      voiceName: data.voiceName.present ? data.voiceName.value : this.voiceName,
+      voiceLocale: data.voiceLocale.present
+          ? data.voiceLocale.value
+          : this.voiceLocale,
+      speechRate: data.speechRate.present
+          ? data.speechRate.value
+          : this.speechRate,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookNarrationSetting(')
+          ..write('bookId: $bookId, ')
+          ..write('voiceName: $voiceName, ')
+          ..write('voiceLocale: $voiceLocale, ')
+          ..write('speechRate: $speechRate, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(bookId, voiceName, voiceLocale, speechRate, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BookNarrationSetting &&
+          other.bookId == this.bookId &&
+          other.voiceName == this.voiceName &&
+          other.voiceLocale == this.voiceLocale &&
+          other.speechRate == this.speechRate &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BookNarrationSettingsCompanion
+    extends UpdateCompanion<BookNarrationSetting> {
+  final Value<String> bookId;
+  final Value<String> voiceName;
+  final Value<String> voiceLocale;
+  final Value<double> speechRate;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const BookNarrationSettingsCompanion({
+    this.bookId = const Value.absent(),
+    this.voiceName = const Value.absent(),
+    this.voiceLocale = const Value.absent(),
+    this.speechRate = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BookNarrationSettingsCompanion.insert({
+    required String bookId,
+    required String voiceName,
+    required String voiceLocale,
+    required double speechRate,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : bookId = Value(bookId),
+       voiceName = Value(voiceName),
+       voiceLocale = Value(voiceLocale),
+       speechRate = Value(speechRate),
+       updatedAt = Value(updatedAt);
+  static Insertable<BookNarrationSetting> custom({
+    Expression<String>? bookId,
+    Expression<String>? voiceName,
+    Expression<String>? voiceLocale,
+    Expression<double>? speechRate,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (bookId != null) 'book_id': bookId,
+      if (voiceName != null) 'voice_name': voiceName,
+      if (voiceLocale != null) 'voice_locale': voiceLocale,
+      if (speechRate != null) 'speech_rate': speechRate,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BookNarrationSettingsCompanion copyWith({
+    Value<String>? bookId,
+    Value<String>? voiceName,
+    Value<String>? voiceLocale,
+    Value<double>? speechRate,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return BookNarrationSettingsCompanion(
+      bookId: bookId ?? this.bookId,
+      voiceName: voiceName ?? this.voiceName,
+      voiceLocale: voiceLocale ?? this.voiceLocale,
+      speechRate: speechRate ?? this.speechRate,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (voiceName.present) {
+      map['voice_name'] = Variable<String>(voiceName.value);
+    }
+    if (voiceLocale.present) {
+      map['voice_locale'] = Variable<String>(voiceLocale.value);
+    }
+    if (speechRate.present) {
+      map['speech_rate'] = Variable<double>(speechRate.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(
+        $BookNarrationSettingsTable.$converterupdatedAt.toSql(updatedAt.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookNarrationSettingsCompanion(')
+          ..write('bookId: $bookId, ')
+          ..write('voiceName: $voiceName, ')
+          ..write('voiceLocale: $voiceLocale, ')
+          ..write('speechRate: $speechRate, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReadingProgressTable extends ReadingProgress
+    with TableInfo<$ReadingProgressTable, ReadingProgressData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReadingProgressTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+    'book_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES books (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _activeRunIdMeta = const VerificationMeta(
+    'activeRunId',
+  );
+  @override
+  late final GeneratedColumn<String> activeRunId = GeneratedColumn<String>(
+    'active_run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(active_run_id) > 0)',
+  );
+  static const VerificationMeta _chapterIdMeta = const VerificationMeta(
+    'chapterId',
+  );
+  @override
+  late final GeneratedColumn<String> chapterId = GeneratedColumn<String>(
+    'chapter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(chapter_id) > 0)',
+  );
+  static const VerificationMeta _blockIdMeta = const VerificationMeta(
+    'blockId',
+  );
+  @override
+  late final GeneratedColumn<String> blockId = GeneratedColumn<String>(
+    'block_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(block_id) > 0)',
+  );
+  static const VerificationMeta _completedMeta = const VerificationMeta(
+    'completed',
+  );
+  @override
+  late final GeneratedColumn<bool> completed = GeneratedColumn<bool>(
+    'completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("completed" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _voiceNameMeta = const VerificationMeta(
+    'voiceName',
+  );
+  @override
+  late final GeneratedColumn<String> voiceName = GeneratedColumn<String>(
+    'voice_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(trim(voice_name)) > 0)',
+  );
+  static const VerificationMeta _voiceLocaleMeta = const VerificationMeta(
+    'voiceLocale',
+  );
+  @override
+  late final GeneratedColumn<String> voiceLocale = GeneratedColumn<String>(
+    'voice_locale',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (length(trim(voice_locale)) > 0)',
+  );
+  static const VerificationMeta _speechRateMeta = const VerificationMeta(
+    'speechRate',
+  );
+  @override
+  late final GeneratedColumn<double> speechRate = GeneratedColumn<double>(
+    'speech_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+    $customConstraints:
+        'NOT NULL CHECK (speech_rate IN (0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0))',
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
+      GeneratedColumn<int>(
+        'updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($ReadingProgressTable.$converterupdatedAt);
+  @override
+  List<GeneratedColumn> get $columns => [
+    bookId,
+    activeRunId,
+    chapterId,
+    blockId,
+    completed,
+    voiceName,
+    voiceLocale,
+    speechRate,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reading_progress';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReadingProgressData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('book_id')) {
+      context.handle(
+        _bookIdMeta,
+        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('active_run_id')) {
+      context.handle(
+        _activeRunIdMeta,
+        activeRunId.isAcceptableOrUnknown(
+          data['active_run_id']!,
+          _activeRunIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_activeRunIdMeta);
+    }
+    if (data.containsKey('chapter_id')) {
+      context.handle(
+        _chapterIdMeta,
+        chapterId.isAcceptableOrUnknown(data['chapter_id']!, _chapterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_chapterIdMeta);
+    }
+    if (data.containsKey('block_id')) {
+      context.handle(
+        _blockIdMeta,
+        blockId.isAcceptableOrUnknown(data['block_id']!, _blockIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_blockIdMeta);
+    }
+    if (data.containsKey('completed')) {
+      context.handle(
+        _completedMeta,
+        completed.isAcceptableOrUnknown(data['completed']!, _completedMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_completedMeta);
+    }
+    if (data.containsKey('voice_name')) {
+      context.handle(
+        _voiceNameMeta,
+        voiceName.isAcceptableOrUnknown(data['voice_name']!, _voiceNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_voiceNameMeta);
+    }
+    if (data.containsKey('voice_locale')) {
+      context.handle(
+        _voiceLocaleMeta,
+        voiceLocale.isAcceptableOrUnknown(
+          data['voice_locale']!,
+          _voiceLocaleMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_voiceLocaleMeta);
+    }
+    if (data.containsKey('speech_rate')) {
+      context.handle(
+        _speechRateMeta,
+        speechRate.isAcceptableOrUnknown(data['speech_rate']!, _speechRateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_speechRateMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {bookId};
+  @override
+  ReadingProgressData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReadingProgressData(
+      bookId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}book_id'],
+      )!,
+      activeRunId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}active_run_id'],
+      )!,
+      chapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chapter_id'],
+      )!,
+      blockId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}block_id'],
+      )!,
+      completed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}completed'],
+      )!,
+      voiceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voice_name'],
+      )!,
+      voiceLocale: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voice_locale'],
+      )!,
+      speechRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}speech_rate'],
+      )!,
+      updatedAt: $ReadingProgressTable.$converterupdatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $ReadingProgressTable createAlias(String alias) {
+    return $ReadingProgressTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterupdatedAt =
+      const UtcDateTimeConverter();
+}
+
+class ReadingProgressData extends DataClass
+    implements Insertable<ReadingProgressData> {
+  final String bookId;
+  final String activeRunId;
+  final String chapterId;
+  final String blockId;
+  final bool completed;
+  final String voiceName;
+  final String voiceLocale;
+  final double speechRate;
+  final DateTime updatedAt;
+  const ReadingProgressData({
+    required this.bookId,
+    required this.activeRunId,
+    required this.chapterId,
+    required this.blockId,
+    required this.completed,
+    required this.voiceName,
+    required this.voiceLocale,
+    required this.speechRate,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['book_id'] = Variable<String>(bookId);
+    map['active_run_id'] = Variable<String>(activeRunId);
+    map['chapter_id'] = Variable<String>(chapterId);
+    map['block_id'] = Variable<String>(blockId);
+    map['completed'] = Variable<bool>(completed);
+    map['voice_name'] = Variable<String>(voiceName);
+    map['voice_locale'] = Variable<String>(voiceLocale);
+    map['speech_rate'] = Variable<double>(speechRate);
+    {
+      map['updated_at'] = Variable<int>(
+        $ReadingProgressTable.$converterupdatedAt.toSql(updatedAt),
+      );
+    }
+    return map;
+  }
+
+  ReadingProgressCompanion toCompanion(bool nullToAbsent) {
+    return ReadingProgressCompanion(
+      bookId: Value(bookId),
+      activeRunId: Value(activeRunId),
+      chapterId: Value(chapterId),
+      blockId: Value(blockId),
+      completed: Value(completed),
+      voiceName: Value(voiceName),
+      voiceLocale: Value(voiceLocale),
+      speechRate: Value(speechRate),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ReadingProgressData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReadingProgressData(
+      bookId: serializer.fromJson<String>(json['bookId']),
+      activeRunId: serializer.fromJson<String>(json['activeRunId']),
+      chapterId: serializer.fromJson<String>(json['chapterId']),
+      blockId: serializer.fromJson<String>(json['blockId']),
+      completed: serializer.fromJson<bool>(json['completed']),
+      voiceName: serializer.fromJson<String>(json['voiceName']),
+      voiceLocale: serializer.fromJson<String>(json['voiceLocale']),
+      speechRate: serializer.fromJson<double>(json['speechRate']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'bookId': serializer.toJson<String>(bookId),
+      'activeRunId': serializer.toJson<String>(activeRunId),
+      'chapterId': serializer.toJson<String>(chapterId),
+      'blockId': serializer.toJson<String>(blockId),
+      'completed': serializer.toJson<bool>(completed),
+      'voiceName': serializer.toJson<String>(voiceName),
+      'voiceLocale': serializer.toJson<String>(voiceLocale),
+      'speechRate': serializer.toJson<double>(speechRate),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ReadingProgressData copyWith({
+    String? bookId,
+    String? activeRunId,
+    String? chapterId,
+    String? blockId,
+    bool? completed,
+    String? voiceName,
+    String? voiceLocale,
+    double? speechRate,
+    DateTime? updatedAt,
+  }) => ReadingProgressData(
+    bookId: bookId ?? this.bookId,
+    activeRunId: activeRunId ?? this.activeRunId,
+    chapterId: chapterId ?? this.chapterId,
+    blockId: blockId ?? this.blockId,
+    completed: completed ?? this.completed,
+    voiceName: voiceName ?? this.voiceName,
+    voiceLocale: voiceLocale ?? this.voiceLocale,
+    speechRate: speechRate ?? this.speechRate,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ReadingProgressData copyWithCompanion(ReadingProgressCompanion data) {
+    return ReadingProgressData(
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      activeRunId: data.activeRunId.present
+          ? data.activeRunId.value
+          : this.activeRunId,
+      chapterId: data.chapterId.present ? data.chapterId.value : this.chapterId,
+      blockId: data.blockId.present ? data.blockId.value : this.blockId,
+      completed: data.completed.present ? data.completed.value : this.completed,
+      voiceName: data.voiceName.present ? data.voiceName.value : this.voiceName,
+      voiceLocale: data.voiceLocale.present
+          ? data.voiceLocale.value
+          : this.voiceLocale,
+      speechRate: data.speechRate.present
+          ? data.speechRate.value
+          : this.speechRate,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReadingProgressData(')
+          ..write('bookId: $bookId, ')
+          ..write('activeRunId: $activeRunId, ')
+          ..write('chapterId: $chapterId, ')
+          ..write('blockId: $blockId, ')
+          ..write('completed: $completed, ')
+          ..write('voiceName: $voiceName, ')
+          ..write('voiceLocale: $voiceLocale, ')
+          ..write('speechRate: $speechRate, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    bookId,
+    activeRunId,
+    chapterId,
+    blockId,
+    completed,
+    voiceName,
+    voiceLocale,
+    speechRate,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReadingProgressData &&
+          other.bookId == this.bookId &&
+          other.activeRunId == this.activeRunId &&
+          other.chapterId == this.chapterId &&
+          other.blockId == this.blockId &&
+          other.completed == this.completed &&
+          other.voiceName == this.voiceName &&
+          other.voiceLocale == this.voiceLocale &&
+          other.speechRate == this.speechRate &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ReadingProgressCompanion extends UpdateCompanion<ReadingProgressData> {
+  final Value<String> bookId;
+  final Value<String> activeRunId;
+  final Value<String> chapterId;
+  final Value<String> blockId;
+  final Value<bool> completed;
+  final Value<String> voiceName;
+  final Value<String> voiceLocale;
+  final Value<double> speechRate;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ReadingProgressCompanion({
+    this.bookId = const Value.absent(),
+    this.activeRunId = const Value.absent(),
+    this.chapterId = const Value.absent(),
+    this.blockId = const Value.absent(),
+    this.completed = const Value.absent(),
+    this.voiceName = const Value.absent(),
+    this.voiceLocale = const Value.absent(),
+    this.speechRate = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReadingProgressCompanion.insert({
+    required String bookId,
+    required String activeRunId,
+    required String chapterId,
+    required String blockId,
+    required bool completed,
+    required String voiceName,
+    required String voiceLocale,
+    required double speechRate,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : bookId = Value(bookId),
+       activeRunId = Value(activeRunId),
+       chapterId = Value(chapterId),
+       blockId = Value(blockId),
+       completed = Value(completed),
+       voiceName = Value(voiceName),
+       voiceLocale = Value(voiceLocale),
+       speechRate = Value(speechRate),
+       updatedAt = Value(updatedAt);
+  static Insertable<ReadingProgressData> custom({
+    Expression<String>? bookId,
+    Expression<String>? activeRunId,
+    Expression<String>? chapterId,
+    Expression<String>? blockId,
+    Expression<bool>? completed,
+    Expression<String>? voiceName,
+    Expression<String>? voiceLocale,
+    Expression<double>? speechRate,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (bookId != null) 'book_id': bookId,
+      if (activeRunId != null) 'active_run_id': activeRunId,
+      if (chapterId != null) 'chapter_id': chapterId,
+      if (blockId != null) 'block_id': blockId,
+      if (completed != null) 'completed': completed,
+      if (voiceName != null) 'voice_name': voiceName,
+      if (voiceLocale != null) 'voice_locale': voiceLocale,
+      if (speechRate != null) 'speech_rate': speechRate,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReadingProgressCompanion copyWith({
+    Value<String>? bookId,
+    Value<String>? activeRunId,
+    Value<String>? chapterId,
+    Value<String>? blockId,
+    Value<bool>? completed,
+    Value<String>? voiceName,
+    Value<String>? voiceLocale,
+    Value<double>? speechRate,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ReadingProgressCompanion(
+      bookId: bookId ?? this.bookId,
+      activeRunId: activeRunId ?? this.activeRunId,
+      chapterId: chapterId ?? this.chapterId,
+      blockId: blockId ?? this.blockId,
+      completed: completed ?? this.completed,
+      voiceName: voiceName ?? this.voiceName,
+      voiceLocale: voiceLocale ?? this.voiceLocale,
+      speechRate: speechRate ?? this.speechRate,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (activeRunId.present) {
+      map['active_run_id'] = Variable<String>(activeRunId.value);
+    }
+    if (chapterId.present) {
+      map['chapter_id'] = Variable<String>(chapterId.value);
+    }
+    if (blockId.present) {
+      map['block_id'] = Variable<String>(blockId.value);
+    }
+    if (completed.present) {
+      map['completed'] = Variable<bool>(completed.value);
+    }
+    if (voiceName.present) {
+      map['voice_name'] = Variable<String>(voiceName.value);
+    }
+    if (voiceLocale.present) {
+      map['voice_locale'] = Variable<String>(voiceLocale.value);
+    }
+    if (speechRate.present) {
+      map['speech_rate'] = Variable<double>(speechRate.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(
+        $ReadingProgressTable.$converterupdatedAt.toSql(updatedAt.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReadingProgressCompanion(')
+          ..write('bookId: $bookId, ')
+          ..write('activeRunId: $activeRunId, ')
+          ..write('chapterId: $chapterId, ')
+          ..write('blockId: $blockId, ')
+          ..write('completed: $completed, ')
+          ..write('voiceName: $voiceName, ')
+          ..write('voiceLocale: $voiceLocale, ')
+          ..write('speechRate: $speechRate, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3696,6 +5041,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ReaderSettingsRowsTable readerSettingsRows =
       $ReaderSettingsRowsTable(this);
   late final $ReaderPositionsTable readerPositions = $ReaderPositionsTable(
+    this,
+  );
+  late final $NarrationSettingsRowsTable narrationSettingsRows =
+      $NarrationSettingsRowsTable(this);
+  late final $BookNarrationSettingsTable bookNarrationSettings =
+      $BookNarrationSettingsTable(this);
+  late final $ReadingProgressTable readingProgress = $ReadingProgressTable(
     this,
   );
   late final Index booksFileHashUnique = Index(
@@ -3742,6 +5094,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     narrationBlocks,
     readerSettingsRows,
     readerPositions,
+    narrationSettingsRows,
+    bookNarrationSettings,
+    readingProgress,
     booksFileHashUnique,
     processingRunsBookId,
     rawPagesRunPageUnique,
@@ -3801,6 +5156,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('reader_positions', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'books',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('book_narration_settings', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'books',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('reading_progress', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -3901,6 +5270,51 @@ final class $$BooksTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _readerPositionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $BookNarrationSettingsTable,
+    List<BookNarrationSetting>
+  >
+  _bookNarrationSettingsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.bookNarrationSettings,
+        aliasName: 'books__id__book_narration_settings__book_id',
+      );
+
+  $$BookNarrationSettingsTableProcessedTableManager
+  get bookNarrationSettingsRefs {
+    final manager = $$BookNarrationSettingsTableTableManager(
+      $_db,
+      $_db.bookNarrationSettings,
+    ).filter((f) => f.bookId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _bookNarrationSettingsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ReadingProgressTable, List<ReadingProgressData>>
+  _readingProgressRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.readingProgress,
+    aliasName: 'books__id__reading_progress__book_id',
+  );
+
+  $$ReadingProgressTableProcessedTableManager get readingProgressRefs {
+    final manager = $$ReadingProgressTableTableManager(
+      $_db,
+      $_db.readingProgress,
+    ).filter((f) => f.bookId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _readingProgressRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -4066,6 +5480,57 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
           }) => $$ReaderPositionsTableFilterComposer(
             $db: $db,
             $table: $db.readerPositions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> bookNarrationSettingsRefs(
+    Expression<bool> Function($$BookNarrationSettingsTableFilterComposer f) f,
+  ) {
+    final $$BookNarrationSettingsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.bookNarrationSettings,
+          getReferencedColumn: (t) => t.bookId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BookNarrationSettingsTableFilterComposer(
+                $db: $db,
+                $table: $db.bookNarrationSettings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> readingProgressRefs(
+    Expression<bool> Function($$ReadingProgressTableFilterComposer f) f,
+  ) {
+    final $$ReadingProgressTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.readingProgress,
+      getReferencedColumn: (t) => t.bookId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReadingProgressTableFilterComposer(
+            $db: $db,
+            $table: $db.readingProgress,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4312,6 +5777,57 @@ class $$BooksTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> bookNarrationSettingsRefs<T extends Object>(
+    Expression<T> Function($$BookNarrationSettingsTableAnnotationComposer a) f,
+  ) {
+    final $$BookNarrationSettingsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.bookNarrationSettings,
+          getReferencedColumn: (t) => t.bookId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BookNarrationSettingsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.bookNarrationSettings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> readingProgressRefs<T extends Object>(
+    Expression<T> Function($$ReadingProgressTableAnnotationComposer a) f,
+  ) {
+    final $$ReadingProgressTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.readingProgress,
+      getReferencedColumn: (t) => t.bookId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReadingProgressTableAnnotationComposer(
+            $db: $db,
+            $table: $db.readingProgress,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$BooksTableTableManager
@@ -4331,6 +5847,8 @@ class $$BooksTableTableManager
             bool processingRunsRefs,
             bool chaptersRefs,
             bool readerPositionsRefs,
+            bool bookNarrationSettingsRefs,
+            bool readingProgressRefs,
           })
         > {
   $$BooksTableTableManager(_$AppDatabase db, $BooksTable table)
@@ -4431,6 +5949,8 @@ class $$BooksTableTableManager
                 processingRunsRefs = false,
                 chaptersRefs = false,
                 readerPositionsRefs = false,
+                bookNarrationSettingsRefs = false,
+                readingProgressRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -4438,6 +5958,8 @@ class $$BooksTableTableManager
                     if (processingRunsRefs) db.processingRuns,
                     if (chaptersRefs) db.chapters,
                     if (readerPositionsRefs) db.readerPositions,
+                    if (bookNarrationSettingsRefs) db.bookNarrationSettings,
+                    if (readingProgressRefs) db.readingProgress,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -4501,6 +6023,48 @@ class $$BooksTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (bookNarrationSettingsRefs)
+                        await $_getPrefetchedData<
+                          Book,
+                          $BooksTable,
+                          BookNarrationSetting
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BooksTableReferences
+                              ._bookNarrationSettingsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BooksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).bookNarrationSettingsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (readingProgressRefs)
+                        await $_getPrefetchedData<
+                          Book,
+                          $BooksTable,
+                          ReadingProgressData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BooksTableReferences
+                              ._readingProgressRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BooksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).readingProgressRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -4525,6 +6089,8 @@ typedef $$BooksTableProcessedTableManager =
         bool processingRunsRefs,
         bool chaptersRefs,
         bool readerPositionsRefs,
+        bool bookNarrationSettingsRefs,
+        bool readingProgressRefs,
       })
     >;
 typedef $$ProcessingRunsTableCreateCompanionBuilder =
@@ -7148,6 +8714,981 @@ typedef $$ReaderPositionsTableProcessedTableManager =
       ReaderPosition,
       PrefetchHooks Function({bool bookId})
     >;
+typedef $$NarrationSettingsRowsTableCreateCompanionBuilder =
+    NarrationSettingsRowsCompanion Function({
+      Value<int> id,
+      Value<String?> voiceName,
+      Value<String?> voiceLocale,
+      required double speechRate,
+      required DateTime updatedAt,
+    });
+typedef $$NarrationSettingsRowsTableUpdateCompanionBuilder =
+    NarrationSettingsRowsCompanion Function({
+      Value<int> id,
+      Value<String?> voiceName,
+      Value<String?> voiceLocale,
+      Value<double> speechRate,
+      Value<DateTime> updatedAt,
+    });
+
+class $$NarrationSettingsRowsTableFilterComposer
+    extends Composer<_$AppDatabase, $NarrationSettingsRowsTable> {
+  $$NarrationSettingsRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voiceName => $composableBuilder(
+    column: $table.voiceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
+      $composableBuilder(
+        column: $table.updatedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+}
+
+class $$NarrationSettingsRowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NarrationSettingsRowsTable> {
+  $$NarrationSettingsRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voiceName => $composableBuilder(
+    column: $table.voiceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NarrationSettingsRowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NarrationSettingsRowsTable> {
+  $$NarrationSettingsRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get voiceName =>
+      $composableBuilder(column: $table.voiceName, builder: (column) => column);
+
+  GeneratedColumn<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$NarrationSettingsRowsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NarrationSettingsRowsTable,
+          NarrationSettingsRow,
+          $$NarrationSettingsRowsTableFilterComposer,
+          $$NarrationSettingsRowsTableOrderingComposer,
+          $$NarrationSettingsRowsTableAnnotationComposer,
+          $$NarrationSettingsRowsTableCreateCompanionBuilder,
+          $$NarrationSettingsRowsTableUpdateCompanionBuilder,
+          (
+            NarrationSettingsRow,
+            BaseReferences<
+              _$AppDatabase,
+              $NarrationSettingsRowsTable,
+              NarrationSettingsRow
+            >,
+          ),
+          NarrationSettingsRow,
+          PrefetchHooks Function()
+        > {
+  $$NarrationSettingsRowsTableTableManager(
+    _$AppDatabase db,
+    $NarrationSettingsRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NarrationSettingsRowsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$NarrationSettingsRowsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$NarrationSettingsRowsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> voiceName = const Value.absent(),
+                Value<String?> voiceLocale = const Value.absent(),
+                Value<double> speechRate = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => NarrationSettingsRowsCompanion(
+                id: id,
+                voiceName: voiceName,
+                voiceLocale: voiceLocale,
+                speechRate: speechRate,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> voiceName = const Value.absent(),
+                Value<String?> voiceLocale = const Value.absent(),
+                required double speechRate,
+                required DateTime updatedAt,
+              }) => NarrationSettingsRowsCompanion.insert(
+                id: id,
+                voiceName: voiceName,
+                voiceLocale: voiceLocale,
+                speechRate: speechRate,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NarrationSettingsRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NarrationSettingsRowsTable,
+      NarrationSettingsRow,
+      $$NarrationSettingsRowsTableFilterComposer,
+      $$NarrationSettingsRowsTableOrderingComposer,
+      $$NarrationSettingsRowsTableAnnotationComposer,
+      $$NarrationSettingsRowsTableCreateCompanionBuilder,
+      $$NarrationSettingsRowsTableUpdateCompanionBuilder,
+      (
+        NarrationSettingsRow,
+        BaseReferences<
+          _$AppDatabase,
+          $NarrationSettingsRowsTable,
+          NarrationSettingsRow
+        >,
+      ),
+      NarrationSettingsRow,
+      PrefetchHooks Function()
+    >;
+typedef $$BookNarrationSettingsTableCreateCompanionBuilder =
+    BookNarrationSettingsCompanion Function({
+      required String bookId,
+      required String voiceName,
+      required String voiceLocale,
+      required double speechRate,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$BookNarrationSettingsTableUpdateCompanionBuilder =
+    BookNarrationSettingsCompanion Function({
+      Value<String> bookId,
+      Value<String> voiceName,
+      Value<String> voiceLocale,
+      Value<double> speechRate,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$BookNarrationSettingsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $BookNarrationSettingsTable,
+          BookNarrationSetting
+        > {
+  $$BookNarrationSettingsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $BooksTable _bookIdTable(_$AppDatabase db) =>
+      db.books.createAlias('book_narration_settings__book_id__books__id');
+
+  $$BooksTableProcessedTableManager get bookId {
+    final $_column = $_itemColumn<String>('book_id')!;
+
+    final manager = $$BooksTableTableManager(
+      $_db,
+      $_db.books,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_bookIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$BookNarrationSettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $BookNarrationSettingsTable> {
+  $$BookNarrationSettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get voiceName => $composableBuilder(
+    column: $table.voiceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
+      $composableBuilder(
+        column: $table.updatedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$BooksTableFilterComposer get bookId {
+    final $$BooksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableFilterComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BookNarrationSettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $BookNarrationSettingsTable> {
+  $$BookNarrationSettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get voiceName => $composableBuilder(
+    column: $table.voiceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$BooksTableOrderingComposer get bookId {
+    final $$BooksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableOrderingComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BookNarrationSettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BookNarrationSettingsTable> {
+  $$BookNarrationSettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get voiceName =>
+      $composableBuilder(column: $table.voiceName, builder: (column) => column);
+
+  GeneratedColumn<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$BooksTableAnnotationComposer get bookId {
+    final $$BooksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BookNarrationSettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BookNarrationSettingsTable,
+          BookNarrationSetting,
+          $$BookNarrationSettingsTableFilterComposer,
+          $$BookNarrationSettingsTableOrderingComposer,
+          $$BookNarrationSettingsTableAnnotationComposer,
+          $$BookNarrationSettingsTableCreateCompanionBuilder,
+          $$BookNarrationSettingsTableUpdateCompanionBuilder,
+          (BookNarrationSetting, $$BookNarrationSettingsTableReferences),
+          BookNarrationSetting,
+          PrefetchHooks Function({bool bookId})
+        > {
+  $$BookNarrationSettingsTableTableManager(
+    _$AppDatabase db,
+    $BookNarrationSettingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BookNarrationSettingsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$BookNarrationSettingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$BookNarrationSettingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> bookId = const Value.absent(),
+                Value<String> voiceName = const Value.absent(),
+                Value<String> voiceLocale = const Value.absent(),
+                Value<double> speechRate = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BookNarrationSettingsCompanion(
+                bookId: bookId,
+                voiceName: voiceName,
+                voiceLocale: voiceLocale,
+                speechRate: speechRate,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String bookId,
+                required String voiceName,
+                required String voiceLocale,
+                required double speechRate,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => BookNarrationSettingsCompanion.insert(
+                bookId: bookId,
+                voiceName: voiceName,
+                voiceLocale: voiceLocale,
+                speechRate: speechRate,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BookNarrationSettingsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (bookId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.bookId,
+                                referencedTable:
+                                    $$BookNarrationSettingsTableReferences
+                                        ._bookIdTable(db),
+                                referencedColumn:
+                                    $$BookNarrationSettingsTableReferences
+                                        ._bookIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$BookNarrationSettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BookNarrationSettingsTable,
+      BookNarrationSetting,
+      $$BookNarrationSettingsTableFilterComposer,
+      $$BookNarrationSettingsTableOrderingComposer,
+      $$BookNarrationSettingsTableAnnotationComposer,
+      $$BookNarrationSettingsTableCreateCompanionBuilder,
+      $$BookNarrationSettingsTableUpdateCompanionBuilder,
+      (BookNarrationSetting, $$BookNarrationSettingsTableReferences),
+      BookNarrationSetting,
+      PrefetchHooks Function({bool bookId})
+    >;
+typedef $$ReadingProgressTableCreateCompanionBuilder =
+    ReadingProgressCompanion Function({
+      required String bookId,
+      required String activeRunId,
+      required String chapterId,
+      required String blockId,
+      required bool completed,
+      required String voiceName,
+      required String voiceLocale,
+      required double speechRate,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ReadingProgressTableUpdateCompanionBuilder =
+    ReadingProgressCompanion Function({
+      Value<String> bookId,
+      Value<String> activeRunId,
+      Value<String> chapterId,
+      Value<String> blockId,
+      Value<bool> completed,
+      Value<String> voiceName,
+      Value<String> voiceLocale,
+      Value<double> speechRate,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ReadingProgressTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ReadingProgressTable,
+          ReadingProgressData
+        > {
+  $$ReadingProgressTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $BooksTable _bookIdTable(_$AppDatabase db) =>
+      db.books.createAlias('reading_progress__book_id__books__id');
+
+  $$BooksTableProcessedTableManager get bookId {
+    final $_column = $_itemColumn<String>('book_id')!;
+
+    final manager = $$BooksTableTableManager(
+      $_db,
+      $_db.books,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_bookIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ReadingProgressTableFilterComposer
+    extends Composer<_$AppDatabase, $ReadingProgressTable> {
+  $$ReadingProgressTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get activeRunId => $composableBuilder(
+    column: $table.activeRunId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get chapterId => $composableBuilder(
+    column: $table.chapterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get blockId => $composableBuilder(
+    column: $table.blockId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get completed => $composableBuilder(
+    column: $table.completed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voiceName => $composableBuilder(
+    column: $table.voiceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
+      $composableBuilder(
+        column: $table.updatedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$BooksTableFilterComposer get bookId {
+    final $$BooksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableFilterComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReadingProgressTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReadingProgressTable> {
+  $$ReadingProgressTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get activeRunId => $composableBuilder(
+    column: $table.activeRunId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get chapterId => $composableBuilder(
+    column: $table.chapterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get blockId => $composableBuilder(
+    column: $table.blockId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get completed => $composableBuilder(
+    column: $table.completed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voiceName => $composableBuilder(
+    column: $table.voiceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$BooksTableOrderingComposer get bookId {
+    final $$BooksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableOrderingComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReadingProgressTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReadingProgressTable> {
+  $$ReadingProgressTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get activeRunId => $composableBuilder(
+    column: $table.activeRunId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get chapterId =>
+      $composableBuilder(column: $table.chapterId, builder: (column) => column);
+
+  GeneratedColumn<String> get blockId =>
+      $composableBuilder(column: $table.blockId, builder: (column) => column);
+
+  GeneratedColumn<bool> get completed =>
+      $composableBuilder(column: $table.completed, builder: (column) => column);
+
+  GeneratedColumn<String> get voiceName =>
+      $composableBuilder(column: $table.voiceName, builder: (column) => column);
+
+  GeneratedColumn<String> get voiceLocale => $composableBuilder(
+    column: $table.voiceLocale,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get speechRate => $composableBuilder(
+    column: $table.speechRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$BooksTableAnnotationComposer get bookId {
+    final $$BooksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReadingProgressTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReadingProgressTable,
+          ReadingProgressData,
+          $$ReadingProgressTableFilterComposer,
+          $$ReadingProgressTableOrderingComposer,
+          $$ReadingProgressTableAnnotationComposer,
+          $$ReadingProgressTableCreateCompanionBuilder,
+          $$ReadingProgressTableUpdateCompanionBuilder,
+          (ReadingProgressData, $$ReadingProgressTableReferences),
+          ReadingProgressData,
+          PrefetchHooks Function({bool bookId})
+        > {
+  $$ReadingProgressTableTableManager(
+    _$AppDatabase db,
+    $ReadingProgressTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReadingProgressTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReadingProgressTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReadingProgressTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> bookId = const Value.absent(),
+                Value<String> activeRunId = const Value.absent(),
+                Value<String> chapterId = const Value.absent(),
+                Value<String> blockId = const Value.absent(),
+                Value<bool> completed = const Value.absent(),
+                Value<String> voiceName = const Value.absent(),
+                Value<String> voiceLocale = const Value.absent(),
+                Value<double> speechRate = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReadingProgressCompanion(
+                bookId: bookId,
+                activeRunId: activeRunId,
+                chapterId: chapterId,
+                blockId: blockId,
+                completed: completed,
+                voiceName: voiceName,
+                voiceLocale: voiceLocale,
+                speechRate: speechRate,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String bookId,
+                required String activeRunId,
+                required String chapterId,
+                required String blockId,
+                required bool completed,
+                required String voiceName,
+                required String voiceLocale,
+                required double speechRate,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ReadingProgressCompanion.insert(
+                bookId: bookId,
+                activeRunId: activeRunId,
+                chapterId: chapterId,
+                blockId: blockId,
+                completed: completed,
+                voiceName: voiceName,
+                voiceLocale: voiceLocale,
+                speechRate: speechRate,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ReadingProgressTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (bookId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.bookId,
+                                referencedTable:
+                                    $$ReadingProgressTableReferences
+                                        ._bookIdTable(db),
+                                referencedColumn:
+                                    $$ReadingProgressTableReferences
+                                        ._bookIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ReadingProgressTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReadingProgressTable,
+      ReadingProgressData,
+      $$ReadingProgressTableFilterComposer,
+      $$ReadingProgressTableOrderingComposer,
+      $$ReadingProgressTableAnnotationComposer,
+      $$ReadingProgressTableCreateCompanionBuilder,
+      $$ReadingProgressTableUpdateCompanionBuilder,
+      (ReadingProgressData, $$ReadingProgressTableReferences),
+      ReadingProgressData,
+      PrefetchHooks Function({bool bookId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7166,4 +9707,10 @@ class $AppDatabaseManager {
       $$ReaderSettingsRowsTableTableManager(_db, _db.readerSettingsRows);
   $$ReaderPositionsTableTableManager get readerPositions =>
       $$ReaderPositionsTableTableManager(_db, _db.readerPositions);
+  $$NarrationSettingsRowsTableTableManager get narrationSettingsRows =>
+      $$NarrationSettingsRowsTableTableManager(_db, _db.narrationSettingsRows);
+  $$BookNarrationSettingsTableTableManager get bookNarrationSettings =>
+      $$BookNarrationSettingsTableTableManager(_db, _db.bookNarrationSettings);
+  $$ReadingProgressTableTableManager get readingProgress =>
+      $$ReadingProgressTableTableManager(_db, _db.readingProgress);
 }
