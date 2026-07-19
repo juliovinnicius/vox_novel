@@ -20,6 +20,11 @@ import 'package:vox_novel/features/library/domain/repositories/book_repository.d
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
 import 'package:vox_novel/features/library/presentation/pages/library_page.dart';
+import 'package:vox_novel/features/narration/data/repositories/drift_narration_repository.dart';
+import 'package:vox_novel/features/narration/data/services/flutter_tts_narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/data/services/pdfrx_pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
@@ -36,6 +41,13 @@ import 'package:vox_novel/features/visual_reader/presentation/widgets/original_p
 typedef VisualReaderCubitFactory =
     VisualReaderCubit Function(
       VisualReaderRepository repository,
+      DateTime Function() clock,
+    );
+
+typedef NarrationCubitFactory =
+    NarrationCubit Function(
+      NarrationRepository repository,
+      NarrationEngine engine,
       DateTime Function() clock,
     );
 
@@ -70,6 +82,64 @@ final class ReaderCubitRegistry {
   }
 }
 
+final class NarrationCubitRegistry {
+  NarrationCubitRegistry(
+    this._repository,
+    this._engine,
+    this._clock,
+    this._factory,
+  );
+
+  final NarrationRepository _repository;
+  final NarrationEngine _engine;
+  final DateTime Function() _clock;
+  final NarrationCubitFactory _factory;
+  final Map<NarrationCubit, Future<void>> _activations = {};
+  final Map<NarrationCubit, Future<void>> _closures = {};
+  Future<void> _ownershipTail = Future.value();
+  NarrationCubit? _owner;
+
+  Iterable<NarrationCubit> get activeCubits =>
+      List.unmodifiable(_activations.keys);
+
+  NarrationCubit create() {
+    final cubit = _factory(_repository, _engine, _clock);
+    final activation = _ownershipTail.then((_) async {
+      final previous = _owner;
+      if (previous != null && !identical(previous, cubit)) {
+        await close(previous);
+      }
+      if (_activations.containsKey(cubit)) _owner = cubit;
+    });
+    _activations[cubit] = activation;
+    _ownershipTail = activation.then<void>((_) {}, onError: (_) {});
+    return cubit;
+  }
+
+  Future<void> activationFor(NarrationCubit cubit) =>
+      _activations[cubit] ?? Future.value();
+
+  Future<void> close(NarrationCubit cubit) {
+    final existing = _closures[cubit];
+    if (existing != null) return existing;
+    final activation = _activations[cubit];
+    if (activation == null) return Future.value();
+    final closure = () async {
+      await activation;
+      await cubit.close();
+      if (identical(_owner, cubit)) _owner = null;
+      _activations.remove(cubit);
+      _closures.remove(cubit);
+    }();
+    _closures[cubit] = closure;
+    return closure;
+  }
+
+  Future<void> closeAll() async {
+    await Future.wait([..._activations.keys].map(close));
+  }
+}
+
 Future<void> configureDependencies({
   GetIt? instance,
   QueryExecutor? databaseExecutor,
@@ -84,6 +154,9 @@ Future<void> configureDependencies({
   Future<void> Function()? initializePdfEngine,
   VisualReaderRepository? visualReaderRepository,
   VisualReaderCubitFactory? visualReaderCubitFactory,
+  NarrationRepository? narrationRepository,
+  NarrationEngine? narrationEngine,
+  NarrationCubitFactory? narrationCubitFactory,
   PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
 }) async {
   final locator = instance ?? GetIt.instance;
@@ -214,6 +287,44 @@ Future<void> configureDependencies({
       dispose: (registry) => registry.closeAll(),
     );
   }
+  if (!locator.isRegistered<NarrationRepository>()) {
+    if (narrationRepository == null) {
+      locator.registerLazySingleton<NarrationRepository>(
+        () => DriftNarrationRepository(locator<AppDatabase>()),
+      );
+    } else {
+      locator.registerSingleton<NarrationRepository>(narrationRepository);
+    }
+  }
+  if (!locator.isRegistered<NarrationEngine>()) {
+    if (narrationEngine == null) {
+      locator.registerLazySingleton<NarrationEngine>(
+        FlutterTtsNarrationEngine.new,
+        dispose: (engine) => engine.close(),
+      );
+    } else {
+      locator.registerSingleton<NarrationEngine>(
+        narrationEngine,
+        dispose: (engine) => engine.close(),
+      );
+    }
+  }
+  if (!locator.isRegistered<NarrationCubitRegistry>()) {
+    locator.registerLazySingleton(
+      () => NarrationCubitRegistry(
+        locator(),
+        locator(),
+        now,
+        narrationCubitFactory ??
+            (repository, engine, clock) => NarrationCubit(
+              repository: repository,
+              engine: engine,
+              clock: clock,
+            ),
+      ),
+      dispose: (registry) => registry.closeAll(),
+    );
+  }
 
   if (!locator.isRegistered<GoRouter>()) {
     locator.registerSingleton<GoRouter>(
@@ -226,10 +337,17 @@ Future<void> configureDependencies({
         readerPageBuilder: (_, bookId) {
           final registry = locator<ReaderCubitRegistry>();
           final cubit = registry.create();
+          final narrationRegistry = locator<NarrationCubitRegistry>();
+          final narrationCubit = narrationRegistry.create();
           return ReaderPage(
             bookId: bookId,
             cubit: cubit,
             closeCubit: registry.close,
+            narrationCubit: narrationCubit,
+            narrationActivation: narrationRegistry.activationFor(
+              narrationCubit,
+            ),
+            closeNarrationCubit: narrationRegistry.close,
             pdfSurfaceBuilder: pdfSurfaceBuilder,
           );
         },

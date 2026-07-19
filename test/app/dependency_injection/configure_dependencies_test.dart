@@ -17,6 +17,10 @@ import 'package:vox_novel/features/library/domain/repositories/book_repository.d
 import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
+import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
+import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
@@ -61,6 +65,9 @@ void main() {
     expect(locator.isRegistered<TextProcessingCubit>(), isTrue);
     expect(locator.isRegistered<VisualReaderRepository>(), isTrue);
     expect(locator.isRegistered<ReaderCubitRegistry>(), isTrue);
+    expect(locator.isRegistered<NarrationRepository>(), isTrue);
+    expect(locator.isRegistered<NarrationEngine>(), isTrue);
+    expect(locator.isRegistered<NarrationCubitRegistry>(), isTrue);
     expect(
       locator<VisualReaderRepository>(),
       isA<DriftVisualReaderRepository>(),
@@ -177,6 +184,120 @@ void main() {
     expect(cubit.isClosed, isTrue);
     expect(locator.isRegistered<AppDatabase>(), isFalse);
   });
+
+  test(
+    'narration uses singleton dependencies and one Cubit per route',
+    () async {
+      final engine = _NarrationEngine();
+      final repository = _NarrationRepository();
+      final created = <NarrationCubit>[];
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: engine,
+        narrationRepository: repository,
+        narrationCubitFactory: (repository, engine, clock) {
+          final cubit = NarrationCubit(
+            repository: repository,
+            engine: engine,
+            clock: clock,
+          );
+          created.add(cubit);
+          return cubit;
+        },
+      );
+
+      final registry = locator<NarrationCubitRegistry>();
+      final first = registry.create();
+      await registry.activationFor(first);
+      final second = registry.create();
+      await registry.activationFor(second);
+
+      expect(locator<NarrationEngine>(), same(engine));
+      expect(locator<NarrationRepository>(), same(repository));
+      expect(created, [same(first), same(second)]);
+      expect(first, isNot(same(second)));
+      expect(first.isClosed, isTrue);
+      expect(registry.activeCubits, [same(second)]);
+    },
+  );
+
+  test(
+    'narration ownership waits prior stop and progress before activation',
+    () async {
+      final stop = Completer<void>();
+      final engine = _NarrationEngine(stopGate: stop);
+      final repository = _NarrationRepository();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: engine,
+        narrationRepository: repository,
+      );
+      final registry = locator<NarrationCubitRegistry>();
+      final first = registry.create();
+      await registry.activationFor(first);
+      await first.load(_ReaderRepository().content);
+      unawaited(first.play());
+      await Future<void>.delayed(Duration.zero);
+
+      final second = registry.create();
+      var activated = false;
+      final activation = registry
+          .activationFor(second)
+          .then((_) => activated = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.stopCalls, 1);
+      expect(activated, isFalse);
+      expect(first.isClosed, isFalse);
+
+      stop.complete();
+      await activation;
+      expect(first.isClosed, isTrue);
+      expect(repository.progress?.blockId, 'one-block');
+      expect(activated, isTrue);
+    },
+  );
+
+  test(
+    'reset awaits narration save before engine and database close',
+    () async {
+      final save = Completer<void>();
+      final engine = _NarrationEngine();
+      final repository = _NarrationRepository(save: save);
+      final executor = NativeDatabase.memory();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: executor,
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: engine,
+        narrationRepository: repository,
+      );
+      final registry = locator<NarrationCubitRegistry>();
+      final cubit = registry.create();
+      await registry.activationFor(cubit);
+      await cubit.load(_ReaderRepository().content);
+
+      var completed = false;
+      final reset = resetDependencies(
+        instance: locator,
+      ).then((_) => completed = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(completed, isFalse);
+      expect(engine.closed, isFalse);
+
+      save.complete();
+      await reset;
+      expect(completed, isTrue);
+      expect(engine.closed, isTrue);
+      await expectLater(
+        executor.runSelect('SELECT 1', const []),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
 
   test('reset disposes resources and clears the supplied locator', () async {
     final executor = NativeDatabase.memory();
@@ -453,6 +574,60 @@ final class _ReaderRepository implements VisualReaderRepository {
 
   @override
   Future<void> saveSettings(ReaderSettings settings) async {}
+}
+
+final class _NarrationEngine implements NarrationEngine {
+  _NarrationEngine({this.stopGate});
+
+  final Completer<void>? stopGate;
+  final pendingSpeech = Completer<void>();
+  var stopCalls = 0;
+  var closed = false;
+
+  @override
+  Future<List<NarrationVoice>> initialize() async => [
+    NarrationVoice(name: 'Ana', locale: 'pt-BR'),
+  ];
+  @override
+  Future<void> configure(NarrationVoice voice, double rate) async {}
+  @override
+  Future<void> speak(String text) => pendingSpeech.future;
+  @override
+  Future<void> stop() {
+    stopCalls++;
+    return stopGate?.future ?? Future.value();
+  }
+
+  @override
+  Future<void> close() async {
+    closed = true;
+  }
+}
+
+final class _NarrationRepository implements NarrationRepository {
+  _NarrationRepository({this.save});
+
+  final Completer<void>? save;
+  NarrationProgress? progress;
+
+  @override
+  Future<NarrationSettings> loadGlobalSettings() async =>
+      NarrationSettings.defaults();
+  @override
+  Future<void> saveGlobalSettings(NarrationSettings settings) async {}
+  @override
+  Future<BookNarrationOverride?> loadBookOverride(String bookId) async => null;
+  @override
+  Future<void> saveBookOverride(BookNarrationOverride override) async {}
+  @override
+  Future<void> deleteBookOverride(String bookId) async {}
+  @override
+  Future<NarrationProgress?> loadProgress(String bookId) async => progress;
+  @override
+  Future<void> saveProgress(NarrationProgress value) async {
+    progress = value;
+    await save?.future;
+  }
 }
 
 final class _Extractor implements PdfTextExtractor {

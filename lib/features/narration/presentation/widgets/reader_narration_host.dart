@@ -18,6 +18,7 @@ class ReaderNarrationHost extends StatefulWidget {
     required this.cubit,
     required this.onNarrationFocus,
     required this.builder,
+    this.activation,
     this.closeCubit,
     super.key,
   });
@@ -26,6 +27,7 @@ class ReaderNarrationHost extends StatefulWidget {
   final NarrationCubit cubit;
   final void Function(String chapterId, String blockId) onNarrationFocus;
   final ReaderNarrationBuilder builder;
+  final Future<void>? activation;
   final Future<void> Function(NarrationCubit cubit)? closeCubit;
 
   @override
@@ -40,7 +42,12 @@ class _ReaderNarrationHostState extends State<ReaderNarrationHost>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(widget.cubit.load(widget.content));
+    unawaited(_activate());
+  }
+
+  Future<void> _activate() async {
+    await widget.activation;
+    if (mounted) await widget.cubit.load(widget.content);
   }
 
   @override

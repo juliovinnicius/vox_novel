@@ -20,6 +20,7 @@ final class ReaderPage extends StatefulWidget {
     this.pdfSurfaceBuilder = buildPdfrxSurface,
     this.closeCubit,
     this.narrationCubit,
+    this.narrationActivation,
     this.closeNarrationCubit,
     super.key,
   });
@@ -29,6 +30,7 @@ final class ReaderPage extends StatefulWidget {
   final PdfSurfaceBuilder pdfSurfaceBuilder;
   final Future<void> Function(VisualReaderCubit cubit)? closeCubit;
   final NarrationCubit? narrationCubit;
+  final Future<void>? narrationActivation;
   final Future<void> Function(NarrationCubit cubit)? closeNarrationCubit;
 
   @override
@@ -194,6 +196,7 @@ final class _ReaderPageState extends State<ReaderPage> {
     return ReaderNarrationHost(
       content: content,
       cubit: narrationCubit,
+      activation: widget.narrationActivation,
       onNarrationFocus: widget.cubit.followNarration,
       closeCubit: widget.closeNarrationCubit,
       builder: (_, playerBar) => buildReader(playerBar),
