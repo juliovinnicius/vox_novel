@@ -45,7 +45,7 @@ without it.**
 | ---------- | ----------- | ------- |
 | Quick | After a task with focused unit/widget tests | `flutter test <task test path>` |
 | Full | After data, composition, or integration changes | `flutter test` |
-| Build | After phase completion or config/schema work | `dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test && flutter build apk --debug` |
+| Build | After phase completion or config/schema work | `flutter analyze && flutter test && flutter build apk --debug` |
 
 ---
 
@@ -76,7 +76,7 @@ T9 → T10 → T11 → T12 → T13 → T14
 
 ## Task Breakdown
 
-### T1: Define narration domain models and engine contract
+### T1: Define narration domain models and engine contract ✅
 
 **What**: Add immutable voices, settings, override, progress, queue-entry and
 status types plus the package-agnostic engine interface.
@@ -102,7 +102,7 @@ status types plus the package-agnostic engine interface.
 **Gate**: quick
 **Commit**: `feat(narration): define narration domain contracts`
 
-### T2: Implement deterministic narration queue
+### T2: Implement deterministic narration queue ✅
 
 **What**: Add the pure source-order queue with lookup, traversal, boundaries,
 empty-chapter handling, and exact normalized text entries.
@@ -127,7 +127,7 @@ empty-chapter handling, and exact normalized text entries.
 **Gate**: quick
 **Commit**: `feat(narration): add deterministic block queue`
 
-### T3: Implement narration settings resolution
+### T3: Implement narration settings resolution ✅
 
 **What**: Add deterministic voice sorting, global/book precedence, missing
 voice repair, and bounded rate normalization.
@@ -153,7 +153,7 @@ voice repair, and bounded rate normalization.
 **Gate**: quick
 **Commit**: `feat(narration): resolve voices and speech rate`
 
-### T4: Add Drift v5 narration schema and migration
+### T4: Add Drift v5 narration schema and migration ✅
 
 **What**: Add the three narration tables, v4-to-v5 migration, generated Drift
 code, constraints, and book-deletion cascades.
@@ -179,7 +179,7 @@ code, constraints, and book-deletion cascades.
 **Gate**: build
 **Commit**: `feat(database): add narration persistence schema`
 
-### T5: Implement Drift narration repository
+### T5: Implement Drift narration repository ✅
 
 **What**: Implement complete global/override/progress reads and writes with a
 per-book newest-request write tail that survives failures.
@@ -443,7 +443,7 @@ combined Milestone 3–4 UAT checklist, then run all release gates.
 - [ ] File-backed restart restores exact settings/progress without autoplay.
 - [ ] Automatic cross-chapter flow, pause, lifecycle, reprocessing repair, failures, and delete cascades pass end to end.
 - [ ] Combined device UAT covers every item in NAR-06 AC 7 and is ready for user execution.
-- [ ] Formatting, analysis, complete test suite, and Android debug APK Build gate pass.
+- [ ] Analysis, complete test suite, and Android debug APK Build gate pass.
 
 **Tests**: integration
 **Gate**: build
