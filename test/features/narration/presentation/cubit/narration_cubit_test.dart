@@ -363,6 +363,99 @@ void main() {
     );
   });
 
+  test(
+    'manual transition is observable under 500ms while persistence is pending',
+    () async {
+      final save = Completer<void>();
+      addTearDown(() {
+        if (!save.isCompleted) save.complete();
+      });
+      final repository = _FakeRepository(progressSaveFuture: save.future);
+      final engine = _FakeEngine(voices: [ana]);
+      final cubit = _cubit(repository, engine);
+      addTearDown(cubit.close);
+      await cubit.load(_content());
+      final stopwatch = Stopwatch()..start();
+
+      final transition = cubit.next();
+      await Future<void>.delayed(Duration.zero);
+      stopwatch.stop();
+
+      expect(stopwatch.elapsed, lessThan(const Duration(milliseconds: 500)));
+      expect(
+        [cubit.state.status, cubit.state.blockId],
+        [NarrationStatus.ready, 'block-2'],
+      );
+      var framePumped = false;
+      await Future<void>(() => framePumped = true);
+      expect(framePumped, isTrue);
+      save.complete();
+      await transition;
+      expect(repository.progressSaves.single.blockId, 'block-2');
+    },
+  );
+
+  test(
+    'reload replaces an open active run and never resumes old speech',
+    () async {
+      final oldSpeech = Completer<void>();
+      final repository = _FakeRepository(
+        progress: _progress(blockId: 'block-1'),
+      );
+      final engine = _FakeEngine(voices: [ana], speakFuture: oldSpeech.future);
+      final cubit = _cubit(repository, engine);
+      addTearDown(cubit.close);
+      await cubit.load(_content());
+      final oldPlay = cubit.play();
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.spoken, ['Um']);
+      engine.speakFuture = null;
+
+      await cubit.reloadContent(
+        _content(
+          activeRunId: 'run-2',
+          blockPrefix: 'new-block',
+          firstText: 'Novo um',
+          secondText: 'Novo dois',
+        ),
+      );
+      expect(engine.stopCalls, 1);
+      expect(
+        [cubit.state.status, cubit.state.activeRunId, cubit.state.blockId],
+        [NarrationStatus.ready, 'run-2', 'new-block-1'],
+      );
+      expect(
+        [
+          repository.progressSaves.last.activeRunId,
+          repository.progressSaves.last.blockId,
+          repository.progressSaves.last.completed,
+        ],
+        ['run-2', 'new-block-1', false],
+      );
+
+      oldSpeech.complete();
+      await oldPlay;
+      expect(engine.spoken, ['Um']);
+      await cubit.play();
+      expect(engine.spoken, ['Um', 'Novo um', 'Novo dois']);
+      expect(engine.spoken.skip(1), isNot(contains('Um')));
+    },
+  );
+
+  test(
+    'close with no current block stops safely without progress writes',
+    () async {
+      final repository = _FakeRepository();
+      final engine = _FakeEngine(voices: [ana]);
+      final cubit = _cubit(repository, engine);
+      await cubit.load(_content(empty: true));
+
+      await expectLater(cubit.close(), completes);
+      expect(engine.stopCalls, 1);
+      expect(repository.progressSaves, isEmpty);
+    },
+  );
+
   test('close awaits stop before persisting current block', () async {
     final stop = Completer<void>();
     final repository = _FakeRepository();
@@ -524,8 +617,12 @@ final class _FakeEngine implements NarrationEngine {
 }
 
 final class _FakeRepository implements NarrationRepository {
-  _FakeRepository({NarrationSettings? global, this.progress, this.events})
-    : global = global ?? NarrationSettings.defaults();
+  _FakeRepository({
+    NarrationSettings? global,
+    this.progress,
+    this.events,
+    this.progressSaveFuture,
+  }) : global = global ?? NarrationSettings.defaults();
 
   NarrationSettings global;
   BookNarrationOverride? bookOverride;
@@ -535,6 +632,7 @@ final class _FakeRepository implements NarrationRepository {
   final progressSaves = <NarrationProgress>[];
   final deletedOverrides = <String>[];
   final List<String>? events;
+  final Future<void>? progressSaveFuture;
   var failGlobalSave = false;
   var failProgressSave = false;
 
@@ -570,6 +668,7 @@ final class _FakeRepository implements NarrationRepository {
   @override
   Future<void> saveProgress(NarrationProgress value) async {
     if (failProgressSave) throw StateError('progress failed');
+    await progressSaveFuture;
     progress = value;
     progressSaves.add(value);
     events?.add('save:${value.blockId}:${value.completed}');
@@ -593,42 +692,51 @@ NarrationProgress _progress({
   updatedAt: DateTime.utc(2026),
 );
 
-ReaderBookContent _content({String bookId = 'book', bool empty = false}) =>
-    ReaderBookContent(
-      book: Book(
-        id: bookId,
-        title: 'Book',
-        author: null,
-        coverPath: null,
-        originalFileName: 'book.pdf',
-        storedFilePath: '/book.pdf',
-        fileHash: 'hash-$bookId',
-        status: BookStatus.ready,
-        processingProgress: 1,
-        pageCount: 1,
-        chapterCount: 1,
-        blockCount: empty ? 0 : 2,
-        processingStage: ProcessingStage.completed,
-        activeContentRunId: 'run',
-        createdAt: DateTime.utc(2026),
-        updatedAt: DateTime.utc(2026),
+ReaderBookContent _content({
+  String bookId = 'book',
+  bool empty = false,
+  String activeRunId = 'run',
+  String blockPrefix = 'block',
+  String firstText = 'Um',
+  String secondText = 'Dois',
+}) => ReaderBookContent(
+  book: Book(
+    id: bookId,
+    title: 'Book',
+    author: null,
+    coverPath: null,
+    originalFileName: 'book.pdf',
+    storedFilePath: '/book.pdf',
+    fileHash: 'hash-$bookId',
+    status: BookStatus.ready,
+    processingProgress: 1,
+    pageCount: 1,
+    chapterCount: 1,
+    blockCount: empty ? 0 : 2,
+    processingStage: ProcessingStage.completed,
+    activeContentRunId: activeRunId,
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  ),
+  chapters: [
+    ReaderChapter(
+      chapter: ChapterDraft(
+        id: 'chapter-1',
+        title: 'Capítulo',
+        sortOrder: 0,
+        startPage: 1,
+        endPage: 1,
+        cleanText: empty ? '' : '$firstText$secondText',
       ),
-      chapters: [
-        ReaderChapter(
-          chapter: ChapterDraft(
-            id: 'chapter-1',
-            title: 'Capítulo',
-            sortOrder: 0,
-            startPage: 1,
-            endPage: 1,
-            cleanText: empty ? '' : 'UmDois',
-          ),
-          blocks: empty
-              ? []
-              : [_block('block-1', 0, 'Um'), _block('block-2', 1, 'Dois')],
-        ),
-      ],
-    );
+      blocks: empty
+          ? []
+          : [
+              _block('$blockPrefix-1', 0, firstText),
+              _block('$blockPrefix-2', 1, secondText),
+            ],
+    ),
+  ],
+);
 
 NarrationBlockDraft _block(String id, int order, String text) =>
     NarrationBlockDraft(

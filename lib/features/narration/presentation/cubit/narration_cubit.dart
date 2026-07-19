@@ -357,6 +357,12 @@ final class NarrationCubit extends Cubit<NarrationState> {
         return;
       }
     }
+    if (_active(generation)) {
+      _emitPlaybackEntry(
+        target,
+        wasPlaying ? NarrationStatus.paused : state.status,
+      );
+    }
     try {
       await _repository.saveProgress(
         _progress(target, state.settings!, completed: false),
@@ -372,12 +378,6 @@ final class NarrationCubit extends Cubit<NarrationState> {
       }
       _transitioning = false;
       return;
-    }
-    if (_active(generation)) {
-      _emitPlaybackEntry(
-        target,
-        wasPlaying ? NarrationStatus.paused : state.status,
-      );
     }
     _transitioning = false;
     if (wasPlaying && _active(generation)) await _start(target);
@@ -505,9 +505,7 @@ final class NarrationCubit extends Cubit<NarrationState> {
   @override
   Future<void> close() async {
     final generation = ++_generation;
-    if (_queue != null && state.settings != null) {
-      await _stopAndPersist(generation);
-    }
+    await _stopAndPersist(generation);
     return super.close();
   }
 }
