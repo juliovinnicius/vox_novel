@@ -64,36 +64,41 @@ void main() {
     expect(fixture.cubit.state.usesBookOverride, isTrue);
   });
 
-  testWidgets('lifecycle pauses synchronously and close waits stop/save', (
-    tester,
-  ) async {
-    final fixture = _Fixture();
-    final closeObserved = Completer<void>();
-    await _pumpHost(
+  for (final lifecycle in [
+    AppLifecycleState.inactive,
+    AppLifecycleState.paused,
+    AppLifecycleState.detached,
+  ]) {
+    testWidgets('$lifecycle synchronously pauses and awaits exact stop/save', (
       tester,
-      fixture,
-      closeCubit: (cubit) async {
-        expect(fixture.engine.stops, 1);
-        expect(fixture.repository.progress, isNotNull);
-        closeObserved.complete();
-        await cubit.close();
-      },
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
-    await tester.pump();
+    ) async {
+      final fixture = _Fixture();
+      await _pumpHost(tester, fixture);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
+      await tester.pump();
 
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    expect(fixture.cubit.state.status, NarrationStatus.paused);
-    await tester.pump();
-    expect(fixture.engine.stops, 1);
-    expect(fixture.repository.progress?.blockId, 'block');
+      final observer =
+          tester.state(find.byType(ReaderNarrationHost))
+              as WidgetsBindingObserver;
+      observer.didChangeAppLifecycleState(lifecycle);
+      expect(fixture.cubit.state.status, NarrationStatus.paused);
+      await tester.pump();
+      expect(fixture.engine.stops, 1);
+      expect(
+        [
+          fixture.repository.progress?.activeRunId,
+          fixture.repository.progress?.chapterId,
+          fixture.repository.progress?.blockId,
+          fixture.repository.progress?.completed,
+        ],
+        ['run', 'chapter', 'block', false],
+      );
 
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    expect(fixture.cubit.state.status, NarrationStatus.paused);
-    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
-    await closeObserved.future;
-  });
+      observer.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      expect(fixture.cubit.state.status, NarrationStatus.paused);
+    });
+  }
 }
 
 Future<void> _pumpHost(
@@ -195,6 +200,7 @@ final class _Engine implements NarrationEngine {
   @override
   Future<void> stop() async {
     stops++;
+    if (!speech.isCompleted) speech.complete();
   }
 
   @override
