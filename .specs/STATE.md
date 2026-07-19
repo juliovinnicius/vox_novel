@@ -58,13 +58,21 @@
 - **Date**: 2026-07-18
 - **Status**: active
 
+### AD-008
+- **Decision**: Keep one foreground narration engine behind a package-agnostic adapter and coordinate it with a narration-specific route Cubit.
+- **Reason**: Engine callbacks, queue state, and narration progress must remain testable and separate from visual reading while allowing Milestone 5 to replace foreground ownership with a media service.
+- **Trade-off**: Reader composition coordinates two Cubits and an engine registry instead of one combined state object.
+- **Scope**: Narration, reader integration, application lifecycle, and future background media playback.
+- **Date**: 2026-07-18
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: visual_reader / `.specs/features/visual_reader`
-- **Phase / Task**: Validate — automated PASS; UAT deferred
-- **Completed**: Milestones 1–3; visual reader 34/34 ACs, 8/8 mutants, 291 tests, APK debug
-- **In-progress** (file:line): none
-- **Next step**: specify Milestone 4 narration; run combined Milestone 3–4 UAT at its end
+- **Feature**: narration / `.specs/features/narration`
+- **Phase / Task**: Execute — Phase 1, T1 next
+- **Completed**: Milestones 1–3; Milestone 4 specification, design, and tasks approved
+- **In-progress** (file:line): `.specs/features/narration/tasks.md:79`
+- **Next step**: execute Phase 1 tasks T1–T5; run combined Milestone 3–4 UAT after automated validation
 - **Blockers**: none
-- **Uncommitted files**: Milestone 3 validation/lessons and closeout documentation
+- **Uncommitted files**: Milestone 4 planning documents
 - **Branch**: `main`
