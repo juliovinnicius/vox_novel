@@ -104,6 +104,86 @@ void main() {
     await speech;
     expect(completed, isTrue);
   });
+
+  test(
+    'joins visual line breaks and keeps commas in the same utterance',
+    () async {
+      final facade = _FakeFacade();
+      final delays = <Duration>[];
+      final engine = FlutterTtsNarrationEngine(
+        facade: facade,
+        delay: (duration) async => delays.add(duration),
+      );
+
+      await engine.speak('Ele caminhou até a\r\nporta, olhou para trás.');
+
+      expect(facade.spokenValues, [
+        'Ele caminhou até a porta, olhou para trás.',
+      ]);
+      expect(delays, isEmpty);
+    },
+  );
+
+  test('speaks sentences separately with a short pause between them', () async {
+    final facade = _FakeFacade();
+    final delays = <Duration>[];
+    final engine = FlutterTtsNarrationEngine(
+      facade: facade,
+      delay: (duration) async => delays.add(duration),
+    );
+
+    await engine.speak('Primeira. Segunda? Terceira! Última.');
+
+    expect(facade.spokenValues, [
+      'Primeira.',
+      'Segunda?',
+      'Terceira!',
+      'Última.',
+    ]);
+    expect(delays, [
+      const Duration(milliseconds: 220),
+      const Duration(milliseconds: 220),
+      const Duration(milliseconds: 220),
+    ]);
+  });
+
+  test(
+    'uses a longer pause between paragraphs and normalizes CR breaks',
+    () async {
+      final facade = _FakeFacade();
+      final delays = <Duration>[];
+      final engine = FlutterTtsNarrationEngine(
+        facade: facade,
+        delay: (duration) async => delays.add(duration),
+      );
+
+      await engine.speak('Primeiro parágrafo.\r\rSegundo 👩🏽‍🚀 parágrafo.');
+
+      expect(facade.spokenValues, [
+        'Primeiro parágrafo.',
+        'Segundo 👩🏽‍🚀 parágrafo.',
+      ]);
+      expect(delays, [const Duration(milliseconds: 420)]);
+    },
+  );
+
+  test('stop during an artificial pause prevents remaining speech', () async {
+    final facade = _FakeFacade();
+    final pause = Completer<void>();
+    final engine = FlutterTtsNarrationEngine(
+      facade: facade,
+      delay: (_) => pause.future,
+    );
+
+    final speech = engine.speak('Primeira. Segunda.');
+    await Future<void>.delayed(Duration.zero);
+    await engine.stop();
+    pause.complete();
+    await speech;
+
+    expect(facade.spokenValues, ['Primeira.']);
+    expect(facade.stopCalls, 1);
+  });
 }
 
 final class _FakeFacade implements FlutterTtsFacade {
