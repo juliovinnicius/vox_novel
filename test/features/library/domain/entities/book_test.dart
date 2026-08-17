@@ -12,6 +12,127 @@ void main() {
     }
   });
 
+  group('BookSourceType', () {
+    for (final sourceType in BookSourceType.values) {
+      test('${sourceType.name} round-trips through storage', () {
+        expect(BookSourceType.fromStorage(sourceType.storageValue), sourceType);
+        expect(sourceType.storageValue, sourceType.name);
+      });
+    }
+
+    test('rejects an unknown stored value', () {
+      expect(
+        () => BookSourceType.fromStorage('epub'),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+
+  group('Book source identity', () {
+    test('defaults to a pdf source with no source reference', () {
+      final book = Book(
+        id: 'book-1',
+        title: 'Título',
+        originalFileName: 'original.pdf',
+        storedFilePath: '/books/book-1.pdf',
+        fileHash: 'abc123',
+        status: BookStatus.ready,
+        processingProgress: 1,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      );
+
+      expect(book.sourceType, BookSourceType.pdf);
+      expect(book.sourceRef, isNull);
+    });
+
+    test('accepts a web book with no local file fields', () {
+      final book = Book(
+        id: 'book-web',
+        title: 'Novela',
+        sourceType: BookSourceType.web,
+        sourceRef: 'https://centralnovel.com/series/minha-novela/',
+        status: BookStatus.processing,
+        processingProgress: 0,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      );
+
+      expect(book.sourceType, BookSourceType.web);
+      expect(book.sourceRef, 'https://centralnovel.com/series/minha-novela/');
+      expect(book.originalFileName, isNull);
+      expect(book.storedFilePath, isNull);
+      expect(book.fileHash, isNull);
+    });
+
+    test('rejects a pdf book without a stored file', () {
+      expect(
+        () => Book(
+          id: 'book-1',
+          title: 'Título',
+          status: BookStatus.importing,
+          processingProgress: 0,
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+        ),
+        throwsA(
+          isA<TextProcessingValidationException>().having(
+            (error) => error.message,
+            'message',
+            'a pdf book requires a stored file',
+          ),
+        ),
+      );
+    });
+
+    test('rejects a web book without a source reference', () {
+      expect(
+        () => Book(
+          id: 'book-web',
+          title: 'Novela',
+          sourceType: BookSourceType.web,
+          status: BookStatus.processing,
+          processingProgress: 0,
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+        ),
+        throwsA(
+          isA<TextProcessingValidationException>().having(
+            (error) => error.message,
+            'message',
+            'a web book requires a source reference',
+          ),
+        ),
+      );
+    });
+
+    test('copyWith carries source identity into equality and hashCode', () {
+      final book = Book(
+        id: 'book-web',
+        title: 'Novela',
+        sourceType: BookSourceType.web,
+        sourceRef: 'https://centralnovel.com/series/a/',
+        status: BookStatus.processing,
+        processingProgress: 0,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      );
+
+      final renamedSource = book.copyWith(
+        sourceRef: 'https://centralnovel.com/series/b/',
+      );
+
+      expect(renamedSource.sourceRef, 'https://centralnovel.com/series/b/');
+      expect(renamedSource.sourceType, BookSourceType.web);
+      expect(renamedSource == book, isFalse);
+      expect(renamedSource.hashCode == book.hashCode, isFalse);
+      expect(
+        book.copyWith(sourceRef: 'https://centralnovel.com/series/a/'),
+        book,
+      );
+    });
+  });
+
   group('Book title', () {
     test('removes the final PDF extension case-insensitively', () {
       expect(Book.titleFromFileName('Novel.PDF'), 'Novel');

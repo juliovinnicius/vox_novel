@@ -276,7 +276,7 @@ void main() {
           id: first.id,
           originalFileName: 'replacement.pdf',
           storedFilePath: '/books/replacement.pdf',
-          fileHash: second.fileHash,
+          fileHash: second.fileHash!,
           status: BookStatus.importing,
           processingProgress: 0,
           updatedAt: DateTime.utc(2026, 7, 19),

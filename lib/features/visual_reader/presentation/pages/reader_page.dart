@@ -157,7 +157,7 @@ final class _ReaderPageState extends State<ReaderPage> {
       ),
       body: state.mode == ReaderMode.pdf
           ? OriginalPdfView(
-              path: content.book.storedFilePath,
+              path: content.book.storedFilePath!,
               initialPage: state.pdfPage,
               expectedPages: content.book.pageCount,
               onPageChanged: widget.cubit.pageChanged,

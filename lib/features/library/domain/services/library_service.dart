@@ -68,7 +68,7 @@ final class LibraryService {
     BookDeletionSnapshot? snapshot;
     try {
       quarantine = await storage.quarantineOwnedFiles(
-        pdfPath: book.storedFilePath,
+        pdfPath: book.storedFilePath!,
         coverPath: book.coverPath,
       );
       if (repository is CompensatingBookRepository) {

@@ -34,7 +34,7 @@ final class ImportBookService {
       final id = existing?.id ?? generateId();
       staged = await storage.stageCopy(source: selected, bookId: id);
       if (existing != null) {
-        backup = await storage.backupOwnedFile(existing.storedFilePath);
+        backup = await storage.backupOwnedFile(existing.storedFilePath!);
       }
       committedPath = await storage.commitStage(staged);
       final now = clock();
@@ -99,9 +99,9 @@ final class ImportBookService {
       if (repositoryChanged && existing != null) {
         await repository.replaceImportedFile(
           id: existing.id,
-          originalFileName: existing.originalFileName,
-          storedFilePath: existing.storedFilePath,
-          fileHash: existing.fileHash,
+          originalFileName: existing.originalFileName!,
+          storedFilePath: existing.storedFilePath!,
+          fileHash: existing.fileHash!,
           status: existing.status,
           processingProgress: existing.processingProgress,
           updatedAt: existing.updatedAt,

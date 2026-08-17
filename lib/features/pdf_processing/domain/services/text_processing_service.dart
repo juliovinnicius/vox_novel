@@ -157,7 +157,7 @@ final class TextProcessingService {
       var pageCount = 0;
       var extractedCharacters = 0;
       await for (final event in _extractor.extract(
-        PdfExtractionRequest(runId: runId, filePath: book.storedFilePath),
+        PdfExtractionRequest(runId: runId, filePath: book.storedFilePath!),
       )) {
         _check(cancellation);
         switch (event) {

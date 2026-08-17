@@ -17,17 +17,33 @@ enum BookStatus {
   String get storageValue => name;
 }
 
+enum BookSourceType {
+  pdf,
+  web;
+
+  static BookSourceType fromStorage(String value) {
+    return BookSourceType.values.firstWhere(
+      (sourceType) => sourceType.name == value,
+      orElse: () => throw FormatException('Unknown book source type: $value'),
+    );
+  }
+
+  String get storageValue => name;
+}
+
 final class Book {
   Book({
     required this.id,
     required this.title,
-    required this.originalFileName,
-    required this.storedFilePath,
-    required this.fileHash,
     required this.status,
     required this.processingProgress,
     required this.createdAt,
     required this.updatedAt,
+    this.sourceType = BookSourceType.pdf,
+    this.sourceRef,
+    this.originalFileName,
+    this.storedFilePath,
+    this.fileHash,
     this.author,
     this.coverPath,
     this.pageCount = 0,
@@ -45,15 +61,27 @@ final class Book {
         'invalid book processing values',
       );
     }
+    if (sourceType == BookSourceType.pdf && storedFilePath == null) {
+      throw const TextProcessingValidationException(
+        'a pdf book requires a stored file',
+      );
+    }
+    if (sourceType == BookSourceType.web && sourceRef == null) {
+      throw const TextProcessingValidationException(
+        'a web book requires a source reference',
+      );
+    }
   }
 
   final String id;
   final String title;
   final String? author;
   final String? coverPath;
-  final String originalFileName;
-  final String storedFilePath;
-  final String fileHash;
+  final BookSourceType sourceType;
+  final String? sourceRef;
+  final String? originalFileName;
+  final String? storedFilePath;
+  final String? fileHash;
   final BookStatus status;
   final double processingProgress;
   final DateTime createdAt;
@@ -94,6 +122,8 @@ final class Book {
     String? title,
     Object? author = _unset,
     Object? coverPath = _unset,
+    BookSourceType? sourceType,
+    Object? sourceRef = _unset,
     String? originalFileName,
     String? storedFilePath,
     String? fileHash,
@@ -114,6 +144,10 @@ final class Book {
       coverPath: identical(coverPath, _unset)
           ? this.coverPath
           : coverPath as String?,
+      sourceType: sourceType ?? this.sourceType,
+      sourceRef: identical(sourceRef, _unset)
+          ? this.sourceRef
+          : sourceRef as String?,
       originalFileName: originalFileName ?? this.originalFileName,
       storedFilePath: storedFilePath ?? this.storedFilePath,
       fileHash: fileHash ?? this.fileHash,
@@ -141,6 +175,8 @@ final class Book {
             other.title == title &&
             other.author == author &&
             other.coverPath == coverPath &&
+            other.sourceType == sourceType &&
+            other.sourceRef == sourceRef &&
             other.originalFileName == originalFileName &&
             other.storedFilePath == storedFilePath &&
             other.fileHash == fileHash &&
@@ -161,6 +197,8 @@ final class Book {
     title,
     author,
     coverPath,
+    sourceType,
+    sourceRef,
     originalFileName,
     storedFilePath,
     fileHash,
