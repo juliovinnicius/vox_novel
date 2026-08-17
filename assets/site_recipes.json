@@ -1,0 +1,16 @@
+[
+  {
+    "domain": "centralnovel.com",
+    "seriesPathPrefix": "/series/",
+    "seriesLinkSelector": "a[itemprop=item][href*='/series/']",
+    "chapterIndexSelector": "div.eplister li > a",
+    "chapterIndexTitleSelector": "div.epl-title",
+    "chapterIndexOrder": "descending",
+    "chapterTitleSelector": "h1.entry-title",
+    "contentSelector": "div.epcontent.entry-content",
+    "paragraphSelector": "p",
+    "nextChapterSelector": "a[rel=next]",
+    "disallowedPathPatterns": ["/pdf/", "/search/", "/?s="],
+    "minimumChapterCharacters": 200
+  }
+]
