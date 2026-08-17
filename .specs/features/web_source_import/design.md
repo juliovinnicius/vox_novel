@@ -107,13 +107,22 @@ final class ChapterIngest {
   Future<IngestedChapters> ingest({
     required String runId,
     required String bookId,
-    required List<DetectedChapter> chapters,
+    required List<ChapterDraft> chapters,
     required DateTime createdAt,
+    ChapterIngestDrafts? onDrafts,
   });
 }
 ```
 
-- **Dependencies**: `TextProcessingRepository`, id generators.
+> **As built (T6).** The chapter type is `ChapterDraft` — what
+> `ChapterDetector.finish` actually returns; an earlier draft of this document
+> named a `DetectedChapter` type that does not exist. Two additions were required
+> to keep PDF behaviour identical: `onDrafts`, which lets `TextProcessingService`
+> run its exact per-block progress and cancellation loop before staging, and a
+> constructor-injected `cpu` executor that keeps block splitting off the caller
+> isolate. Callers in later phases should use this signature, not the original.
+
+- **Dependencies**: `TextProcessingRepository`, id generators, CPU executor.
 - **Reuses**: `NarrationBlockSplitter`; the exact draft-building block currently inlined at `text_processing_service.dart:224-300`, extracted verbatim.
 
 ### `WebNovelDownloadService`

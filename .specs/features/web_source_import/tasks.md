@@ -345,6 +345,7 @@ T25 → T26
 **Done when**:
 - [ ] A series URL resolves directly; a chapter URL resolves via the breadcrumb series link
 - [ ] A chapter URL and its series URL produce identical indexes
+- [ ] Host matching ignores a leading `www.` and is case-insensitive, so `https://WWW.centralnovel.com/...` resolves to the same recipe and the same canonical `sourceRef` as the bare host
 - [ ] A non-absolute or non-`http(s)` URL is rejected before any request is issued
 - [ ] An unknown host is rejected naming the domain, before any request
 - [ ] A disallowed path is rejected naming the restriction, before any request
