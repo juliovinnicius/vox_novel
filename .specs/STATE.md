@@ -66,6 +66,22 @@
 - **Date**: 2026-07-18
 - **Status**: active
 
+### AD-009
+- **Decision**: Split content sources by shape — paged sources (PDF) stay batch-processed, chaptered sources (web) are ingested incrementally — and route both through one shared `ChapterIngest` collaborator that owns clean-text-to-blocks persistence.
+- **Reason**: A source that supplies its own chapter index must become readable chapter by chapter, which the whole-document batch barrier cannot deliver, while the ingest core must never fork between sources.
+- **Trade-off**: Two orchestrators exist over one ingest core, and processing runs gain an "active but still growing" state.
+- **Scope**: All content ingestion, processing-run lifecycle, and future content sources.
+- **Date**: 2026-08-17
+- **Status**: active
+
+### AD-010
+- **Decision**: Confine all outbound network access to a single polite-fetcher adapter that throttles per host, honors `Retry-After`, sends a descriptive app User-Agent, and refuses redirects that leave the configured host; domain services never perform I/O directly.
+- **Reason**: Politeness and rate limiting must be impossible to bypass, and tests must run without network access.
+- **Trade-off**: Every network-dependent feature must route through one adapter interface instead of calling an HTTP client where convenient.
+- **Scope**: All outbound HTTP from the application.
+- **Date**: 2026-08-17
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: narration / `.specs/features/narration`
