@@ -12,6 +12,16 @@ class BookStatusConverter extends TypeConverter<BookStatus, String> {
   String toSql(BookStatus value) => value.storageValue;
 }
 
+class BookSourceTypeConverter extends TypeConverter<BookSourceType, String> {
+  const BookSourceTypeConverter();
+
+  @override
+  BookSourceType fromSql(String fromDb) => BookSourceType.fromStorage(fromDb);
+
+  @override
+  String toSql(BookSourceType value) => value.storageValue;
+}
+
 class UtcDateTimeConverter extends TypeConverter<DateTime, int> {
   const UtcDateTimeConverter();
 
@@ -37,14 +47,19 @@ class ProcessingStageConverter extends TypeConverter<ProcessingStage, String> {
 }
 
 @TableIndex(name: 'books_file_hash_unique', columns: {#fileHash}, unique: true)
+@TableIndex(name: 'books_source_ref_unique', columns: {#sourceRef}, unique: true)
 class Books extends Table {
   TextColumn get id => text()();
   TextColumn get title => text()();
   TextColumn get author => text().nullable()();
   TextColumn get coverPath => text().nullable()();
-  TextColumn get originalFileName => text()();
-  TextColumn get storedFilePath => text()();
-  TextColumn get fileHash => text()();
+  TextColumn get sourceType => text()
+      .map(const BookSourceTypeConverter())
+      .withDefault(const Constant('pdf'))();
+  TextColumn get sourceRef => text().nullable()();
+  TextColumn get originalFileName => text().nullable()();
+  TextColumn get storedFilePath => text().nullable()();
+  TextColumn get fileHash => text().nullable()();
   TextColumn get status => text().map(const BookStatusConverter())();
   RealColumn get processingProgress => real()();
   IntColumn get pageCount => integer().withDefault(const Constant(0))();

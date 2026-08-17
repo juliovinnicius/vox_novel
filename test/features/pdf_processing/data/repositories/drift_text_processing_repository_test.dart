@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/core/database/app_database.dart' hide RawPage;
@@ -19,9 +20,9 @@ void main() {
           BooksCompanion.insert(
             id: 'book-1',
             title: 'Livro',
-            originalFileName: 'livro.pdf',
-            storedFilePath: '/livro.pdf',
-            fileHash: 'hash',
+            originalFileName: Value('livro.pdf'),
+            storedFilePath: Value('/livro.pdf'),
+            fileHash: Value('hash'),
             status: BookStatus.importing,
             processingProgress: 0,
             createdAt: now,

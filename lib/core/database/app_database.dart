@@ -33,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.defaults() : this(driftDatabase(name: 'vox_novel'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -67,6 +67,20 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(narrationSettingsRows);
         await migrator.createTable(bookNarrationSettings);
         await migrator.createTable(readingProgress);
+      }
+      if (from < 6) {
+        // SQLite cannot drop NOT NULL with ALTER TABLE, so the three file
+        // columns require a table recreation. alterTable re-creates whichever
+        // indexes the old table carried, so the new one is dropped first and
+        // created explicitly afterwards.
+        await migrator.drop(booksSourceRefUnique);
+        await migrator.alterTable(
+          TableMigration(
+            books,
+            newColumns: [books.sourceType, books.sourceRef],
+          ),
+        );
+        await migrator.createIndex(booksSourceRefUnique);
       }
     },
   );

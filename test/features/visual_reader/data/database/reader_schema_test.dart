@@ -243,9 +243,9 @@ Future<void> _insertBook(AppDatabase database) => database
       BooksCompanion.insert(
         id: 'book',
         title: 'Book',
-        originalFileName: 'book.pdf',
-        storedFilePath: '/book.pdf',
-        fileHash: 'hash',
+        originalFileName: Value('book.pdf'),
+        storedFilePath: Value('/book.pdf'),
+        fileHash: Value('hash'),
         status: BookStatus.ready,
         processingProgress: 1,
         createdAt: DateTime.utc(2026),

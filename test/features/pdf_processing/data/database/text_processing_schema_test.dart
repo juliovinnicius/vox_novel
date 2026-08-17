@@ -21,9 +21,9 @@ void main() {
           BooksCompanion.insert(
             id: id,
             title: 'Livro',
-            originalFileName: 'livro.pdf',
-            storedFilePath: '/books/livro.pdf',
-            fileHash: 'hash-$id',
+            originalFileName: Value('livro.pdf'),
+            storedFilePath: Value('/books/livro.pdf'),
+            fileHash: Value('hash-$id'),
             status: BookStatus.importing,
             processingProgress: 0,
             createdAt: createdAt,

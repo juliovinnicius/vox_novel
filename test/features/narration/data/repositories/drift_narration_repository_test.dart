@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/core/database/app_database.dart';
@@ -222,9 +223,9 @@ Future<void> _insertBook(AppDatabase database) => database
       BooksCompanion.insert(
         id: 'book',
         title: 'Book',
-        originalFileName: 'book.pdf',
-        storedFilePath: '/book.pdf',
-        fileHash: 'hash',
+        originalFileName: Value('book.pdf'),
+        storedFilePath: Value('/book.pdf'),
+        fileHash: Value('hash'),
         status: BookStatus.ready,
         processingProgress: 1,
         createdAt: DateTime.utc(2026),

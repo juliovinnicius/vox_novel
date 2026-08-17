@@ -46,6 +46,27 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<BookSourceType, String>
+  sourceType = GeneratedColumn<String>(
+    'source_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pdf'),
+  ).withConverter<BookSourceType>($BooksTable.$convertersourceType);
+  static const VerificationMeta _sourceRefMeta = const VerificationMeta(
+    'sourceRef',
+  );
+  @override
+  late final GeneratedColumn<String> sourceRef = GeneratedColumn<String>(
+    'source_ref',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _originalFileNameMeta = const VerificationMeta(
     'originalFileName',
   );
@@ -53,9 +74,9 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
   late final GeneratedColumn<String> originalFileName = GeneratedColumn<String>(
     'original_file_name',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _storedFilePathMeta = const VerificationMeta(
     'storedFilePath',
@@ -64,9 +85,9 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
   late final GeneratedColumn<String> storedFilePath = GeneratedColumn<String>(
     'stored_file_path',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _fileHashMeta = const VerificationMeta(
     'fileHash',
@@ -75,9 +96,9 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
   late final GeneratedColumn<String> fileHash = GeneratedColumn<String>(
     'file_hash',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   @override
   late final GeneratedColumnWithTypeConverter<BookStatus, String> status =
@@ -181,6 +202,8 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     title,
     author,
     coverPath,
+    sourceType,
+    sourceRef,
     originalFileName,
     storedFilePath,
     fileHash,
@@ -231,6 +254,12 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         coverPath.isAcceptableOrUnknown(data['cover_path']!, _coverPathMeta),
       );
     }
+    if (data.containsKey('source_ref')) {
+      context.handle(
+        _sourceRefMeta,
+        sourceRef.isAcceptableOrUnknown(data['source_ref']!, _sourceRefMeta),
+      );
+    }
     if (data.containsKey('original_file_name')) {
       context.handle(
         _originalFileNameMeta,
@@ -239,8 +268,6 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
           _originalFileNameMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_originalFileNameMeta);
     }
     if (data.containsKey('stored_file_path')) {
       context.handle(
@@ -250,16 +277,12 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
           _storedFilePathMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_storedFilePathMeta);
     }
     if (data.containsKey('file_hash')) {
       context.handle(
         _fileHashMeta,
         fileHash.isAcceptableOrUnknown(data['file_hash']!, _fileHashMeta),
       );
-    } else if (isInserting) {
-      context.missing(_fileHashMeta);
     }
     if (data.containsKey('processing_progress')) {
       context.handle(
@@ -327,18 +350,28 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.string,
         data['${effectivePrefix}cover_path'],
       ),
+      sourceType: $BooksTable.$convertersourceType.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}source_type'],
+        )!,
+      ),
+      sourceRef: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_ref'],
+      ),
       originalFileName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}original_file_name'],
-      )!,
+      ),
       storedFilePath: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}stored_file_path'],
-      )!,
+      ),
       fileHash: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}file_hash'],
-      )!,
+      ),
       status: $BooksTable.$converterstatus.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
@@ -391,6 +424,8 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     return $BooksTable(attachedDatabase, alias);
   }
 
+  static TypeConverter<BookSourceType, String> $convertersourceType =
+      const BookSourceTypeConverter();
   static TypeConverter<BookStatus, String> $converterstatus =
       const BookStatusConverter();
   static TypeConverter<ProcessingStage?, String?> $converterprocessingStage =
@@ -406,9 +441,11 @@ class Book extends DataClass implements Insertable<Book> {
   final String title;
   final String? author;
   final String? coverPath;
-  final String originalFileName;
-  final String storedFilePath;
-  final String fileHash;
+  final BookSourceType sourceType;
+  final String? sourceRef;
+  final String? originalFileName;
+  final String? storedFilePath;
+  final String? fileHash;
   final BookStatus status;
   final double processingProgress;
   final int pageCount;
@@ -423,9 +460,11 @@ class Book extends DataClass implements Insertable<Book> {
     required this.title,
     this.author,
     this.coverPath,
-    required this.originalFileName,
-    required this.storedFilePath,
-    required this.fileHash,
+    required this.sourceType,
+    this.sourceRef,
+    this.originalFileName,
+    this.storedFilePath,
+    this.fileHash,
     required this.status,
     required this.processingProgress,
     required this.pageCount,
@@ -447,9 +486,23 @@ class Book extends DataClass implements Insertable<Book> {
     if (!nullToAbsent || coverPath != null) {
       map['cover_path'] = Variable<String>(coverPath);
     }
-    map['original_file_name'] = Variable<String>(originalFileName);
-    map['stored_file_path'] = Variable<String>(storedFilePath);
-    map['file_hash'] = Variable<String>(fileHash);
+    {
+      map['source_type'] = Variable<String>(
+        $BooksTable.$convertersourceType.toSql(sourceType),
+      );
+    }
+    if (!nullToAbsent || sourceRef != null) {
+      map['source_ref'] = Variable<String>(sourceRef);
+    }
+    if (!nullToAbsent || originalFileName != null) {
+      map['original_file_name'] = Variable<String>(originalFileName);
+    }
+    if (!nullToAbsent || storedFilePath != null) {
+      map['stored_file_path'] = Variable<String>(storedFilePath);
+    }
+    if (!nullToAbsent || fileHash != null) {
+      map['file_hash'] = Variable<String>(fileHash);
+    }
     {
       map['status'] = Variable<String>(
         $BooksTable.$converterstatus.toSql(status),
@@ -490,9 +543,19 @@ class Book extends DataClass implements Insertable<Book> {
       coverPath: coverPath == null && nullToAbsent
           ? const Value.absent()
           : Value(coverPath),
-      originalFileName: Value(originalFileName),
-      storedFilePath: Value(storedFilePath),
-      fileHash: Value(fileHash),
+      sourceType: Value(sourceType),
+      sourceRef: sourceRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceRef),
+      originalFileName: originalFileName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalFileName),
+      storedFilePath: storedFilePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(storedFilePath),
+      fileHash: fileHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileHash),
       status: Value(status),
       processingProgress: Value(processingProgress),
       pageCount: Value(pageCount),
@@ -519,9 +582,11 @@ class Book extends DataClass implements Insertable<Book> {
       title: serializer.fromJson<String>(json['title']),
       author: serializer.fromJson<String?>(json['author']),
       coverPath: serializer.fromJson<String?>(json['coverPath']),
-      originalFileName: serializer.fromJson<String>(json['originalFileName']),
-      storedFilePath: serializer.fromJson<String>(json['storedFilePath']),
-      fileHash: serializer.fromJson<String>(json['fileHash']),
+      sourceType: serializer.fromJson<BookSourceType>(json['sourceType']),
+      sourceRef: serializer.fromJson<String?>(json['sourceRef']),
+      originalFileName: serializer.fromJson<String?>(json['originalFileName']),
+      storedFilePath: serializer.fromJson<String?>(json['storedFilePath']),
+      fileHash: serializer.fromJson<String?>(json['fileHash']),
       status: serializer.fromJson<BookStatus>(json['status']),
       processingProgress: serializer.fromJson<double>(
         json['processingProgress'],
@@ -547,9 +612,11 @@ class Book extends DataClass implements Insertable<Book> {
       'title': serializer.toJson<String>(title),
       'author': serializer.toJson<String?>(author),
       'coverPath': serializer.toJson<String?>(coverPath),
-      'originalFileName': serializer.toJson<String>(originalFileName),
-      'storedFilePath': serializer.toJson<String>(storedFilePath),
-      'fileHash': serializer.toJson<String>(fileHash),
+      'sourceType': serializer.toJson<BookSourceType>(sourceType),
+      'sourceRef': serializer.toJson<String?>(sourceRef),
+      'originalFileName': serializer.toJson<String?>(originalFileName),
+      'storedFilePath': serializer.toJson<String?>(storedFilePath),
+      'fileHash': serializer.toJson<String?>(fileHash),
       'status': serializer.toJson<BookStatus>(status),
       'processingProgress': serializer.toJson<double>(processingProgress),
       'pageCount': serializer.toJson<int>(pageCount),
@@ -567,9 +634,11 @@ class Book extends DataClass implements Insertable<Book> {
     String? title,
     Value<String?> author = const Value.absent(),
     Value<String?> coverPath = const Value.absent(),
-    String? originalFileName,
-    String? storedFilePath,
-    String? fileHash,
+    BookSourceType? sourceType,
+    Value<String?> sourceRef = const Value.absent(),
+    Value<String?> originalFileName = const Value.absent(),
+    Value<String?> storedFilePath = const Value.absent(),
+    Value<String?> fileHash = const Value.absent(),
     BookStatus? status,
     double? processingProgress,
     int? pageCount,
@@ -584,9 +653,15 @@ class Book extends DataClass implements Insertable<Book> {
     title: title ?? this.title,
     author: author.present ? author.value : this.author,
     coverPath: coverPath.present ? coverPath.value : this.coverPath,
-    originalFileName: originalFileName ?? this.originalFileName,
-    storedFilePath: storedFilePath ?? this.storedFilePath,
-    fileHash: fileHash ?? this.fileHash,
+    sourceType: sourceType ?? this.sourceType,
+    sourceRef: sourceRef.present ? sourceRef.value : this.sourceRef,
+    originalFileName: originalFileName.present
+        ? originalFileName.value
+        : this.originalFileName,
+    storedFilePath: storedFilePath.present
+        ? storedFilePath.value
+        : this.storedFilePath,
+    fileHash: fileHash.present ? fileHash.value : this.fileHash,
     status: status ?? this.status,
     processingProgress: processingProgress ?? this.processingProgress,
     pageCount: pageCount ?? this.pageCount,
@@ -607,6 +682,10 @@ class Book extends DataClass implements Insertable<Book> {
       title: data.title.present ? data.title.value : this.title,
       author: data.author.present ? data.author.value : this.author,
       coverPath: data.coverPath.present ? data.coverPath.value : this.coverPath,
+      sourceType: data.sourceType.present
+          ? data.sourceType.value
+          : this.sourceType,
+      sourceRef: data.sourceRef.present ? data.sourceRef.value : this.sourceRef,
       originalFileName: data.originalFileName.present
           ? data.originalFileName.value
           : this.originalFileName,
@@ -643,6 +722,8 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('title: $title, ')
           ..write('author: $author, ')
           ..write('coverPath: $coverPath, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('sourceRef: $sourceRef, ')
           ..write('originalFileName: $originalFileName, ')
           ..write('storedFilePath: $storedFilePath, ')
           ..write('fileHash: $fileHash, ')
@@ -665,6 +746,8 @@ class Book extends DataClass implements Insertable<Book> {
     title,
     author,
     coverPath,
+    sourceType,
+    sourceRef,
     originalFileName,
     storedFilePath,
     fileHash,
@@ -686,6 +769,8 @@ class Book extends DataClass implements Insertable<Book> {
           other.title == this.title &&
           other.author == this.author &&
           other.coverPath == this.coverPath &&
+          other.sourceType == this.sourceType &&
+          other.sourceRef == this.sourceRef &&
           other.originalFileName == this.originalFileName &&
           other.storedFilePath == this.storedFilePath &&
           other.fileHash == this.fileHash &&
@@ -705,9 +790,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<String> title;
   final Value<String?> author;
   final Value<String?> coverPath;
-  final Value<String> originalFileName;
-  final Value<String> storedFilePath;
-  final Value<String> fileHash;
+  final Value<BookSourceType> sourceType;
+  final Value<String?> sourceRef;
+  final Value<String?> originalFileName;
+  final Value<String?> storedFilePath;
+  final Value<String?> fileHash;
   final Value<BookStatus> status;
   final Value<double> processingProgress;
   final Value<int> pageCount;
@@ -723,6 +810,8 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.title = const Value.absent(),
     this.author = const Value.absent(),
     this.coverPath = const Value.absent(),
+    this.sourceType = const Value.absent(),
+    this.sourceRef = const Value.absent(),
     this.originalFileName = const Value.absent(),
     this.storedFilePath = const Value.absent(),
     this.fileHash = const Value.absent(),
@@ -742,9 +831,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
     required String title,
     this.author = const Value.absent(),
     this.coverPath = const Value.absent(),
-    required String originalFileName,
-    required String storedFilePath,
-    required String fileHash,
+    this.sourceType = const Value.absent(),
+    this.sourceRef = const Value.absent(),
+    this.originalFileName = const Value.absent(),
+    this.storedFilePath = const Value.absent(),
+    this.fileHash = const Value.absent(),
     required BookStatus status,
     required double processingProgress,
     this.pageCount = const Value.absent(),
@@ -757,9 +848,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
-       originalFileName = Value(originalFileName),
-       storedFilePath = Value(storedFilePath),
-       fileHash = Value(fileHash),
        status = Value(status),
        processingProgress = Value(processingProgress),
        createdAt = Value(createdAt),
@@ -769,6 +857,8 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<String>? title,
     Expression<String>? author,
     Expression<String>? coverPath,
+    Expression<String>? sourceType,
+    Expression<String>? sourceRef,
     Expression<String>? originalFileName,
     Expression<String>? storedFilePath,
     Expression<String>? fileHash,
@@ -788,6 +878,8 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (title != null) 'title': title,
       if (author != null) 'author': author,
       if (coverPath != null) 'cover_path': coverPath,
+      if (sourceType != null) 'source_type': sourceType,
+      if (sourceRef != null) 'source_ref': sourceRef,
       if (originalFileName != null) 'original_file_name': originalFileName,
       if (storedFilePath != null) 'stored_file_path': storedFilePath,
       if (fileHash != null) 'file_hash': fileHash,
@@ -810,9 +902,11 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<String>? title,
     Value<String?>? author,
     Value<String?>? coverPath,
-    Value<String>? originalFileName,
-    Value<String>? storedFilePath,
-    Value<String>? fileHash,
+    Value<BookSourceType>? sourceType,
+    Value<String?>? sourceRef,
+    Value<String?>? originalFileName,
+    Value<String?>? storedFilePath,
+    Value<String?>? fileHash,
     Value<BookStatus>? status,
     Value<double>? processingProgress,
     Value<int>? pageCount,
@@ -829,6 +923,8 @@ class BooksCompanion extends UpdateCompanion<Book> {
       title: title ?? this.title,
       author: author ?? this.author,
       coverPath: coverPath ?? this.coverPath,
+      sourceType: sourceType ?? this.sourceType,
+      sourceRef: sourceRef ?? this.sourceRef,
       originalFileName: originalFileName ?? this.originalFileName,
       storedFilePath: storedFilePath ?? this.storedFilePath,
       fileHash: fileHash ?? this.fileHash,
@@ -859,6 +955,14 @@ class BooksCompanion extends UpdateCompanion<Book> {
     }
     if (coverPath.present) {
       map['cover_path'] = Variable<String>(coverPath.value);
+    }
+    if (sourceType.present) {
+      map['source_type'] = Variable<String>(
+        $BooksTable.$convertersourceType.toSql(sourceType.value),
+      );
+    }
+    if (sourceRef.present) {
+      map['source_ref'] = Variable<String>(sourceRef.value);
     }
     if (originalFileName.present) {
       map['original_file_name'] = Variable<String>(originalFileName.value);
@@ -917,6 +1021,8 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('title: $title, ')
           ..write('author: $author, ')
           ..write('coverPath: $coverPath, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('sourceRef: $sourceRef, ')
           ..write('originalFileName: $originalFileName, ')
           ..write('storedFilePath: $storedFilePath, ')
           ..write('fileHash: $fileHash, ')
@@ -5054,6 +5160,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'books_file_hash_unique',
     'CREATE UNIQUE INDEX books_file_hash_unique ON books (file_hash)',
   );
+  late final Index booksSourceRefUnique = Index(
+    'books_source_ref_unique',
+    'CREATE UNIQUE INDEX books_source_ref_unique ON books (source_ref)',
+  );
   late final Index processingRunsBookId = Index(
     'processing_runs_book_id',
     'CREATE INDEX processing_runs_book_id ON processing_runs (book_id)',
@@ -5098,6 +5208,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     bookNarrationSettings,
     readingProgress,
     booksFileHashUnique,
+    booksSourceRefUnique,
     processingRunsBookId,
     rawPagesRunPageUnique,
     chaptersBookId,
@@ -5180,9 +5291,11 @@ typedef $$BooksTableCreateCompanionBuilder =
       required String title,
       Value<String?> author,
       Value<String?> coverPath,
-      required String originalFileName,
-      required String storedFilePath,
-      required String fileHash,
+      Value<BookSourceType> sourceType,
+      Value<String?> sourceRef,
+      Value<String?> originalFileName,
+      Value<String?> storedFilePath,
+      Value<String?> fileHash,
       required BookStatus status,
       required double processingProgress,
       Value<int> pageCount,
@@ -5200,9 +5313,11 @@ typedef $$BooksTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String?> author,
       Value<String?> coverPath,
-      Value<String> originalFileName,
-      Value<String> storedFilePath,
-      Value<String> fileHash,
+      Value<BookSourceType> sourceType,
+      Value<String?> sourceRef,
+      Value<String?> originalFileName,
+      Value<String?> storedFilePath,
+      Value<String?> fileHash,
       Value<BookStatus> status,
       Value<double> processingProgress,
       Value<int> pageCount,
@@ -5347,6 +5462,17 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
 
   ColumnFilters<String> get coverPath => $composableBuilder(
     column: $table.coverPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<BookSourceType, BookSourceType, String>
+  get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get sourceRef => $composableBuilder(
+    column: $table.sourceRef,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5570,6 +5696,16 @@ class $$BooksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceRef => $composableBuilder(
+    column: $table.sourceRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get originalFileName => $composableBuilder(
     column: $table.originalFileName,
     builder: (column) => ColumnOrderings(column),
@@ -5651,6 +5787,15 @@ class $$BooksTableAnnotationComposer
 
   GeneratedColumn<String> get coverPath =>
       $composableBuilder(column: $table.coverPath, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<BookSourceType, String> get sourceType =>
+      $composableBuilder(
+        column: $table.sourceType,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get sourceRef =>
+      $composableBuilder(column: $table.sourceRef, builder: (column) => column);
 
   GeneratedColumn<String> get originalFileName => $composableBuilder(
     column: $table.originalFileName,
@@ -5868,9 +6013,11 @@ class $$BooksTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String?> author = const Value.absent(),
                 Value<String?> coverPath = const Value.absent(),
-                Value<String> originalFileName = const Value.absent(),
-                Value<String> storedFilePath = const Value.absent(),
-                Value<String> fileHash = const Value.absent(),
+                Value<BookSourceType> sourceType = const Value.absent(),
+                Value<String?> sourceRef = const Value.absent(),
+                Value<String?> originalFileName = const Value.absent(),
+                Value<String?> storedFilePath = const Value.absent(),
+                Value<String?> fileHash = const Value.absent(),
                 Value<BookStatus> status = const Value.absent(),
                 Value<double> processingProgress = const Value.absent(),
                 Value<int> pageCount = const Value.absent(),
@@ -5886,6 +6033,8 @@ class $$BooksTableTableManager
                 title: title,
                 author: author,
                 coverPath: coverPath,
+                sourceType: sourceType,
+                sourceRef: sourceRef,
                 originalFileName: originalFileName,
                 storedFilePath: storedFilePath,
                 fileHash: fileHash,
@@ -5906,9 +6055,11 @@ class $$BooksTableTableManager
                 required String title,
                 Value<String?> author = const Value.absent(),
                 Value<String?> coverPath = const Value.absent(),
-                required String originalFileName,
-                required String storedFilePath,
-                required String fileHash,
+                Value<BookSourceType> sourceType = const Value.absent(),
+                Value<String?> sourceRef = const Value.absent(),
+                Value<String?> originalFileName = const Value.absent(),
+                Value<String?> storedFilePath = const Value.absent(),
+                Value<String?> fileHash = const Value.absent(),
                 required BookStatus status,
                 required double processingProgress,
                 Value<int> pageCount = const Value.absent(),
@@ -5924,6 +6075,8 @@ class $$BooksTableTableManager
                 title: title,
                 author: author,
                 coverPath: coverPath,
+                sourceType: sourceType,
+                sourceRef: sourceRef,
                 originalFileName: originalFileName,
                 storedFilePath: storedFilePath,
                 fileHash: fileHash,

@@ -260,9 +260,9 @@ Future<void> _insertBook(AppDatabase database) => database
       BooksCompanion.insert(
         id: 'book',
         title: 'Livro',
-        originalFileName: 'livro.pdf',
-        storedFilePath: '/livro.pdf',
-        fileHash: 'hash',
+        originalFileName: Value('livro.pdf'),
+        storedFilePath: Value('/livro.pdf'),
+        fileHash: Value('hash'),
         status: domain.BookStatus.ready,
         processingProgress: 1,
         pageCount: const Value(2),

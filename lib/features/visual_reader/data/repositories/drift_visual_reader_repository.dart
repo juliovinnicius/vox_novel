@@ -164,6 +164,8 @@ final class DriftVisualReaderRepository implements VisualReaderRepository {
     title: row.title,
     author: row.author,
     coverPath: row.coverPath,
+    sourceType: row.sourceType,
+    sourceRef: row.sourceRef,
     originalFileName: row.originalFileName,
     storedFilePath: row.storedFilePath,
     fileHash: row.fileHash,
