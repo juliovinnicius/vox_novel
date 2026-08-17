@@ -736,7 +736,7 @@ both P2) is specified and stays unstarted until the MVP has been used.
 
 | Batch | Phases | Tasks | Count | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Phase 1 + Phase 2 | T1–T7 | 7 | Pending |
+| 1 | Phase 1 + Phase 2 | T1–T7 | 7 | Complete |
 | 2 | Phase 3 | T8–T11 | 4 | Pending |
 | 3 | Phase 4 | T12–T16 | 5 | Pending |
 | 4 | Phase 5 + Phase 6 | T17–T24 | 8 | Pending |
