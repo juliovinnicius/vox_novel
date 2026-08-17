@@ -4,6 +4,7 @@ import 'package:vox_novel/features/pdf_processing/domain/entities/text_processin
 void main() {
   test('stages expose exact labels and bounds', () {
     expect(ProcessingStage.values.map((e) => e.label), [
+      'Baixando capítulos',
       'Extraindo texto',
       'Limpando',
       'Detectando capítulos',
@@ -11,6 +12,8 @@ void main() {
       'Concluído',
       'Concluído',
     ]);
+    expect(ProcessingStage.downloading.minimumProgress, 0);
+    expect(ProcessingStage.downloading.maximumProgress, 1);
     expect(ProcessingStage.extracting.minimumProgress, 0);
     expect(ProcessingStage.extracting.maximumProgress, .4);
     expect(ProcessingStage.cleaning.minimumProgress, .4);

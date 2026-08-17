@@ -216,6 +216,56 @@ final class DriftTextProcessingRepository implements TextProcessingRepository {
   }
 
   @override
+  Future<void> activatePartialRun({
+    required String runId,
+    required DateTime activatedAt,
+  }) {
+    return _database.transaction(() async {
+      final run = await (_database.select(
+        _database.processingRuns,
+      )..where((row) => row.id.equals(runId))).getSingle();
+      await (_database.update(
+        _database.processingRuns,
+      )..where((row) => row.id.equals(runId))).write(
+        const db.ProcessingRunsCompanion(state: Value('active')),
+      );
+      await (_database.update(
+        _database.books,
+      )..where((row) => row.id.equals(run.bookId))).write(
+        db.BooksCompanion(
+          activeContentRunId: Value(runId),
+          updatedAt: Value(activatedAt),
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<void> updateRunCounts({
+    required String runId,
+    required int chapterCount,
+    required int blockCount,
+    required double progress,
+    required DateTime updatedAt,
+  }) {
+    return _database.transaction(() async {
+      final run = await (_database.select(
+        _database.processingRuns,
+      )..where((row) => row.id.equals(runId))).getSingle();
+      await (_database.update(
+        _database.books,
+      )..where((row) => row.id.equals(run.bookId))).write(
+        db.BooksCompanion(
+          chapterCount: Value(chapterCount),
+          blockCount: Value(blockCount),
+          processingProgress: Value(progress.clamp(0, 1)),
+          updatedAt: Value(updatedAt),
+        ),
+      );
+    });
+  }
+
+  @override
   Future<void> discardRun({
     required String runId,
     required BookStatus terminalStatus,

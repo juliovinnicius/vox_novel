@@ -404,6 +404,8 @@ final class _ProcessingRepository implements TextProcessingRepository {
   final blocks = <NarrationBlockDraft>[];
   final progress = <(ProcessingStage, double)>[];
   final discards = <(String, BookStatus)>[];
+  final partiallyActivated = <String>[];
+  final runCounts = <(String, int, int, double)>[];
   List<int>? activated;
   String? activeRunId;
   bool failStageRaw = false;
@@ -461,6 +463,24 @@ final class _ProcessingRepository implements TextProcessingRepository {
     activated = [pageCount, chapterCount, blockCount];
     activeRunId = runId;
   }
+
+  @override
+  Future<void> activatePartialRun({
+    required String runId,
+    required DateTime activatedAt,
+  }) async {
+    partiallyActivated.add(runId);
+    activeRunId = runId;
+  }
+
+  @override
+  Future<void> updateRunCounts({
+    required String runId,
+    required int chapterCount,
+    required int blockCount,
+    required double progress,
+    required DateTime updatedAt,
+  }) async => runCounts.add((runId, chapterCount, blockCount, progress));
 
   @override
   Future<void> discardRun({

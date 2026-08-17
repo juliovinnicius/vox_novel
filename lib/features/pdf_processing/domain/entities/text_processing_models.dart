@@ -1,4 +1,8 @@
 enum ProcessingStage {
+  // Declared first because updateProgress refuses a stage whose index is lower
+  // than the book's current one; a downloading web book must still be able to
+  // reach any later stage.
+  downloading('Baixando capítulos', 0, 1),
   extracting('Extraindo texto', 0, 0.40),
   cleaning('Limpando', 0.40, 0.60),
   detectingChapters('Detectando capítulos', 0.60, 0.75),

@@ -340,4 +340,123 @@ void main() {
     final book = await database.select(database.books).getSingle();
     expect([book.status, book.processingProgress], [BookStatus.importing, 0.0]);
   });
+
+  group('incremental run activation', () {
+    final later = DateTime.utc(2026, 7, 18);
+
+    test('activatePartialRun activates without completing the run', () async {
+      await createRun('run-web');
+
+      await repository.activatePartialRun(runId: 'run-web', activatedAt: later);
+
+      final run = await database.select(database.processingRuns).getSingle();
+      final book = await database.select(database.books).getSingle();
+      expect(run.state, 'active');
+      expect(run.completedAt, isNull);
+      expect(book.activeContentRunId, 'run-web');
+      expect(book.status, BookStatus.processing);
+      expect(book.updatedAt, later);
+    });
+
+    test('activatePartialRun keeps progress below completion', () async {
+      await createRun('run-web');
+
+      await repository.activatePartialRun(runId: 'run-web', activatedAt: later);
+
+      final book = await database.select(database.books).getSingle();
+      expect(book.processingProgress, 0.0);
+      expect(book.chapterCount, 0);
+      expect(book.blockCount, 0);
+    });
+
+    test('updateRunCounts refreshes counts and progress of an active run', () async {
+      await createRun('run-web');
+      await repository.activatePartialRun(runId: 'run-web', activatedAt: now);
+
+      await repository.updateRunCounts(
+        runId: 'run-web',
+        chapterCount: 3,
+        blockCount: 12,
+        progress: .25,
+        updatedAt: later,
+      );
+
+      final book = await database.select(database.books).getSingle();
+      expect(
+        [
+          book.chapterCount,
+          book.blockCount,
+          book.processingProgress,
+          book.updatedAt,
+          book.activeContentRunId,
+        ],
+        [3, 12, .25, later, 'run-web'],
+      );
+    });
+
+    test('updateRunCounts applies each later report', () async {
+      await createRun('run-web');
+      await repository.activatePartialRun(runId: 'run-web', activatedAt: now);
+
+      await repository.updateRunCounts(
+        runId: 'run-web',
+        chapterCount: 1,
+        blockCount: 4,
+        progress: .1,
+        updatedAt: now,
+      );
+      await repository.updateRunCounts(
+        runId: 'run-web',
+        chapterCount: 2,
+        blockCount: 9,
+        progress: .2,
+        updatedAt: later,
+      );
+
+      final book = await database.select(database.books).getSingle();
+      expect(
+        [book.chapterCount, book.blockCount, book.processingProgress],
+        [2, 9, .2],
+      );
+    });
+
+    test('an unknown run is rejected by both methods', () async {
+      await expectLater(
+        repository.activatePartialRun(runId: 'missing', activatedAt: later),
+        throwsA(anything),
+      );
+      await expectLater(
+        repository.updateRunCounts(
+          runId: 'missing',
+          chapterCount: 1,
+          blockCount: 1,
+          progress: .5,
+          updatedAt: later,
+        ),
+        throwsA(anything),
+      );
+    });
+
+    test('activateRun still completes a run activated partially', () async {
+      await createRun('run-web');
+      await repository.activatePartialRun(runId: 'run-web', activatedAt: now);
+      await stageComplete('run-web');
+
+      await repository.activateRun(
+        runId: 'run-web',
+        pageCount: 1,
+        chapterCount: 1,
+        blockCount: 1,
+        completedAt: later,
+      );
+
+      final run = await database.select(database.processingRuns).getSingle();
+      final book = await database.select(database.books).getSingle();
+      expect(run.completedAt, later);
+      expect(
+        [book.status, book.processingStage, book.processingProgress],
+        [BookStatus.ready, ProcessingStage.completed, 1.0],
+      );
+    });
+  });
 }

@@ -49,6 +49,23 @@ abstract interface class TextProcessingRepository {
     required DateTime completedAt,
   });
 
+  /// Makes [runId] the book's active content while it is still growing:
+  /// the run becomes `active` but keeps no `completedAt`, and the book keeps
+  /// its `processing` status.
+  Future<void> activatePartialRun({
+    required String runId,
+    required DateTime activatedAt,
+  });
+
+  /// Refreshes the counts and progress of an already-active run.
+  Future<void> updateRunCounts({
+    required String runId,
+    required int chapterCount,
+    required int blockCount,
+    required double progress,
+    required DateTime updatedAt,
+  });
+
   Future<void> discardRun({
     required String runId,
     required BookStatus terminalStatus,
