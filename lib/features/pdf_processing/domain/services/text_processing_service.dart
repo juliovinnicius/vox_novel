@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:vox_novel/features/content_ingestion/domain/services/chapter_ingest.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/chapter_detector.dart';
-import 'package:vox_novel/features/pdf_processing/domain/services/narration_block_splitter.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/pdf_text_extractor.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_cleaner.dart';
 
@@ -89,6 +89,12 @@ final class TextProcessingService {
   final ProcessingRunId _runId;
   final ProcessingExecutor _executor;
   final void Function(int workerIdentity)? _onCpuWorkerIsolate;
+  late final ChapterIngest _ingest = ChapterIngest(
+    processing: _processing,
+    chapterId: _chapterId,
+    blockId: _blockId,
+    cpu: _cpu,
+  );
   final Map<String, Future<ProcessingResult>> _runs = {};
   final Map<String, _Cancellation> _cancellations = {};
   final Map<String, ProcessingResult> _lastResults = {};
@@ -227,86 +233,20 @@ final class TextProcessingService {
         }
         return detector.finish(book.title);
       });
-      final chapterIds = <String, String>{};
-      final chapters = [
-        for (final chapter in detected)
-          ChapterDraft(
-            id: chapterIds[chapter.id] = _chapterId(),
-            title: chapter.title,
-            sortOrder: chapter.sortOrder,
-            startPage: chapter.startPage,
-            endPage: chapter.endPage,
-            cleanText: chapter.cleanText,
-          ),
-      ];
-      final splitBlocks = await _cpu(() {
-        final splitter = NarrationBlockSplitter(_workerId);
-        return [for (final chapter in detected) ...splitter.split(chapter)];
-      });
-      final blocks = [
-        for (final block in splitBlocks)
-          NarrationBlockDraft(
-            id: _blockId(),
-            chapterId: chapterIds[block.chapterId]!,
-            sortOrder: block.sortOrder,
-            originalText: block.originalText,
-            normalizedText: block.normalizedText,
-            characterCount: block.characterCount,
-            startPage: block.startPage,
-            endPage: block.endPage,
-          ),
-      ];
-      if (chapters.isEmpty) {
-        await _progress(bookId, ProcessingStage.buildingBlocks, .95);
-      } else {
-        var blockOffset = 0;
-        for (var i = 0; i < chapters.length; i++) {
-          _check(cancellation);
-          final chapterBlocks = blocks
-              .where((block) => block.chapterId == chapters[i].id)
-              .toList(growable: false);
-          if (chapterBlocks.isEmpty) {
-            await _progress(
-              bookId,
-              ProcessingStage.buildingBlocks,
-              .75 + .20 * (i + 1) / chapters.length,
-            );
-          } else {
-            for (
-              var blockIndex = 0;
-              blockIndex < chapterBlocks.length;
-              blockIndex++
-            ) {
-              _check(cancellation);
-              blockOffset++;
-              final completedChapterFraction =
-                  (i + (blockIndex + 1) / chapterBlocks.length) /
-                  chapters.length;
-              await _progress(
-                bookId,
-                ProcessingStage.buildingBlocks,
-                .75 + .20 * completedChapterFraction,
-              );
-            }
-          }
-        }
-        assert(blockOffset == blocks.length);
-      }
-      _check(cancellation);
-      await _processing.stageChaptersAndBlocks(
+      final ingested = await _ingest.ingest(
         runId: runId,
         bookId: bookId,
-        chapters: chapters,
-        blocks: blocks,
+        chapters: detected,
         createdAt: _clock(),
+        onDrafts: _blockProgressReporter(bookId, cancellation),
       );
       await _progress(bookId, ProcessingStage.completing, .95);
       _check(cancellation);
       await _processing.activateRun(
         runId: runId,
         pageCount: pageCount,
-        chapterCount: chapters.length,
-        blockCount: blocks.length,
+        chapterCount: ingested.chapterCount,
+        blockCount: ingested.blockCount,
         completedAt: _clock(),
       );
       const result = ProcessingResult.completed();
@@ -338,6 +278,51 @@ final class TextProcessingService {
       return result;
     }
   }
+
+  // Built outside `_run` on purpose: a closure declared inside `_run` that
+  // touched `this` would pull the service into that method's shared closure
+  // context, making the CPU closures sent to `Isolate.run` unsendable.
+  ChapterIngestDrafts _blockProgressReporter(
+    String bookId,
+    _Cancellation cancellation,
+  ) => (chapters, blocks) async {
+    if (chapters.isEmpty) {
+      await _progress(bookId, ProcessingStage.buildingBlocks, .95);
+    } else {
+      var blockOffset = 0;
+      for (var i = 0; i < chapters.length; i++) {
+        _check(cancellation);
+        final chapterBlocks = blocks
+            .where((block) => block.chapterId == chapters[i].id)
+            .toList(growable: false);
+        if (chapterBlocks.isEmpty) {
+          await _progress(
+            bookId,
+            ProcessingStage.buildingBlocks,
+            .75 + .20 * (i + 1) / chapters.length,
+          );
+        } else {
+          for (
+            var blockIndex = 0;
+            blockIndex < chapterBlocks.length;
+            blockIndex++
+          ) {
+            _check(cancellation);
+            blockOffset++;
+            final completedChapterFraction =
+                (i + (blockIndex + 1) / chapterBlocks.length) / chapters.length;
+            await _progress(
+              bookId,
+              ProcessingStage.buildingBlocks,
+              .75 + .20 * completedChapterFraction,
+            );
+          }
+        }
+      }
+      assert(blockOffset == blocks.length);
+    }
+    _check(cancellation);
+  };
 
   Future<void> _progress(
     String bookId,
