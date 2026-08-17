@@ -5134,6 +5134,523 @@ class ReadingProgressCompanion extends UpdateCompanion<ReadingProgressData> {
   }
 }
 
+class $WebChapterEntriesTable extends WebChapterEntries
+    with TableInfo<$WebChapterEntriesTable, WebChapterEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WebChapterEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+    'book_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES books (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _attemptCountMeta = const VerificationMeta(
+    'attemptCount',
+  );
+  @override
+  late final GeneratedColumn<int> attemptCount = GeneratedColumn<int>(
+    'attempt_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastErrorMeta = const VerificationMeta(
+    'lastError',
+  );
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+    'last_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
+      GeneratedColumn<int>(
+        'updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($WebChapterEntriesTable.$converterupdatedAt);
+  @override
+  List<GeneratedColumn> get $columns => [
+    bookId,
+    sortOrder,
+    url,
+    title,
+    state,
+    attemptCount,
+    lastError,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'web_chapter_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WebChapterEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('book_id')) {
+      context.handle(
+        _bookIdMeta,
+        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bookIdMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sortOrderMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_urlMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('attempt_count')) {
+      context.handle(
+        _attemptCountMeta,
+        attemptCount.isAcceptableOrUnknown(
+          data['attempt_count']!,
+          _attemptCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(
+        _lastErrorMeta,
+        lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {bookId, sortOrder};
+  @override
+  WebChapterEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WebChapterEntry(
+      bookId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}book_id'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      attemptCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attempt_count'],
+      )!,
+      lastError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_error'],
+      ),
+      updatedAt: $WebChapterEntriesTable.$converterupdatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $WebChapterEntriesTable createAlias(String alias) {
+    return $WebChapterEntriesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterupdatedAt =
+      const UtcDateTimeConverter();
+}
+
+class WebChapterEntry extends DataClass implements Insertable<WebChapterEntry> {
+  final String bookId;
+  final int sortOrder;
+  final String url;
+  final String title;
+  final String state;
+  final int attemptCount;
+  final String? lastError;
+  final DateTime updatedAt;
+  const WebChapterEntry({
+    required this.bookId,
+    required this.sortOrder,
+    required this.url,
+    required this.title,
+    required this.state,
+    required this.attemptCount,
+    this.lastError,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['book_id'] = Variable<String>(bookId);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['url'] = Variable<String>(url);
+    map['title'] = Variable<String>(title);
+    map['state'] = Variable<String>(state);
+    map['attempt_count'] = Variable<int>(attemptCount);
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    {
+      map['updated_at'] = Variable<int>(
+        $WebChapterEntriesTable.$converterupdatedAt.toSql(updatedAt),
+      );
+    }
+    return map;
+  }
+
+  WebChapterEntriesCompanion toCompanion(bool nullToAbsent) {
+    return WebChapterEntriesCompanion(
+      bookId: Value(bookId),
+      sortOrder: Value(sortOrder),
+      url: Value(url),
+      title: Value(title),
+      state: Value(state),
+      attemptCount: Value(attemptCount),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory WebChapterEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WebChapterEntry(
+      bookId: serializer.fromJson<String>(json['bookId']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      url: serializer.fromJson<String>(json['url']),
+      title: serializer.fromJson<String>(json['title']),
+      state: serializer.fromJson<String>(json['state']),
+      attemptCount: serializer.fromJson<int>(json['attemptCount']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'bookId': serializer.toJson<String>(bookId),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'url': serializer.toJson<String>(url),
+      'title': serializer.toJson<String>(title),
+      'state': serializer.toJson<String>(state),
+      'attemptCount': serializer.toJson<int>(attemptCount),
+      'lastError': serializer.toJson<String?>(lastError),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  WebChapterEntry copyWith({
+    String? bookId,
+    int? sortOrder,
+    String? url,
+    String? title,
+    String? state,
+    int? attemptCount,
+    Value<String?> lastError = const Value.absent(),
+    DateTime? updatedAt,
+  }) => WebChapterEntry(
+    bookId: bookId ?? this.bookId,
+    sortOrder: sortOrder ?? this.sortOrder,
+    url: url ?? this.url,
+    title: title ?? this.title,
+    state: state ?? this.state,
+    attemptCount: attemptCount ?? this.attemptCount,
+    lastError: lastError.present ? lastError.value : this.lastError,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  WebChapterEntry copyWithCompanion(WebChapterEntriesCompanion data) {
+    return WebChapterEntry(
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      url: data.url.present ? data.url.value : this.url,
+      title: data.title.present ? data.title.value : this.title,
+      state: data.state.present ? data.state.value : this.state,
+      attemptCount: data.attemptCount.present
+          ? data.attemptCount.value
+          : this.attemptCount,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WebChapterEntry(')
+          ..write('bookId: $bookId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('url: $url, ')
+          ..write('title: $title, ')
+          ..write('state: $state, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastError: $lastError, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    bookId,
+    sortOrder,
+    url,
+    title,
+    state,
+    attemptCount,
+    lastError,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WebChapterEntry &&
+          other.bookId == this.bookId &&
+          other.sortOrder == this.sortOrder &&
+          other.url == this.url &&
+          other.title == this.title &&
+          other.state == this.state &&
+          other.attemptCount == this.attemptCount &&
+          other.lastError == this.lastError &&
+          other.updatedAt == this.updatedAt);
+}
+
+class WebChapterEntriesCompanion extends UpdateCompanion<WebChapterEntry> {
+  final Value<String> bookId;
+  final Value<int> sortOrder;
+  final Value<String> url;
+  final Value<String> title;
+  final Value<String> state;
+  final Value<int> attemptCount;
+  final Value<String?> lastError;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const WebChapterEntriesCompanion({
+    this.bookId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.url = const Value.absent(),
+    this.title = const Value.absent(),
+    this.state = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WebChapterEntriesCompanion.insert({
+    required String bookId,
+    required int sortOrder,
+    required String url,
+    required String title,
+    required String state,
+    this.attemptCount = const Value.absent(),
+    this.lastError = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : bookId = Value(bookId),
+       sortOrder = Value(sortOrder),
+       url = Value(url),
+       title = Value(title),
+       state = Value(state),
+       updatedAt = Value(updatedAt);
+  static Insertable<WebChapterEntry> custom({
+    Expression<String>? bookId,
+    Expression<int>? sortOrder,
+    Expression<String>? url,
+    Expression<String>? title,
+    Expression<String>? state,
+    Expression<int>? attemptCount,
+    Expression<String>? lastError,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (bookId != null) 'book_id': bookId,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (url != null) 'url': url,
+      if (title != null) 'title': title,
+      if (state != null) 'state': state,
+      if (attemptCount != null) 'attempt_count': attemptCount,
+      if (lastError != null) 'last_error': lastError,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WebChapterEntriesCompanion copyWith({
+    Value<String>? bookId,
+    Value<int>? sortOrder,
+    Value<String>? url,
+    Value<String>? title,
+    Value<String>? state,
+    Value<int>? attemptCount,
+    Value<String?>? lastError,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return WebChapterEntriesCompanion(
+      bookId: bookId ?? this.bookId,
+      sortOrder: sortOrder ?? this.sortOrder,
+      url: url ?? this.url,
+      title: title ?? this.title,
+      state: state ?? this.state,
+      attemptCount: attemptCount ?? this.attemptCount,
+      lastError: lastError ?? this.lastError,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (attemptCount.present) {
+      map['attempt_count'] = Variable<int>(attemptCount.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(
+        $WebChapterEntriesTable.$converterupdatedAt.toSql(updatedAt.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WebChapterEntriesCompanion(')
+          ..write('bookId: $bookId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('url: $url, ')
+          ..write('title: $title, ')
+          ..write('state: $state, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastError: $lastError, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5156,6 +5673,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ReadingProgressTable readingProgress = $ReadingProgressTable(
     this,
   );
+  late final $WebChapterEntriesTable webChapterEntries =
+      $WebChapterEntriesTable(this);
   late final Index booksFileHashUnique = Index(
     'books_file_hash_unique',
     'CREATE UNIQUE INDEX books_file_hash_unique ON books (file_hash)',
@@ -5192,6 +5711,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'narration_blocks_chapter_order_unique',
     'CREATE UNIQUE INDEX narration_blocks_chapter_order_unique ON narration_blocks (chapter_id, sort_order)',
   );
+  late final Index webChapterEntriesBookOrderUnique = Index(
+    'web_chapter_entries_book_order_unique',
+    'CREATE UNIQUE INDEX web_chapter_entries_book_order_unique ON web_chapter_entries (book_id, sort_order)',
+  );
+  late final Index webChapterEntriesBookUrlUnique = Index(
+    'web_chapter_entries_book_url_unique',
+    'CREATE UNIQUE INDEX web_chapter_entries_book_url_unique ON web_chapter_entries (book_id, url)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5207,6 +5734,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     narrationSettingsRows,
     bookNarrationSettings,
     readingProgress,
+    webChapterEntries,
     booksFileHashUnique,
     booksSourceRefUnique,
     processingRunsBookId,
@@ -5216,6 +5744,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     chaptersRunOrderUnique,
     narrationBlocksRunId,
     narrationBlocksChapterOrderUnique,
+    webChapterEntriesBookOrderUnique,
+    webChapterEntriesBookUrlUnique,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -5281,6 +5811,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('reading_progress', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'books',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('web_chapter_entries', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -5430,6 +5967,27 @@ final class $$BooksTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _readingProgressRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$WebChapterEntriesTable, List<WebChapterEntry>>
+  _webChapterEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.webChapterEntries,
+        aliasName: 'books__id__web_chapter_entries__book_id',
+      );
+
+  $$WebChapterEntriesTableProcessedTableManager get webChapterEntriesRefs {
+    final manager = $$WebChapterEntriesTableTableManager(
+      $_db,
+      $_db.webChapterEntries,
+    ).filter((f) => f.bookId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _webChapterEntriesRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -5657,6 +6215,31 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
           }) => $$ReadingProgressTableFilterComposer(
             $db: $db,
             $table: $db.readingProgress,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> webChapterEntriesRefs(
+    Expression<bool> Function($$WebChapterEntriesTableFilterComposer f) f,
+  ) {
+    final $$WebChapterEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.webChapterEntries,
+      getReferencedColumn: (t) => t.bookId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WebChapterEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.webChapterEntries,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5973,6 +6556,32 @@ class $$BooksTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> webChapterEntriesRefs<T extends Object>(
+    Expression<T> Function($$WebChapterEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$WebChapterEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.webChapterEntries,
+          getReferencedColumn: (t) => t.bookId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$WebChapterEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.webChapterEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$BooksTableTableManager
@@ -5994,6 +6603,7 @@ class $$BooksTableTableManager
             bool readerPositionsRefs,
             bool bookNarrationSettingsRefs,
             bool readingProgressRefs,
+            bool webChapterEntriesRefs,
           })
         > {
   $$BooksTableTableManager(_$AppDatabase db, $BooksTable table)
@@ -6104,6 +6714,7 @@ class $$BooksTableTableManager
                 readerPositionsRefs = false,
                 bookNarrationSettingsRefs = false,
                 readingProgressRefs = false,
+                webChapterEntriesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -6113,6 +6724,7 @@ class $$BooksTableTableManager
                     if (readerPositionsRefs) db.readerPositions,
                     if (bookNarrationSettingsRefs) db.bookNarrationSettings,
                     if (readingProgressRefs) db.readingProgress,
+                    if (webChapterEntriesRefs) db.webChapterEntries,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -6218,6 +6830,27 @@ class $$BooksTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (webChapterEntriesRefs)
+                        await $_getPrefetchedData<
+                          Book,
+                          $BooksTable,
+                          WebChapterEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BooksTableReferences
+                              ._webChapterEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BooksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).webChapterEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -6244,6 +6877,7 @@ typedef $$BooksTableProcessedTableManager =
         bool readerPositionsRefs,
         bool bookNarrationSettingsRefs,
         bool readingProgressRefs,
+        bool webChapterEntriesRefs,
       })
     >;
 typedef $$ProcessingRunsTableCreateCompanionBuilder =
@@ -9842,6 +10476,399 @@ typedef $$ReadingProgressTableProcessedTableManager =
       ReadingProgressData,
       PrefetchHooks Function({bool bookId})
     >;
+typedef $$WebChapterEntriesTableCreateCompanionBuilder =
+    WebChapterEntriesCompanion Function({
+      required String bookId,
+      required int sortOrder,
+      required String url,
+      required String title,
+      required String state,
+      Value<int> attemptCount,
+      Value<String?> lastError,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$WebChapterEntriesTableUpdateCompanionBuilder =
+    WebChapterEntriesCompanion Function({
+      Value<String> bookId,
+      Value<int> sortOrder,
+      Value<String> url,
+      Value<String> title,
+      Value<String> state,
+      Value<int> attemptCount,
+      Value<String?> lastError,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$WebChapterEntriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $WebChapterEntriesTable,
+          WebChapterEntry
+        > {
+  $$WebChapterEntriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $BooksTable _bookIdTable(_$AppDatabase db) =>
+      db.books.createAlias('web_chapter_entries__book_id__books__id');
+
+  $$BooksTableProcessedTableManager get bookId {
+    final $_column = $_itemColumn<String>('book_id')!;
+
+    final manager = $$BooksTableTableManager(
+      $_db,
+      $_db.books,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_bookIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$WebChapterEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $WebChapterEntriesTable> {
+  $$WebChapterEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attemptCount => $composableBuilder(
+    column: $table.attemptCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
+      $composableBuilder(
+        column: $table.updatedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$BooksTableFilterComposer get bookId {
+    final $$BooksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableFilterComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WebChapterEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $WebChapterEntriesTable> {
+  $$WebChapterEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get attemptCount => $composableBuilder(
+    column: $table.attemptCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$BooksTableOrderingComposer get bookId {
+    final $$BooksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableOrderingComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WebChapterEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WebChapterEntriesTable> {
+  $$WebChapterEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get attemptCount => $composableBuilder(
+    column: $table.attemptCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$BooksTableAnnotationComposer get bookId {
+    final $$BooksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.bookId,
+      referencedTable: $db.books,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BooksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.books,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WebChapterEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WebChapterEntriesTable,
+          WebChapterEntry,
+          $$WebChapterEntriesTableFilterComposer,
+          $$WebChapterEntriesTableOrderingComposer,
+          $$WebChapterEntriesTableAnnotationComposer,
+          $$WebChapterEntriesTableCreateCompanionBuilder,
+          $$WebChapterEntriesTableUpdateCompanionBuilder,
+          (WebChapterEntry, $$WebChapterEntriesTableReferences),
+          WebChapterEntry,
+          PrefetchHooks Function({bool bookId})
+        > {
+  $$WebChapterEntriesTableTableManager(
+    _$AppDatabase db,
+    $WebChapterEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WebChapterEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WebChapterEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WebChapterEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> bookId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<String> url = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<int> attemptCount = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WebChapterEntriesCompanion(
+                bookId: bookId,
+                sortOrder: sortOrder,
+                url: url,
+                title: title,
+                state: state,
+                attemptCount: attemptCount,
+                lastError: lastError,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String bookId,
+                required int sortOrder,
+                required String url,
+                required String title,
+                required String state,
+                Value<int> attemptCount = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WebChapterEntriesCompanion.insert(
+                bookId: bookId,
+                sortOrder: sortOrder,
+                url: url,
+                title: title,
+                state: state,
+                attemptCount: attemptCount,
+                lastError: lastError,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WebChapterEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({bookId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (bookId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.bookId,
+                                referencedTable:
+                                    $$WebChapterEntriesTableReferences
+                                        ._bookIdTable(db),
+                                referencedColumn:
+                                    $$WebChapterEntriesTableReferences
+                                        ._bookIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$WebChapterEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WebChapterEntriesTable,
+      WebChapterEntry,
+      $$WebChapterEntriesTableFilterComposer,
+      $$WebChapterEntriesTableOrderingComposer,
+      $$WebChapterEntriesTableAnnotationComposer,
+      $$WebChapterEntriesTableCreateCompanionBuilder,
+      $$WebChapterEntriesTableUpdateCompanionBuilder,
+      (WebChapterEntry, $$WebChapterEntriesTableReferences),
+      WebChapterEntry,
+      PrefetchHooks Function({bool bookId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9866,4 +10893,6 @@ class $AppDatabaseManager {
       $$BookNarrationSettingsTableTableManager(_db, _db.bookNarrationSettings);
   $$ReadingProgressTableTableManager get readingProgress =>
       $$ReadingProgressTableTableManager(_db, _db.readingProgress);
+  $$WebChapterEntriesTableTableManager get webChapterEntries =>
+      $$WebChapterEntriesTableTableManager(_db, _db.webChapterEntries);
 }

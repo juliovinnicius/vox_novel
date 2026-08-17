@@ -10,6 +10,7 @@ import 'package:vox_novel/features/pdf_processing/domain/entities/text_processin
 import 'package:vox_novel/features/visual_reader/data/database/reader_positions.dart';
 import 'package:vox_novel/features/visual_reader/data/database/reader_settings.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
+import 'package:vox_novel/features/web_source/data/database/web_chapter_entries.dart';
 
 part 'app_database.g.dart';
 
@@ -25,6 +26,7 @@ part 'app_database.g.dart';
     NarrationSettingsRows,
     BookNarrationSettings,
     ReadingProgress,
+    WebChapterEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -81,6 +83,7 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
         await migrator.createIndex(booksSourceRefUnique);
+        await migrator.createTable(webChapterEntries);
       }
     },
   );
