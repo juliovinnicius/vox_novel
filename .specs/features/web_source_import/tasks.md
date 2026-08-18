@@ -714,6 +714,67 @@ T25 → T26
 
 ---
 
+### T27: Clean web chapter text before ingest
+
+**What**: Run `TextCleaner` over each extracted web chapter with a neutral profile, so web and PDF share one cleaning path.
+**Where**: `lib/features/web_source/domain/services/web_novel_download_service.dart`
+**Depends on**: T16
+**Reuses**: `TextCleaner`, `HeaderFooterProfile`
+**Requirement**: WEB-06, WEB-07
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: Gap found after Phase 4. `spec.md` (Assumptions: "Cleaning for web
+chapters") states `TextCleaner` still runs on web input and `design.md` lists it
+as a reused component with a neutral profile, but no task T1-T26 assigned it, so
+the download service passed raw extracted text to `ChapterIngest`.
+
+**Done when**:
+- [ ] Extracted chapter text passes through `TextCleaner` before reaching `ChapterIngest`
+- [ ] The profile carries no PDF-derived repeated header/footer entries
+- [ ] A short standalone line in a web chapter survives cleaning (design.md risk row)
+- [ ] Cleaning removes what it removes for PDF input given the same text
+- [ ] Existing Phase 4 download tests pass unchanged
+- [ ] Gate check passes: `flutter test test/features/web_source`
+- [ ] Test count: >=4 new tests pass (no silent deletions)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `feat(web-source): clean chapter text before ingest`
+
+---
+
+### T28: Let the reader load a growing web book
+
+**What**: Allow reader content to load while a web book is still `processing`, and tolerate the holes a failed chapter leaves in the chapter sequence.
+**Where**: `lib/features/visual_reader/domain/entities/reader_models.dart`, `lib/features/visual_reader/data/repositories/drift_visual_reader_repository.dart`
+**Depends on**: T20
+**Reuses**: Existing `ReaderBookContent` validation and `loadContent` query
+**Requirement**: WEB-04
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: Gap found after Phase 4. T20 makes the library offer Open for a web
+book with >=1 stored chapter (WEB-04 AC2), but `loadContent` requires
+`status == ready` and `ReaderBookContent` requires `chapters[i].sortOrder == i`,
+so opening such a book throws. The spec's 404 edge case makes holes an expected
+state, not an error.
+
+**Done when**:
+- [ ] A web book with status `processing` and >=1 stored chapter loads its reader content
+- [ ] A web book whose chapter 2 failed (stored orders 0 and 2) loads without throwing
+- [ ] `ReaderBookContent` rejects out-of-order or duplicate chapter sort orders
+- [ ] A PDF book still requires `ready` — its existing reader tests pass unchanged
+- [ ] Reader position resume still resolves to the correct chapter across a hole
+- [ ] Gate check passes: `flutter test`
+- [ ] Test count: >=6 new tests pass (no silent deletions)
+
+**Tests**: unit, integration
+**Gate**: full
+**Commit**: `feat(reader): load web books while chapters download`
+
+---
+
 ## Phase Execution Map
 
 ```
@@ -723,8 +784,9 @@ Phase 1:  T1 ──→ T2 ──→ T3 ──→ T4 ──→ T5
 Phase 2:  T6 ──→ T7
 Phase 3:  T8 ──→ T9 ──→ T10 ──→ T11
 Phase 4:  T12 ──→ T13 ──→ T14 ──→ T15 ──→ T16
+Phase 4b: T27
 Phase 5:  T17 ──→ T18 ──→ T19 ──→ T20
-Phase 6:  T21 ──→ T22 ──→ T23 ──→ T24
+Phase 6:  T28 ──→ T21 ──→ T22 ──→ T23 ──→ T24
 Phase 7:  T25 ──→ T26
 ```
 
@@ -732,15 +794,18 @@ Execution is strictly sequential — there is no intra-phase parallelism.
 
 **Batch packing** (~7 tasks per worker, whole phases only):
 
-Approved delivery scope for this round is **T1–T24 (all P1)**. Phase 7 (T25–T26,
-both P2) is specified and stays unstarted until the MVP has been used.
+Approved delivery scope for this round is **T1–T24 plus T27–T28 (all P1)**.
+T27 and T28 were added after Phase 4 to close two spec behaviours that no
+original task claimed; the user approved both. Phase 7 (T25–T26, both P2) is
+specified and stays unstarted until the MVP has been used.
 
 | Batch | Phases | Tasks | Count | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Phase 1 + Phase 2 | T1–T7 | 7 | Complete |
-| 2 | Phase 3 | T8–T11 | 4 | Pending |
-| 3 | Phase 4 | T12–T16 | 5 | Pending |
-| 4 | Phase 5 + Phase 6 | T17–T24 | 8 | Pending |
+| 2 | Phase 3 | T8–T11 | 4 | Complete |
+| 3 | Phase 4 | T12–T16 | 5 | Complete |
+| 4b | Phase 4b | T27 | 1 | Pending |
+| 4 | Phase 5 + Phase 6 | T17–T20, T28, T21–T24 | 9 | Pending |
 | — | Phase 7 | T25–T26 | 2 | Deferred (P2, out of this round) |
 
 The Verifier runs automatically after T24 — the last task of the P1 group being
