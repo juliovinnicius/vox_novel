@@ -13,6 +13,11 @@ abstract interface class BookRepository {
 
   Future<Book?> findByHash(String hash);
 
+  /// The book whose canonical source reference is [sourceRef] — the web
+  /// equivalent of [findByHash], used to resolve a re-imported series to the
+  /// book it already created.
+  Future<Book?> findBySourceRef(String sourceRef);
+
   Future<void> insert(Book book);
 
   Future<void> replaceImportedFile({

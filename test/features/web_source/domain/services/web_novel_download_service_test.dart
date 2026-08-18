@@ -106,6 +106,8 @@ final class FakeBookRepository implements BookRepository {
   @override
   Future<Book?> findByHash(String hash) => throw UnimplementedError();
   @override
+  Future<Book?> findBySourceRef(String sourceRef) => throw UnimplementedError();
+  @override
   Future<void> insert(Book book) => throw UnimplementedError();
   @override
   Future<void> replaceImportedFile({

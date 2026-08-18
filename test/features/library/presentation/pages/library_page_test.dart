@@ -235,6 +235,9 @@ final class _Repository implements BookRepository {
   Stream<List<Book>> watchAll() => controller.stream;
   @override
   Future<Book?> findByHash(String hash) async => null;
+
+  @override
+  Future<Book?> findBySourceRef(String sourceRef) async => null;
   @override
   Future<Book?> findById(String id) async => null;
   @override

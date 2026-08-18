@@ -36,6 +36,13 @@ final class DriftBookRepository
   }
 
   @override
+  Future<domain.Book?> findBySourceRef(String sourceRef) async {
+    final query = _database.select(_database.books)
+      ..where((row) => row.sourceRef.equals(sourceRef));
+    return (await query.getSingleOrNull())?.let(_toDomain);
+  }
+
+  @override
   Future<void> insert(domain.Book book) {
     return _database.into(_database.books).insert(_bookCompanion(book));
   }

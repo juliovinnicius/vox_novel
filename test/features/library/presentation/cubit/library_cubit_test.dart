@@ -112,6 +112,9 @@ final class _Repository implements BookRepository {
   Future<Book?> findById(String id) async => null;
   @override
   Future<Book?> findByHash(String hash) async => null;
+
+  @override
+  Future<Book?> findBySourceRef(String sourceRef) async => null;
   @override
   Future<void> insert(Book book) async {}
   @override

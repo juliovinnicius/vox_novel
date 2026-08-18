@@ -258,6 +258,9 @@ final class FakeRepository implements BookRepository {
   Future<Book?> findByHash(String hash) async => existing;
 
   @override
+  Future<Book?> findBySourceRef(String sourceRef) => throw UnimplementedError();
+
+  @override
   Future<void> insert(Book book) async {
     if (failInsert) throw StateError('insert');
     inserted = book;

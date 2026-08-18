@@ -56,6 +56,32 @@ void main() {
     expect(await repository.findByHash('missing'), isNull);
   });
 
+  test('finds a web book by its canonical source reference', () async {
+    final web = Book(
+      id: 'book-web',
+      title: 'Obra sintética',
+      sourceType: BookSourceType.web,
+      sourceRef: 'https://exemplo.com/series/obra-sintetica/',
+      status: BookStatus.processing,
+      processingProgress: 0,
+      createdAt: DateTime.utc(2026, 7, 16),
+      updatedAt: DateTime.utc(2026, 7, 17),
+    );
+    await repository.insert(fixture(id: 'book-pdf', hash: 'hash-pdf'));
+    await repository.insert(web);
+
+    expect(
+      await repository.findBySourceRef(
+        'https://exemplo.com/series/obra-sintetica/',
+      ),
+      web,
+    );
+    expect(
+      await repository.findBySourceRef('https://exemplo.com/series/outra/'),
+      isNull,
+    );
+  });
+
   test('insert persists every named field', () async {
     final book = fixture(
       id: 'book-1',

@@ -295,6 +295,9 @@ final class FakeLibraryRepository implements BookRepository {
   Future<void> insert(Book value) async => book = value;
   @override
   Future<Book?> findByHash(String hash) async => null;
+
+  @override
+  Future<Book?> findBySourceRef(String sourceRef) async => null;
   @override
   Stream<List<Book>> watchAll() => const Stream.empty();
   @override
