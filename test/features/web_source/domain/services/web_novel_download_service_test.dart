@@ -767,4 +767,72 @@ void main() {
       );
     });
   });
+
+  group('unrecognized layout', () {
+    /// A page the recipe's content selector does not match at all.
+    const unrecognized =
+        '<html><body><div class="outro-layout">'
+        '<p>Nada que a receita reconheça.</p></div></body></html>';
+
+    test('marks the book unsupported when every chapter fails '
+        'extraction', () async {
+      fetcher = FakeWebFetcher({
+        for (var ordinal = 1; ordinal <= 3; ordinal++)
+          chapterUrl(ordinal): unrecognized,
+      });
+      final service = serviceFor();
+
+      final outcome = await service.download(bookId);
+
+      expect(outcome, WebDownloadOutcome.unsupported);
+      expect(processing.discards, [('run-1', BookStatus.unsupported)]);
+      expect(
+        service.messageFor(bookId),
+        'O layout do site não foi reconhecido',
+      );
+      expect(processing.chapters, isEmpty);
+    });
+
+    test('a mix of extraction failures and successes is never '
+        'unsupported', () async {
+      fetcher = FakeWebFetcher({
+        chapterUrl(1): unrecognized,
+        chapterUrl(2): chapterPage(2),
+        chapterUrl(3): unrecognized,
+      });
+      final service = serviceFor();
+
+      final outcome = await service.download(bookId);
+
+      expect(outcome, WebDownloadOutcome.paused);
+      expect(processing.discards, isEmpty);
+      expect(service.messageFor(bookId), isNull);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [2]);
+    });
+
+    test('network-only failures pause instead of marking unsupported', () async {
+      fetcher = FakeWebFetcher(const {});
+      final service = serviceFor();
+
+      final outcome = await service.download(bookId);
+
+      expect(outcome, WebDownloadOutcome.paused);
+      expect(processing.discards, isEmpty);
+      expect(service.messageFor(bookId), isNull);
+    });
+
+    test('extraction failures mixed with network failures pause', () async {
+      fetcher = FakeWebFetcher({
+        chapterUrl(1): unrecognized,
+        chapterUrl(2): unrecognized,
+      });
+      final service = serviceFor();
+
+      final outcome = await service.download(bookId);
+
+      expect(outcome, WebDownloadOutcome.paused);
+      expect(processing.discards, isEmpty);
+      expect(service.messageFor(bookId), isNull);
+    });
+  });
 }

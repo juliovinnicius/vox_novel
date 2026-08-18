@@ -1,4 +1,5 @@
 import 'package:vox_novel/features/content_ingestion/domain/services/chapter_ingest.dart';
+import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
@@ -61,8 +62,17 @@ final class WebNovelDownloadService {
   final WebDownloadRunId _runId;
   final HtmlRecipeParser _parser;
 
+  /// Shown when a site's pages no longer match its recipe, so nothing in the
+  /// book could be extracted.
+  static const String unrecognizedLayoutMessage =
+      'O layout do site não foi reconhecido';
+
   final Map<String, Future<WebDownloadOutcome>> _runs = {};
   final Map<String, _Cancellation> _cancellations = {};
+  final Map<String, String> _messages = {};
+
+  /// The message explaining [bookId]'s terminal outcome, when it has one.
+  String? messageFor(String bookId) => _messages[bookId];
 
   /// Drains [bookId]'s queue, resuming from the first chapter with no stored
   /// text. Chapters already stored are never requested again.
@@ -120,6 +130,8 @@ final class WebNovelDownloadService {
     var chapterCount = book.chapterCount;
     var blockCount = book.blockCount;
     var stored = total - pending.length;
+    var extractionFailures = 0;
+    var otherFailures = 0;
 
     for (final entry in pending) {
       if (cancellation.requested) {
@@ -136,6 +148,11 @@ final class WebNovelDownloadService {
           read.reason,
           _clock(),
         );
+        if (read.extraction) {
+          extractionFailures += 1;
+        } else {
+          otherFailures += 1;
+        }
         continue;
       }
       final chapter = (read as _ChapterRead).chapter;
@@ -188,6 +205,19 @@ final class WebNovelDownloadService {
       );
     }
 
+    // Only a book that stored nothing and failed *every* chapter on
+    // extraction is evidence of an unrecognized layout. A single success, or
+    // any network-shaped failure, means the site is fine and the queue should
+    // simply be retried later.
+    if (stored == 0 && otherFailures == 0 && extractionFailures == total) {
+      _messages[bookId] = unrecognizedLayoutMessage;
+      await _processing.discardRun(
+        runId: runId,
+        terminalStatus: BookStatus.unsupported,
+        updatedAt: _clock(),
+      );
+      return WebDownloadOutcome.unsupported;
+    }
     if (stored < total) {
       return WebDownloadOutcome.paused;
     }
@@ -211,11 +241,11 @@ final class WebNovelDownloadService {
     final host = _canonicalHost(url.host);
     final recipe = _recipes.forHost(host);
     if (recipe == null) {
-      return _ChapterFailed('Site não suportado: $host');
+      return _ChapterFailed('Site não suportado: $host', extraction: false);
     }
     final page = await _fetcher.fetch(url);
     if (page is WebFetchFailed) {
-      return _ChapterFailed(page.message);
+      return _ChapterFailed(page.message, extraction: false);
     }
     final parsed = _parser.parseChapter(
       (page as WebFetchSucceeded).body,
@@ -223,7 +253,10 @@ final class WebNovelDownloadService {
     );
     return switch (parsed) {
       ChapterParsed() => _ChapterRead(parsed),
-      ChapterParseFailed(:final message) => _ChapterFailed(message),
+      ChapterParseFailed(:final message) => _ChapterFailed(
+        message,
+        extraction: true,
+      ),
     };
   }
 
@@ -257,8 +290,12 @@ final class _ChapterRead extends _ChapterOutcome {
 }
 
 final class _ChapterFailed extends _ChapterOutcome {
-  const _ChapterFailed(this.reason);
+  const _ChapterFailed(this.reason, {required this.extraction});
 
   /// Persisted as the entry's `lastError` so a retry can report why.
   final String reason;
+
+  /// Whether the page arrived but the recipe recognized no chapter in it.
+  /// Only these failures can add up to an unrecognized site layout.
+  final bool extraction;
 }
