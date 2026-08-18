@@ -112,16 +112,30 @@ final class ReaderChapter {
   final List<NarrationBlockDraft> blocks;
 }
 
+/// Whether [book] has content the reader may present.
+///
+/// A web book is readable from its first stored chapter while the rest of its
+/// queue still downloads; a PDF book has no partial-readability semantics and
+/// still has to be `ready`.
+bool bookIsReadable(Book book) =>
+    book.status == BookStatus.ready ||
+    book.sourceType == BookSourceType.web &&
+        book.status == BookStatus.processing;
+
 final class ReaderBookContent {
   ReaderBookContent({required this.book, required List<ReaderChapter> chapters})
     : chapters = List.unmodifiable(chapters) {
-    if (book.status != BookStatus.ready || book.activeContentRunId == null) {
+    if (book.activeContentRunId == null || !bookIsReadable(book)) {
       throw const ReaderValidationException('invalid active reader book');
     }
-    for (var i = 0; i < this.chapters.length; i++) {
-      if (this.chapters[i].chapter.sortOrder != i) {
+    // A failed chapter leaves a hole in the sequence, so positions need only
+    // be strictly ascending — never duplicated and never out of order.
+    var previous = -1;
+    for (final chapter in this.chapters) {
+      if (chapter.chapter.sortOrder <= previous) {
         throw const ReaderValidationException('invalid reader chapter order');
       }
+      previous = chapter.chapter.sortOrder;
     }
   }
   final Book book;

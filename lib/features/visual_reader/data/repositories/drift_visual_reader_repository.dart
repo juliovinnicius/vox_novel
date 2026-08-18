@@ -23,10 +23,15 @@ final class DriftVisualReaderRepository implements VisualReaderRepository {
       _database.books,
     )..where((row) => row.id.equals(bookId))).getSingleOrNull();
     if (bookRow == null ||
-        bookRow.status != domain.BookStatus.ready ||
-        bookRow.activeContentRunId == null) {
+        bookRow.activeContentRunId == null ||
+        !bookIsReadable(_book(bookRow))) {
       return null;
     }
+    // A web book whose queue is still draining can already hold whole
+    // chapters the book row has not counted yet; it must never hold fewer.
+    final growing =
+        bookRow.sourceType == domain.BookSourceType.web &&
+        bookRow.status == domain.BookStatus.processing;
     final runId = bookRow.activeContentRunId!;
     final run =
         await (_database.select(
@@ -49,8 +54,11 @@ final class DriftVisualReaderRepository implements VisualReaderRepository {
                 (row) => OrderingTerm.asc(row.sortOrder),
               ]))
             .get();
-    if (chapterRows.length != bookRow.chapterCount ||
-        blockRows.length != bookRow.blockCount) {
+    if (growing
+        ? chapterRows.length < bookRow.chapterCount ||
+              blockRows.length < bookRow.blockCount
+        : chapterRows.length != bookRow.chapterCount ||
+              blockRows.length != bookRow.blockCount) {
       return null;
     }
     final chapters = chapterRows

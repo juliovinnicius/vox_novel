@@ -54,6 +54,51 @@ void main() {
     expect(await repository.loadContent('book'), isNull);
   });
 
+  test('loads a downloading web book from its first stored chapter', () async {
+    await _seedWeb(database, storedOrders: const [0], counted: 1);
+
+    final content = await repository.loadContent('web');
+
+    expect(content?.book.status, BookStatus.processing);
+    expect(content?.book.sourceType, BookSourceType.web);
+    expect(content?.chapters.map((value) => value.chapter.sortOrder), [0]);
+    expect(content?.chapters.single.blocks.map((value) => value.id), ['wb0']);
+  });
+
+  test('loads a web book whose second chapter failed, keeping the hole',
+      () async {
+    await _seedWeb(database, storedOrders: const [0, 2], counted: 2);
+
+    final content = await repository.loadContent('web');
+
+    expect(content?.chapters.map((value) => value.chapter.sortOrder), [0, 2]);
+    expect(content?.chapters.map((value) => value.chapter.id), ['wc0', 'wc2']);
+  });
+
+  test('loads a growing web book that stored a chapter before it was counted',
+      () async {
+    await _seedWeb(database, storedOrders: const [0, 1], counted: 1);
+
+    final content = await repository.loadContent('web');
+
+    expect(content?.chapters.map((value) => value.chapter.sortOrder), [0, 1]);
+  });
+
+  test('a web book missing counted chapters stays unavailable', () async {
+    await _seedWeb(database, storedOrders: const [0], counted: 3);
+
+    expect(await repository.loadContent('web'), isNull);
+  });
+
+  test('a web book without an active run stays unavailable', () async {
+    await _seedWeb(database, storedOrders: const [0], counted: 1);
+    await database.customStatement(
+      "UPDATE books SET active_content_run_id=NULL WHERE id='web'",
+    );
+
+    expect(await repository.loadContent('web'), isNull);
+  });
+
   test('settings round-trip complete fields and default when absent', () async {
     expect(await repository.loadSettings(), ReaderSettings.defaults());
     final settings = ReaderSettings(
@@ -221,4 +266,49 @@ Future<void> _seed(AppDatabase database) async {
     "INSERT INTO narration_blocks VALUES ('9','run','z',0,'Primeiro','Primeiro',8,1,1),"
     "('1','run','z',1,'Segundo','Segundo',7,1,1)",
   );
+}
+
+/// Seeds a web book whose queue is mid-drain: [storedOrders] chapters are
+/// persisted while the book row counts only [counted] of them.
+Future<void> _seedWeb(
+  AppDatabase database, {
+  required List<int> storedOrders,
+  required int counted,
+}) async {
+  final now = DateTime.utc(2026);
+  await database
+      .into(database.books)
+      .insert(
+        BooksCompanion.insert(
+          id: 'web',
+          title: 'Obra',
+          sourceType: const Value(BookSourceType.web),
+          sourceRef: const Value('https://exemplo.com/series/obra/'),
+          status: BookStatus.processing,
+          processingProgress: 0.25,
+          pageCount: const Value(4),
+          chapterCount: Value(counted),
+          blockCount: Value(counted),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+  await database.customStatement(
+    "INSERT INTO processing_runs VALUES ('webrun','web','','active',"
+    '${now.millisecondsSinceEpoch},NULL)',
+  );
+  await database.customStatement(
+    "UPDATE books SET active_content_run_id='webrun' WHERE id='web'",
+  );
+  for (final order in storedOrders) {
+    final ordinal = order + 1;
+    await database.customStatement(
+      "INSERT INTO chapters VALUES ('wc$order','webrun','web',"
+      "'Capítulo $ordinal',$order,$ordinal,$ordinal,'Texto $ordinal',1,1)",
+    );
+    await database.customStatement(
+      "INSERT INTO narration_blocks VALUES ('wb$order','webrun','wc$order',0,"
+      "'Texto $ordinal','Texto $ordinal',7,$ordinal,$ordinal)",
+    );
+  }
 }
