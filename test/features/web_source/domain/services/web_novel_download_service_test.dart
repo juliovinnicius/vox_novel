@@ -4,6 +4,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
+import 'package:vox_novel/features/web_source/data/services/polite_web_fetcher.dart';
 import 'package:vox_novel/features/web_source/domain/entities/site_recipe.dart';
 import 'package:vox_novel/features/web_source/domain/repositories/web_source_repository.dart';
 import 'package:vox_novel/features/web_source/domain/services/site_recipe_registry.dart';
@@ -35,6 +36,31 @@ String chapterPage(int ordinal) =>
     '<div class="epcontent entry-content"><p>'
     '${'Texto sintético do capítulo $ordinal. ' * 10}'
     '</p></div></body></html>';
+
+/// A clock that only moves when the injected delay is awaited, so the
+/// fetcher's backoff is asserted without the suite sleeping.
+final class FakeClock {
+  DateTime now = DateTime.utc(2026, 8, 18, 9);
+
+  DateTime call() => now;
+
+  Future<void> delay(Duration duration) async {
+    now = now.add(duration);
+  }
+}
+
+/// A hand-written transport fake. It never touches the network.
+final class FakeTransport {
+  FakeTransport(this._respond);
+
+  final HttpExchange Function(Uri url) _respond;
+  final List<Uri> requests = [];
+
+  Future<HttpExchange> send(Uri url, Map<String, String> headers) async {
+    requests.add(url);
+    return _respond(url);
+  }
+}
 
 final class FakeWebFetcher implements WebFetcher {
   FakeWebFetcher(this.pages, {this.delays = const {}});
@@ -433,5 +459,169 @@ void main() {
       'Capítulo 2 do índice',
       'Capítulo 3 do índice',
     ]);
+  });
+
+  group('chapter failures', () {
+    late FakeClock clock;
+    late FakeTransport transport;
+
+    /// The queue driven by the real [PoliteWebFetcher], so the bounded
+    /// exponential-backoff retry it owns is observable through the transport.
+    WebNovelDownloadService politeServiceFor(
+      HttpExchange Function(Uri url) respond,
+    ) {
+      transport = FakeTransport(respond);
+      return WebNovelDownloadService(
+        books: books,
+        source: source,
+        processing: processing,
+        ingest: ChapterIngest(
+          processing: processing,
+          chapterId: () => 'chapter-${++nextId}',
+          blockId: () => 'block-${++nextId}',
+        ),
+        fetcher: PoliteWebFetcher(
+          send: transport.send,
+          clock: clock.call,
+          delay: clock.delay,
+        ),
+        recipes: SiteRecipeRegistry(const [exampleRecipe]),
+        clock: () => now,
+        runId: () => 'run-1',
+      );
+    }
+
+    /// Serves every chapter page, except the ones [broken] answers for.
+    HttpExchange Function(Uri url) pagesExcept(
+      HttpExchange? Function(Uri url) broken,
+    ) => (url) {
+      final failure = broken(url);
+      if (failure != null) {
+        return failure;
+      }
+      final ordinal = int.parse(
+        RegExp(r'capitulo-(\d+)').firstMatch(url.toString())!.group(1)!,
+      );
+      return HttpExchange(
+        statusCode: 200,
+        headers: const {},
+        body: chapterPage(ordinal),
+      );
+    };
+
+    setUp(() => clock = FakeClock());
+
+    test('retries a transient failure to the bounded attempt count before '
+        'marking the chapter failed', () async {
+      await politeServiceFor(
+        pagesExcept(
+          (url) => url.toString() == chapterUrl(2)
+              ? const HttpExchange(
+                  statusCode: 503,
+                  headers: {},
+                  body: '',
+                )
+              : null,
+        ),
+      ).download(bookId);
+
+      expect(
+        transport.requests
+            .where((url) => url.toString() == chapterUrl(2))
+            .length,
+        PoliteWebFetcher.maximumAttempts,
+      );
+      expect(source.entries[1].state, WebChapterState.failed);
+    });
+
+    test('marks a 404 chapter failed without exhausting retries', () async {
+      await politeServiceFor(
+        pagesExcept(
+          (url) => url.toString() == chapterUrl(2)
+              ? const HttpExchange(statusCode: 404, headers: {}, body: '')
+              : null,
+        ),
+      ).download(bookId);
+
+      expect(
+        transport.requests
+            .where((url) => url.toString() == chapterUrl(2))
+            .length,
+        1,
+      );
+      expect(source.entries[1].state, WebChapterState.failed);
+    });
+
+    test('continues the queue past a failed chapter', () async {
+      fetcher = FakeWebFetcher({
+        chapterUrl(1): chapterPage(1),
+        chapterUrl(3): chapterPage(3),
+      });
+
+      await serviceFor().download(bookId);
+
+      expect(source.entries.map((entry) => entry.state), [
+        WebChapterState.stored,
+        WebChapterState.failed,
+        WebChapterState.stored,
+      ]);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [1, 3]);
+    });
+
+    test('keeps the book readable with the chapters already stored', () async {
+      fetcher = FakeWebFetcher({chapterUrl(2): chapterPage(2)});
+
+      final outcome = await serviceFor().download(bookId);
+
+      expect(outcome, WebDownloadOutcome.paused);
+      expect(processing.partialActivations, ['run-1']);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [2]);
+      expect(processing.discards, isEmpty);
+      expect(processing.activations, isEmpty);
+    });
+
+    test('persists the attempt count and the failure reason per entry', () async {
+      fetcher = FakeWebFetcher({chapterUrl(1): chapterPage(1)});
+
+      await serviceFor().download(bookId);
+
+      expect(source.entries[1].attemptCount, 1);
+      expect(
+        source.entries[1].lastError,
+        'Página não encontrada: ${chapterUrl(2)}',
+      );
+      expect(source.entries[2].attemptCount, 1);
+    });
+
+    test('marks a chapter below the minimum length failed and stores no '
+        'stub', () async {
+      fetcher = FakeWebFetcher({
+        chapterUrl(1): chapterPage(1),
+        chapterUrl(2):
+            '<html><body><div class="epcontent entry-content">'
+            '<p>Curto demais.</p></div></body></html>',
+        chapterUrl(3): chapterPage(3),
+      });
+
+      await serviceFor().download(bookId);
+
+      expect(source.entries[1].state, WebChapterState.failed);
+      expect(source.entries[1].lastError, contains('abaixo do mínimo'));
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [1, 3]);
+    });
+
+    test('does not advance progress for a failed chapter', () async {
+      fetcher = FakeWebFetcher({
+        chapterUrl(1): chapterPage(1),
+        chapterUrl(3): chapterPage(3),
+      });
+
+      await serviceFor().download(bookId);
+
+      expect(processing.progressUpdates, [
+        (ProcessingStage.downloading, 1 / 3),
+        (ProcessingStage.downloading, 2 / 3),
+      ]);
+    });
   });
 }

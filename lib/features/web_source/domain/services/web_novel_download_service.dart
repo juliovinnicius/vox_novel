@@ -88,10 +88,20 @@ final class WebNovelDownloadService {
     var stored = total - pending.length;
 
     for (final entry in pending) {
-      final chapter = await _read(entry);
-      if (chapter == null) {
-        return WebDownloadOutcome.paused;
+      final read = await _read(entry);
+      if (read is _ChapterFailed) {
+        // A failed chapter is a hole in the book, not the end of the queue:
+        // the remaining chapters still download and the stored ones stay
+        // readable.
+        await _source.markFailed(
+          bookId,
+          entry.sortOrder,
+          read.reason,
+          _clock(),
+        );
+        continue;
       }
+      final chapter = (read as _ChapterRead).chapter;
 
       final ingested = await _ingest.ingest(
         runId: runId,
@@ -154,18 +164,30 @@ final class WebNovelDownloadService {
     return WebDownloadOutcome.completed;
   }
 
-  Future<ChapterParsed?> _read(WebChapterEntry entry) async {
+  /// Fetches and extracts one chapter.
+  ///
+  /// Transient errors are already retried with bounded exponential backoff by
+  /// the [WebFetcher], so a failure surfacing here means its attempts are
+  /// spent and the entry is done for this pass.
+  Future<_ChapterOutcome> _read(WebChapterEntry entry) async {
     final url = Uri.parse(entry.url);
-    final recipe = _recipes.forHost(_canonicalHost(url.host));
+    final host = _canonicalHost(url.host);
+    final recipe = _recipes.forHost(host);
     if (recipe == null) {
-      return null;
+      return _ChapterFailed('Site não suportado: $host');
     }
     final page = await _fetcher.fetch(url);
-    if (page is! WebFetchSucceeded) {
-      return null;
+    if (page is WebFetchFailed) {
+      return _ChapterFailed(page.message);
     }
-    final parsed = _parser.parseChapter(page.body, recipe);
-    return parsed is ChapterParsed ? parsed : null;
+    final parsed = _parser.parseChapter(
+      (page as WebFetchSucceeded).body,
+      recipe,
+    );
+    return switch (parsed) {
+      ChapterParsed() => _ChapterRead(parsed),
+      ChapterParseFailed(:final message) => _ChapterFailed(message),
+    };
   }
 
   static String _titleOf(WebChapterEntry entry, ChapterParsed chapter) {
@@ -181,4 +203,21 @@ final class WebNovelDownloadService {
     final lower = host.toLowerCase();
     return lower.startsWith('www.') ? lower.substring(4) : lower;
   }
+}
+
+sealed class _ChapterOutcome {
+  const _ChapterOutcome();
+}
+
+final class _ChapterRead extends _ChapterOutcome {
+  const _ChapterRead(this.chapter);
+
+  final ChapterParsed chapter;
+}
+
+final class _ChapterFailed extends _ChapterOutcome {
+  const _ChapterFailed(this.reason);
+
+  /// Persisted as the entry's `lastError` so a retry can report why.
+  final String reason;
 }
