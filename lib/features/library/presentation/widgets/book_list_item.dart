@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 
 String bookStatusLabel(BookStatus status) => switch (status) {
   BookStatus.importing => 'Importando',
@@ -8,6 +9,25 @@ String bookStatusLabel(BookStatus status) => switch (status) {
   BookStatus.failed => 'Falhou',
   BookStatus.unsupported => 'Não suportado',
 };
+
+/// Whether the reader can be opened for [book].
+///
+/// A web book becomes readable at its first stored chapter and stays readable
+/// while the rest of its queue drains; a PDF book has no partial-readability
+/// semantics and still has to finish processing.
+bool bookCanOpen(Book book) =>
+    book.status == BookStatus.ready ||
+    book.sourceType == BookSourceType.web &&
+        book.status == BookStatus.processing &&
+        book.chapterCount > 0;
+
+/// The download line of a web book: chapters stored over chapters indexed.
+String? bookDownloadLabel(Book book) =>
+    book.sourceType == BookSourceType.web &&
+        book.status == BookStatus.processing
+    ? '${ProcessingStage.downloading.label} • '
+          '${book.chapterCount}/${book.pageCount}'
+    : null;
 
 final class BookListItem extends StatelessWidget {
   const BookListItem({
@@ -38,7 +58,10 @@ final class BookListItem extends StatelessWidget {
               bookStatusLabel(book.status),
             ].join(' • '),
           ),
-          if (book.status == BookStatus.processing &&
+          if (bookDownloadLabel(book) case final download?) ...[
+            Text(download),
+            LinearProgressIndicator(value: book.processingProgress),
+          ] else if (book.status == BookStatus.processing &&
               book.processingStage != null) ...[
             Text(_processingLabel(book)),
             LinearProgressIndicator(value: book.processingProgress),
@@ -76,7 +99,7 @@ final class _BookActions extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      if (book.status == BookStatus.ready && onOpen != null)
+      if (bookCanOpen(book) && onOpen != null)
         IconButton(
           tooltip: 'Abrir ${book.title}',
           onPressed: () => onOpen!(book),

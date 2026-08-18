@@ -192,7 +192,145 @@ void main() {
       },
     );
   }
+
+  for (final grid in [false, true]) {
+    Widget item(Book book, {ValueChanged<Book>? onOpen}) => MaterialApp(
+      home: Scaffold(
+        body: grid
+            ? BookGridItem(
+                book: book,
+                onEdit: (_) {},
+                onDelete: (_) {},
+                onOpen: onOpen,
+              )
+            : BookListItem(
+                book: book,
+                onEdit: (_) {},
+                onDelete: (_) {},
+                onOpen: onOpen,
+              ),
+      ),
+    );
+
+    testWidgets(
+      '${grid ? 'grid' : 'list'} opens a downloading web book that already '
+      'stored a chapter',
+      (tester) async {
+        final book = _webBook(stored: 1, indexed: 4, progress: 0.25);
+        Book? opened;
+
+        await tester.pumpWidget(item(book, onOpen: (value) => opened = value));
+        await tester.tap(find.byTooltip('Abrir Title'));
+
+        expect(opened, same(book));
+      },
+    );
+
+    testWidgets(
+      '${grid ? 'grid' : 'list'} does not open a web book with no stored '
+      'chapter',
+      (tester) async {
+        await tester.pumpWidget(
+          item(_webBook(stored: 0, indexed: 4), onOpen: (_) {}),
+        );
+
+        expect(find.byTooltip('Abrir Title'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      '${grid ? 'grid' : 'list'} still refuses to open a processing pdf book',
+      (tester) async {
+        final pdf = _book(
+          status: BookStatus.processing,
+          stage: ProcessingStage.cleaning,
+          progress: 0.5,
+        );
+
+        await tester.pumpWidget(item(pdf, onOpen: (_) {}));
+
+        expect(find.byTooltip('Abrir Title'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      '${grid ? 'grid' : 'list'} renders web download progress as stored over '
+      'indexed chapters',
+      (tester) async {
+        await tester.pumpWidget(
+          item(_webBook(stored: 3, indexed: 12, progress: 0.25)),
+        );
+
+        expect(find.text('Baixando capítulos • 3/12'), findsOneWidget);
+        expect(
+          tester
+              .widget<LinearProgressIndicator>(
+                find.byType(LinearProgressIndicator),
+              )
+              .value,
+          0.25,
+        );
+      },
+    );
+
+    testWidgets(
+      '${grid ? 'grid' : 'list'} keeps the percentage line for a processing '
+      'pdf book',
+      (tester) async {
+        await tester.pumpWidget(
+          item(
+            _book(
+              status: BookStatus.processing,
+              stage: ProcessingStage.cleaning,
+              progress: 0.6,
+            ),
+          ),
+        );
+
+        expect(find.text('Limpando • 60%'), findsOneWidget);
+        expect(find.textContaining('Baixando capítulos'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      '${grid ? 'grid' : 'list'} shows no download line once the web book is '
+      'ready',
+      (tester) async {
+        final book = _webBook(
+          stored: 4,
+          indexed: 4,
+          progress: 1,
+          status: BookStatus.ready,
+        );
+
+        await tester.pumpWidget(item(book, onOpen: (_) {}));
+
+        expect(find.textContaining('Baixando capítulos'), findsNothing);
+        expect(find.byType(LinearProgressIndicator), findsNothing);
+        expect(find.byTooltip('Abrir Title'), findsOneWidget);
+      },
+    );
+  }
 }
+
+Book _webBook({
+  required int stored,
+  required int indexed,
+  double progress = 0,
+  BookStatus status = BookStatus.processing,
+}) => Book(
+  id: 'id',
+  title: 'Title',
+  sourceType: BookSourceType.web,
+  sourceRef: 'https://exemplo.com/series/obra/',
+  status: status,
+  processingProgress: progress,
+  pageCount: indexed,
+  chapterCount: stored,
+  processingStage: ProcessingStage.extracting,
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+);
 
 Book _book({
   String? author,

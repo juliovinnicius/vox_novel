@@ -27,7 +27,10 @@ final class BookGridItem extends StatelessWidget {
           Text(book.title, style: Theme.of(context).textTheme.titleMedium),
           if (book.author?.isNotEmpty ?? false) Text(book.author!),
           Text(bookStatusLabel(book.status)),
-          if (book.status == BookStatus.processing &&
+          if (bookDownloadLabel(book) case final download?) ...[
+            Text(download),
+            LinearProgressIndicator(value: book.processingProgress),
+          ] else if (book.status == BookStatus.processing &&
               book.processingStage != null) ...[
             Text(
               '${book.processingStage!.label} • '
@@ -39,7 +42,7 @@ final class BookGridItem extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              if (book.status == BookStatus.ready && onOpen != null)
+              if (bookCanOpen(book) && onOpen != null)
                 IconButton(
                   tooltip: 'Abrir ${book.title}',
                   onPressed: () => onOpen!(book),
