@@ -12,6 +12,8 @@ import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.d
 import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
 import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
 import 'package:vox_novel/features/visual_reader/presentation/pages/reader_page.dart';
+import 'package:vox_novel/features/visual_reader/presentation/widgets/original_pdf_view.dart';
+import 'package:vox_novel/features/visual_reader/presentation/widgets/text_reader_view.dart';
 
 void main() {
   ReaderBookContent content({bool empty = false}) {
@@ -62,6 +64,55 @@ void main() {
       chapters: [
         chapter('one', 'Primeiro', 0, 'Texto um'),
         chapter('two', 'Segundo', 1, 'Texto dois'),
+      ],
+    );
+  }
+
+  /// A web book: no local document, and a hole where a chapter failed.
+  ReaderBookContent webContent() {
+    ReaderChapter chapter(String id, String title, int order, String text) =>
+        ReaderChapter(
+          chapter: ChapterDraft(
+            id: id,
+            title: title,
+            sortOrder: order,
+            startPage: order + 1,
+            endPage: order + 1,
+            cleanText: text,
+          ),
+          blocks: [
+            NarrationBlockDraft(
+              id: '$id-block',
+              chapterId: id,
+              sortOrder: 0,
+              originalText: text,
+              normalizedText: text,
+              characterCount: text.runes.length,
+              startPage: order + 1,
+              endPage: order + 1,
+            ),
+          ],
+        );
+
+    return ReaderBookContent(
+      book: Book(
+        id: 'book',
+        title: 'Obra da web',
+        sourceType: BookSourceType.web,
+        sourceRef: 'https://exemplo.com/series/obra/',
+        status: BookStatus.processing,
+        processingProgress: 0.5,
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+        pageCount: 4,
+        chapterCount: 3,
+        blockCount: 3,
+        activeContentRunId: 'run',
+      ),
+      chapters: [
+        chapter('one', 'Primeiro', 0, 'Capítulo um'),
+        chapter('three', 'Terceiro', 2, 'Capítulo três'),
+        chapter('four', 'Quarto', 3, 'Capítulo quatro'),
       ],
     );
   }
@@ -136,6 +187,83 @@ void main() {
     expect(cubit.state.mode, ReaderMode.pdf);
     expect(find.text('Página 2 de 2'), findsOneWidget);
     expect(find.byTooltip('Ver texto reformatado'), findsOneWidget);
+  });
+
+  testWidgets('a web book renders only the text view', (tester) async {
+    await pumpPage(tester, _Repository(load: () async => webContent()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Obra da web'), findsOneWidget);
+    expect(find.byType(TextReaderView), findsOneWidget);
+    expect(find.text('Capítulo um'), findsOneWidget);
+    expect(find.byType(OriginalPdfView), findsNothing);
+    expect(find.byTooltip('Ver PDF original'), findsNothing);
+    expect(find.byTooltip('Ver texto reformatado'), findsNothing);
+  });
+
+  testWidgets('a web book resumed in pdf mode still renders the text view', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      _Repository(
+        load: () async => webContent(),
+        saved: ReaderPosition(
+          bookId: 'book',
+          mode: ReaderMode.pdf,
+          chapterId: 'one',
+          blockId: 'one-block',
+          pdfPage: 1,
+          updatedAt: DateTime(2025),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OriginalPdfView), findsNothing);
+    expect(find.byType(TextReaderView), findsOneWidget);
+    expect(find.text('Capítulo um'), findsOneWidget);
+  });
+
+  testWidgets('a pdf book still mounts both views', (tester) async {
+    await pumpPage(tester, _Repository(load: () async => content()));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextReaderView), findsOneWidget);
+    expect(find.byType(OriginalPdfView), findsNothing);
+    await tester.tap(find.byTooltip('Ver PDF original'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OriginalPdfView), findsOneWidget);
+    expect(find.byType(TextReaderView), findsNothing);
+  });
+
+  testWidgets('chapter neighbours follow list position across a hole', (
+    tester,
+  ) async {
+    final cubit = await pumpPage(
+      tester,
+      _Repository(load: () async => webContent()),
+    );
+    await tester.pumpAndSettle();
+
+    // The first loaded chapter has no previous even though the queue skipped
+    // nothing before it, and it does have a next across the hole.
+    var view = tester.widget<TextReaderView>(find.byType(TextReaderView));
+    expect([view.hasPreviousChapter, view.hasNextChapter], [false, true]);
+
+    cubit.nextChapter();
+    await tester.pumpAndSettle();
+    expect(cubit.state.chapterId, 'three');
+    view = tester.widget<TextReaderView>(find.byType(TextReaderView));
+    // Chapter three sits at list position 1 of 3: sort order 2 would have
+    // reported it as the last chapter.
+    expect([view.hasPreviousChapter, view.hasNextChapter], [true, true]);
+
+    cubit.nextChapter();
+    await tester.pumpAndSettle();
+    view = tester.widget<TextReaderView>(find.byType(TextReaderView));
+    expect([view.hasPreviousChapter, view.hasNextChapter], [true, false]);
   });
 
   testWidgets('renders exact empty chapter state', (tester) async {
@@ -215,15 +343,16 @@ void main() {
 }
 
 final class _Repository implements VisualReaderRepository {
-  _Repository({required this.load, this.failPosition = false});
+  _Repository({required this.load, this.failPosition = false, this.saved});
   final Future<ReaderBookContent?> Function() load;
   final bool failPosition;
+  final ReaderPosition? saved;
   final savedPositions = <ReaderPosition>[];
 
   @override
   Future<ReaderBookContent?> loadContent(String bookId) => load();
   @override
-  Future<ReaderPosition?> loadPosition(String bookId) async => null;
+  Future<ReaderPosition?> loadPosition(String bookId) async => saved;
   @override
   Future<ReaderSettings> loadSettings() async => ReaderSettings.defaults();
   @override

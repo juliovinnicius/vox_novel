@@ -113,6 +113,12 @@ final class _ReaderPageState extends State<ReaderPage> {
     final chapter = content.chapters
         .where((item) => item.chapter.id == state.chapterId)
         .firstOrNull;
+    // A web book has no local document, so the reader offers only the text
+    // view and never mounts the original-document surface.
+    final hasOriginal = content.book.storedFilePath != null;
+    // A failed chapter leaves a hole, so neighbours come from the position in
+    // the loaded list, never from the chapter's sort order.
+    final position = chapter == null ? -1 : content.chapters.indexOf(chapter);
     final palette = ReaderVisualTheme.palette(settings.theme);
     _scheduleScroll(chapter, state.blockId);
 
@@ -128,19 +134,20 @@ final class _ReaderPageState extends State<ReaderPage> {
       appBar: AppBar(
         title: Semantics(header: true, child: Text(content.book.title)),
         actions: [
-          IconButton(
-            tooltip: state.mode == ReaderMode.text
-                ? 'Ver PDF original'
-                : 'Ver texto reformatado',
-            onPressed: state.mode == ReaderMode.text
-                ? widget.cubit.showPdf
-                : widget.cubit.showText,
-            icon: Icon(
-              state.mode == ReaderMode.text
-                  ? Icons.picture_as_pdf_outlined
-                  : Icons.notes,
+          if (hasOriginal)
+            IconButton(
+              tooltip: state.mode == ReaderMode.text
+                  ? 'Ver PDF original'
+                  : 'Ver texto reformatado',
+              onPressed: state.mode == ReaderMode.text
+                  ? widget.cubit.showPdf
+                  : widget.cubit.showText,
+              icon: Icon(
+                state.mode == ReaderMode.text
+                    ? Icons.picture_as_pdf_outlined
+                    : Icons.notes,
+              ),
             ),
-          ),
           IconButton(
             tooltip: 'Capítulos',
             onPressed: content.chapters.isEmpty
@@ -155,7 +162,7 @@ final class _ReaderPageState extends State<ReaderPage> {
           ),
         ],
       ),
-      body: state.mode == ReaderMode.pdf
+      body: state.mode == ReaderMode.pdf && hasOriginal
           ? OriginalPdfView(
               path: content.book.storedFilePath!,
               initialPage: state.pdfPage,
@@ -179,9 +186,8 @@ final class _ReaderPageState extends State<ReaderPage> {
                     _selectBlock(chapter.chapter.id, blockId),
                 onPreviousChapter: widget.cubit.previousChapter,
                 onNextChapter: widget.cubit.nextChapter,
-                hasPreviousChapter: chapter.chapter.sortOrder > 0,
-                hasNextChapter:
-                    chapter.chapter.sortOrder < content.chapters.length - 1,
+                hasPreviousChapter: position > 0,
+                hasNextChapter: position < content.chapters.length - 1,
                 controller: _scrollControllers.putIfAbsent(
                   chapter.chapter.id,
                   ScrollController.new,
