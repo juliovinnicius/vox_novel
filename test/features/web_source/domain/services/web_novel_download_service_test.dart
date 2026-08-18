@@ -441,7 +441,7 @@ void main() {
 
     await serviceFor().download(bookId);
 
-    expect(processing.chapters.map((chapter) => chapter.sortOrder), [1, 2, 3]);
+    expect(processing.chapters.map((chapter) => chapter.sortOrder), [0, 1, 2]);
     expect(fetcher.requests.map((url) => url.toString()), [
       chapterUrl(1),
       chapterUrl(2),
@@ -575,7 +575,7 @@ void main() {
         WebChapterState.failed,
         WebChapterState.stored,
       ]);
-      expect(processing.chapters.map((chapter) => chapter.sortOrder), [1, 3]);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [0, 2]);
     });
 
     test('keeps the book readable with the chapters already stored', () async {
@@ -585,7 +585,7 @@ void main() {
 
       expect(outcome, WebDownloadOutcome.paused);
       expect(processing.partialActivations, ['run-1']);
-      expect(processing.chapters.map((chapter) => chapter.sortOrder), [2]);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [1]);
       expect(processing.discards, isEmpty);
       expect(processing.activations, isEmpty);
     });
@@ -617,7 +617,7 @@ void main() {
 
       expect(source.entries[1].state, WebChapterState.failed);
       expect(source.entries[1].lastError, contains('abaixo do mínimo'));
-      expect(processing.chapters.map((chapter) => chapter.sortOrder), [1, 3]);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [0, 2]);
     });
 
     test('does not advance progress for a failed chapter', () async {
@@ -665,7 +665,7 @@ void main() {
       await serviceFor().download(bookId);
 
       expect(fetcher.requests.map((url) => url.toString()), [chapterUrl(2)]);
-      expect(processing.chapters.map((chapter) => chapter.sortOrder), [2]);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [1]);
     });
 
     test('a resumed run keeps the active run instead of starting a '
@@ -807,7 +807,7 @@ void main() {
       expect(outcome, WebDownloadOutcome.paused);
       expect(processing.discards, isEmpty);
       expect(service.messageFor(bookId), isNull);
-      expect(processing.chapters.map((chapter) => chapter.sortOrder), [2]);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [1]);
     });
 
     test('network-only failures pause instead of marking unsupported', () async {

@@ -164,10 +164,13 @@ final class WebNovelDownloadService {
           ChapterDraft(
             id: 'web-${entry.sortOrder}',
             title: _titleOf(entry, chapter),
-            // The chapter's ordinal in the index stands in for the page
-            // bounds a paged source would supply, keeping ordering and
+            // Chapter sort orders are zero-based, as they are for a paged
+            // source: the reader rejects content whose chapter at position i
+            // does not carry sortOrder i.
+            sortOrder: entry.sortOrder - 1,
+            // The chapter's one-based ordinal in the index stands in for the
+            // page bounds a paged source would supply, keeping ordering and
             // position resume working without a schema change.
-            sortOrder: entry.sortOrder,
             startPage: entry.sortOrder,
             endPage: entry.sortOrder,
             cleanText: chapter.text,
