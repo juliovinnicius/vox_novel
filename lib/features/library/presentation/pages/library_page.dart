@@ -12,18 +12,22 @@ import 'package:vox_novel/features/library/presentation/widgets/delete_book_dial
 import 'package:vox_novel/features/library/presentation/widgets/edit_book_dialog.dart';
 import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_state.dart';
+import 'package:vox_novel/features/web_source/presentation/cubit/import_web_book_cubit.dart';
+import 'package:vox_novel/features/web_source/presentation/widgets/import_web_book_dialog.dart';
 
 final class LibraryPage extends StatefulWidget {
   const LibraryPage({
     required this.libraryCubit,
     required this.importBookCubit,
     this.textProcessingCubit,
+    this.importWebBookCubit,
     this.onOpenBook,
     super.key,
   });
   final LibraryCubit libraryCubit;
   final ImportBookCubit importBookCubit;
   final TextProcessingCubit? textProcessingCubit;
+  final ImportWebBookCubit? importWebBookCubit;
   final ValueChanged<Book>? onOpenBook;
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -74,6 +78,7 @@ final class _LibraryPageState extends State<LibraryPage> {
         ],
         child: _LibraryView(
           processingCubit: processingCubit,
+          importWebBookCubit: widget.importWebBookCubit,
           onOpenBook: widget.onOpenBook,
         ),
       ),
@@ -88,8 +93,13 @@ final class _LibraryPageState extends State<LibraryPage> {
 }
 
 final class _LibraryView extends StatelessWidget {
-  const _LibraryView({required this.processingCubit, required this.onOpenBook});
+  const _LibraryView({
+    required this.processingCubit,
+    required this.importWebBookCubit,
+    required this.onOpenBook,
+  });
   final TextProcessingCubit? processingCubit;
+  final ImportWebBookCubit? importWebBookCubit;
   final ValueChanged<Book>? onOpenBook;
   @override
   Widget build(BuildContext context) {
@@ -141,11 +151,34 @@ final class _LibraryView extends StatelessWidget {
           if (busy) const LinearProgressIndicator(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: busy ? null : context.read<ImportBookCubit>().importPdf,
-        icon: const Icon(Icons.picture_as_pdf),
-        label: const Text('Importar PDF'),
-      ),
+      floatingActionButton: _importActions(context, busy: busy),
+    );
+  }
+
+  Widget _importActions(BuildContext context, {required bool busy}) {
+    final webCubit = importWebBookCubit;
+    final pdf = FloatingActionButton.extended(
+      heroTag: 'import-pdf',
+      onPressed: busy ? null : context.read<ImportBookCubit>().importPdf,
+      icon: const Icon(Icons.picture_as_pdf),
+      label: const Text('Importar PDF'),
+    );
+    if (webCubit == null) return pdf;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        FloatingActionButton.extended(
+          heroTag: 'import-web',
+          onPressed: busy
+              ? null
+              : () => showImportWebBookDialog(context, webCubit),
+          icon: const Icon(Icons.public),
+          label: const Text('Importar da web'),
+        ),
+        const SizedBox(height: 12),
+        pdf,
+      ],
     );
   }
 

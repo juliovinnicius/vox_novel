@@ -14,6 +14,9 @@ import 'package:vox_novel/features/library/presentation/pages/library_page.dart'
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/services/text_processing_service.dart';
 import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_processing_cubit.dart';
+import 'package:vox_novel/features/web_source/domain/services/import_web_book_service.dart';
+import 'package:vox_novel/features/web_source/presentation/cubit/import_web_book_cubit.dart';
+import 'package:vox_novel/features/web_source/presentation/widgets/import_web_book_dialog.dart';
 
 void main() {
   testWidgets('shows exact empty state, title and accessible import action', (
@@ -26,6 +29,52 @@ void main() {
     expect(find.text('Biblioteca'), findsOneWidget);
     expect(find.text('Sua biblioteca está vazia'), findsOneWidget);
     expect(find.text('Importar PDF'), findsOneWidget);
+  });
+
+  testWidgets('the web import affordance opens the url dialog', (
+    tester,
+  ) async {
+    final submitted = <String>[];
+    final webCubit = ImportWebBookCubit(
+      importBook: (url) async {
+        submitted.add(url);
+        return const WebBookImportRejected(
+          ImportWebBookRejection.network,
+          'Sem conexão com a internet',
+        );
+      },
+    );
+    addTearDown(webCubit.close);
+    final fixture = _Fixture();
+    await tester.pumpWidget(fixture.app(webCubit: webCubit));
+    fixture.repository.controller.add([]);
+    await tester.pump();
+
+    expect(find.text('Importar da web'), findsOneWidget);
+    await tester.tap(find.text('Importar da web'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ImportWebBookDialog), findsOneWidget);
+    await tester.enterText(
+      find.byType(TextField),
+      'https://exemplo.com/series/obra/',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Importar'));
+    await tester.pumpAndSettle();
+    expect(submitted, ['https://exemplo.com/series/obra/']);
+    expect(find.text('Sem conexão com a internet'), findsOneWidget);
+  });
+
+  testWidgets('the library without a web cubit offers only the pdf import', (
+    tester,
+  ) async {
+    final fixture = _Fixture();
+    await tester.pumpWidget(fixture.app());
+    fixture.repository.controller.add([]);
+    await tester.pump();
+
+    expect(find.text('Importar da web'), findsNothing);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 
   testWidgets('renders same ordered books in list and two-column grid', (
@@ -178,7 +227,7 @@ final class _Fixture {
   final cancelledBookIds = <String>[];
   late final TextProcessingCubit processingCubit;
   Completer<void>? pending;
-  Widget app({ValueChanged<Book>? onOpenBook}) {
+  Widget app({ValueChanged<Book>? onOpenBook, ImportWebBookCubit? webCubit}) {
     final storage = _Storage(() => pending?.future);
     return MaterialApp(
       home: LibraryPage(
@@ -200,6 +249,7 @@ final class _Fixture {
           ),
         ),
         textProcessingCubit: processingCubit,
+        importWebBookCubit: webCubit,
         onOpenBook: onOpenBook,
       ),
     );
