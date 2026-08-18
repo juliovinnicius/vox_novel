@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vox_novel/features/content_ingestion/domain/services/chapter_ingest.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
@@ -63,15 +65,19 @@ final class FakeTransport {
 }
 
 final class FakeWebFetcher implements WebFetcher {
-  FakeWebFetcher(this.pages, {this.delays = const {}});
+  FakeWebFetcher(this.pages, {this.delays = const {}, this.onFetch});
 
   final Map<String, String> pages;
   final Map<String, Duration> delays;
+
+  /// Runs before the response is produced, so a test can act mid-download.
+  final void Function(Uri url)? onFetch;
   final List<Uri> requests = [];
 
   @override
   Future<WebFetchResult> fetch(Uri url) async {
     requests.add(url);
+    onFetch?.call(url);
     final delay = delays[url.toString()];
     if (delay != null) {
       await Future<void>.delayed(delay);
@@ -322,12 +328,16 @@ void main() {
     activeContentRunId: activeContentRunId,
   );
 
-  WebChapterEntry entry(int ordinal, {String? title}) => WebChapterEntry(
+  WebChapterEntry entry(
+    int ordinal, {
+    String? title,
+    WebChapterState state = WebChapterState.pending,
+  }) => WebChapterEntry(
     bookId: bookId,
     sortOrder: ordinal,
     url: chapterUrl(ordinal),
     title: title ?? 'Capítulo $ordinal do índice',
-    state: WebChapterState.pending,
+    state: state,
     attemptCount: 0,
     updatedAt: now,
   );
@@ -622,6 +632,139 @@ void main() {
         (ProcessingStage.downloading, 1 / 3),
         (ProcessingStage.downloading, 2 / 3),
       ]);
+    });
+  });
+
+  group('resume and cancel', () {
+    test('resumes at the lowest chapter that has no stored text', () async {
+      source = FakeWebSourceRepository([
+        entry(1, state: WebChapterState.stored),
+        entry(2, state: WebChapterState.stored),
+        entry(3),
+      ]);
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-0', chapterCount: 2, blockCount: 2),
+      );
+
+      final outcome = await serviceFor().download(bookId);
+
+      expect(fetcher.requests.map((url) => url.toString()), [chapterUrl(3)]);
+      expect(outcome, WebDownloadOutcome.completed);
+    });
+
+    test('issues zero requests for chapters already stored', () async {
+      source = FakeWebSourceRepository([
+        entry(1, state: WebChapterState.stored),
+        entry(2),
+        entry(3, state: WebChapterState.stored),
+      ]);
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-0', chapterCount: 2, blockCount: 2),
+      );
+
+      await serviceFor().download(bookId);
+
+      expect(fetcher.requests.map((url) => url.toString()), [chapterUrl(2)]);
+      expect(processing.chapters.map((chapter) => chapter.sortOrder), [2]);
+    });
+
+    test('a resumed run keeps the active run instead of starting a '
+        'second one', () async {
+      source = FakeWebSourceRepository([
+        entry(1, state: WebChapterState.stored),
+        entry(2),
+        entry(3),
+      ]);
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-0', chapterCount: 1, blockCount: 1),
+      );
+
+      await serviceFor().download(bookId);
+
+      expect(processing.createdRuns, isEmpty);
+      expect(processing.partialActivations, isEmpty);
+      expect(processing.activations, [('run-0', 3, 3, 3)]);
+    });
+
+    test('cancel stops further requests and retains stored chapters', () async {
+      late WebNovelDownloadService service;
+      fetcher = FakeWebFetcher(
+        fetcher.pages,
+        onFetch: (url) {
+          if (url.toString() == chapterUrl(1)) {
+            unawaited(service.cancel(bookId));
+          }
+        },
+      );
+      service = serviceFor();
+
+      final outcome = await service.download(bookId);
+
+      expect(outcome, WebDownloadOutcome.cancelled);
+      expect(fetcher.requests.map((url) => url.toString()), [chapterUrl(1)]);
+      expect(source.entries.map((entry) => entry.state), [
+        WebChapterState.stored,
+        WebChapterState.pending,
+        WebChapterState.pending,
+      ]);
+      expect(processing.discards, isEmpty);
+      expect(processing.activations, isEmpty);
+    });
+
+    test('a cancelled book resumes later and completes', () async {
+      late WebNovelDownloadService service;
+      fetcher = FakeWebFetcher(
+        fetcher.pages,
+        onFetch: (url) {
+          if (url.toString() == chapterUrl(1)) {
+            unawaited(service.cancel(bookId));
+          }
+        },
+      );
+      service = serviceFor();
+      await service.download(bookId);
+
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-1', chapterCount: 1, blockCount: 1),
+      );
+      fetcher = FakeWebFetcher({
+        for (var ordinal = 1; ordinal <= 3; ordinal++)
+          chapterUrl(ordinal): chapterPage(ordinal),
+      });
+
+      final outcome = await serviceFor().download(bookId);
+
+      expect(outcome, WebDownloadOutcome.completed);
+      expect(fetcher.requests.map((url) => url.toString()), [
+        chapterUrl(2),
+        chapterUrl(3),
+      ]);
+      expect(
+        source.entries.map((entry) => entry.state),
+        everyElement(WebChapterState.stored),
+      );
+      expect(processing.activations, [('run-1', 3, 3, 3)]);
+    });
+
+    test('resume covers a chapter left failed, which has no stored '
+        'text', () async {
+      source = FakeWebSourceRepository([
+        entry(1, state: WebChapterState.stored),
+        entry(2, state: WebChapterState.failed),
+        entry(3, state: WebChapterState.stored),
+      ]);
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-0', chapterCount: 2, blockCount: 2),
+      );
+
+      final outcome = await serviceFor().download(bookId);
+
+      expect(fetcher.requests.map((url) => url.toString()), [chapterUrl(2)]);
+      expect(outcome, WebDownloadOutcome.completed);
+      expect(
+        source.entries.map((entry) => entry.state),
+        everyElement(WebChapterState.stored),
+      );
     });
   });
 }

@@ -61,7 +61,41 @@ final class WebNovelDownloadService {
   final WebDownloadRunId _runId;
   final HtmlRecipeParser _parser;
 
-  Future<WebDownloadOutcome> download(String bookId) async {
+  final Map<String, Future<WebDownloadOutcome>> _runs = {};
+  final Map<String, _Cancellation> _cancellations = {};
+
+  /// Drains [bookId]'s queue, resuming from the first chapter with no stored
+  /// text. Chapters already stored are never requested again.
+  Future<WebDownloadOutcome> download(String bookId) {
+    final running = _runs[bookId];
+    if (running != null) {
+      return running;
+    }
+    final cancellation = _Cancellation();
+    _cancellations[bookId] = cancellation;
+    final future = _drain(bookId, cancellation).whenComplete(() {
+      _runs.remove(bookId);
+      _cancellations.remove(bookId);
+    });
+    _runs[bookId] = future;
+    return future;
+  }
+
+  /// Stops issuing requests for [bookId], keeping every chapter already
+  /// stored, and completes once the running pass has wound down.
+  Future<void> cancel(String bookId) async {
+    final running = _runs[bookId];
+    if (running == null) {
+      return;
+    }
+    _cancellations[bookId]!.requested = true;
+    await running;
+  }
+
+  Future<WebDownloadOutcome> _drain(
+    String bookId,
+    _Cancellation cancellation,
+  ) async {
     final book = await _books.findById(bookId);
     if (book == null) {
       return WebDownloadOutcome.failed;
@@ -88,6 +122,9 @@ final class WebNovelDownloadService {
     var stored = total - pending.length;
 
     for (final entry in pending) {
+      if (cancellation.requested) {
+        return WebDownloadOutcome.cancelled;
+      }
       final read = await _read(entry);
       if (read is _ChapterFailed) {
         // A failed chapter is a hole in the book, not the end of the queue:
@@ -203,6 +240,10 @@ final class WebNovelDownloadService {
     final lower = host.toLowerCase();
     return lower.startsWith('www.') ? lower.substring(4) : lower;
   }
+}
+
+final class _Cancellation {
+  bool requested = false;
 }
 
 sealed class _ChapterOutcome {
