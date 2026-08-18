@@ -7,12 +7,18 @@ import 'package:vox_novel/features/narration/domain/services/narration_settings_
 import 'package:vox_novel/features/narration/presentation/cubit/narration_state.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 
+/// Re-reads a book's reader content — `VisualReaderRepository.loadContent` in
+/// production — so narration can pick up chapters that landed while it played.
+typedef NarrationContentLoader =
+    Future<ReaderBookContent?> Function(String bookId);
+
 final class NarrationCubit extends Cubit<NarrationState> {
   NarrationCubit({
     required NarrationRepository repository,
     required NarrationEngine engine,
     required DateTime Function() clock,
     NarrationSettingsResolver resolver = const NarrationSettingsResolver(),
+    NarrationContentLoader? loadContent,
   }) : // Public dependency names intentionally omit private prefixes.
        // ignore: prefer_initializing_formals
        _repository = repository,
@@ -22,6 +28,8 @@ final class NarrationCubit extends Cubit<NarrationState> {
        _clock = clock,
        // ignore: prefer_initializing_formals
        _resolver = resolver,
+       // ignore: prefer_initializing_formals
+       _loadContent = loadContent,
        super(const NarrationState());
 
   static const unavailableMessage =
@@ -38,6 +46,7 @@ final class NarrationCubit extends Cubit<NarrationState> {
   final NarrationEngine _engine;
   final DateTime Function() _clock;
   final NarrationSettingsResolver _resolver;
+  final NarrationContentLoader? _loadContent;
   ReaderBookContent? _content;
   NarrationQueue? _queue;
   NarrationQueueEntry? _pendingStart;
@@ -222,11 +231,12 @@ final class NarrationCubit extends Cubit<NarrationState> {
           NarrationStatus.ready,
           NarrationStatus.paused,
           NarrationStatus.completed,
+          NarrationStatus.awaitingDownload,
         ].contains(state.status)) {
       return;
     }
     final selected = _pendingStart;
-    if (state.status == NarrationStatus.completed && selected == null) return;
+    if (_atEndOfQueue(state.status) && selected == null) return;
     _pendingStart = null;
     final entry =
         selected ??
@@ -283,9 +293,27 @@ final class NarrationCubit extends Cubit<NarrationState> {
   }
 
   Future<void> _complete(NarrationQueueEntry entry, int generation) async {
+    var next = _queue!.next(entry);
+    var awaiting = false;
+    if (next == null && _queue!.awaitsDownload) {
+      // The queue ended while chapters are still downloading: look once for a
+      // chapter that landed while this block played.
+      await _reloadAtBoundary(generation);
+      if (!_active(generation)) return;
+      next = _queue!.next(entry);
+      // A reload that reveals the queue has drained turns the boundary back
+      // into a real end of book.
+      awaiting = next == null && _queue!.awaitsDownload;
+    }
     try {
       await _repository.saveProgress(
-        _progress(entry, state.settings!, completed: entry == _queue!.last),
+        _progress(
+          entry,
+          state.settings!,
+          // A download boundary is not the end of the book, so the stored
+          // progress must not mark the book finished.
+          completed: !awaiting && entry == _queue!.last,
+        ),
       );
     } catch (_) {
       if (_active(generation)) {
@@ -299,9 +327,13 @@ final class NarrationCubit extends Cubit<NarrationState> {
       return;
     }
     if (!_active(generation)) return;
-    final next = _queue!.next(entry);
     if (next == null) {
-      _emitPlaybackEntry(entry, NarrationStatus.completed);
+      _emitPlaybackEntry(
+        entry,
+        awaiting
+            ? NarrationStatus.awaitingDownload
+            : NarrationStatus.completed,
+      );
       return;
     }
     try {
@@ -321,6 +353,28 @@ final class NarrationCubit extends Cubit<NarrationState> {
     }
     if (_active(generation)) await _start(next);
   }
+
+  /// Replaces the loaded content with whatever the book holds now.
+  ///
+  /// A reload that fails or finds nothing new is indistinguishable from a
+  /// chapter that has not downloaded yet, and both mean the same thing here.
+  Future<void> _reloadAtBoundary(int generation) async {
+    final loader = _loadContent;
+    final content = _content;
+    if (loader == null || content == null) return;
+    try {
+      final refreshed = await loader(content.book.id);
+      if (refreshed == null || !_active(generation)) return;
+      _content = refreshed;
+      _queue = NarrationQueue.fromContent(refreshed);
+    } catch (_) {
+      // Keep the queue that is already loaded.
+    }
+  }
+
+  static bool _atEndOfQueue(NarrationStatus status) =>
+      status == NarrationStatus.completed ||
+      status == NarrationStatus.awaitingDownload;
 
   Future<void> pause() async {
     if (_transitioning || state.status != NarrationStatus.playing) return;

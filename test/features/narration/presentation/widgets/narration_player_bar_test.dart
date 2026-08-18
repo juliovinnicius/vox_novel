@@ -199,6 +199,26 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(48));
     }
   });
+
+  testWidgets(
+    'awaiting download reports the pending chapter instead of an ended book',
+    (tester) async {
+      await pumpBar(
+        tester,
+        state: _state(NarrationStatus.awaitingDownload, canPrevious: true),
+      );
+
+      expect(find.text('Próximo capítulo ainda não baixado'), findsOneWidget);
+      expect(find.text('Narração concluída'), findsNothing);
+      expect(
+        find.bySemanticsLabel('Aguardando o próximo capítulo'),
+        findsOneWidget,
+      );
+      expect(_button(tester, 'play-pause-narration').onPressed, isNull);
+      expect(_button(tester, 'next-narration-block').onPressed, isNull);
+      expect(_button(tester, 'previous-narration-block').onPressed, isNotNull);
+    },
+  );
 }
 
 NarrationState _state(

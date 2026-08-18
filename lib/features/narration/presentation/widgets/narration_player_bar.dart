@@ -29,16 +29,11 @@ class NarrationPlayerBar extends StatelessWidget {
       NarrationStatus.ready ||
       NarrationStatus.playing ||
       NarrationStatus.paused ||
-      NarrationStatus.completed => true,
+      NarrationStatus.completed ||
+      NarrationStatus.awaitingDownload => true,
       _ => false,
     };
-    final canOpenSettings = switch (status) {
-      NarrationStatus.ready ||
-      NarrationStatus.playing ||
-      NarrationStatus.paused ||
-      NarrationStatus.completed => true,
-      _ => false,
-    };
+    final canOpenSettings = canNavigate;
 
     return Material(
       elevation: 8,
@@ -95,6 +90,7 @@ class NarrationPlayerBar extends StatelessWidget {
                     onPressed:
                         canNavigate &&
                             status != NarrationStatus.completed &&
+                            status != NarrationStatus.awaitingDownload &&
                             state.canNext
                         ? onNext
                         : null,
@@ -134,6 +130,7 @@ class NarrationPlayerBar extends StatelessWidget {
     NarrationStatus.unavailable => 'Narração indisponível',
     NarrationStatus.error => 'Erro na narração',
     NarrationStatus.completed => state.chapterTitle ?? 'Narração concluída',
+    NarrationStatus.awaitingDownload => 'Próximo capítulo ainda não baixado',
     _ => state.chapterTitle ?? 'Narração',
   };
 
@@ -142,6 +139,7 @@ class NarrationPlayerBar extends StatelessWidget {
     NarrationStatus.playing => 'Pausar narração',
     NarrationStatus.paused => 'Retomar narração',
     NarrationStatus.completed => 'Narração concluída',
+    NarrationStatus.awaitingDownload => 'Aguardando o próximo capítulo',
     NarrationStatus.unavailable => 'Narração indisponível',
     NarrationStatus.error => 'Narração indisponível',
     NarrationStatus.loading => 'Narração carregando',
@@ -157,6 +155,7 @@ class NarrationPlayerBar extends StatelessWidget {
   IconData get _playIcon => switch (state.status) {
     NarrationStatus.playing => Icons.pause,
     NarrationStatus.completed => Icons.check,
+    NarrationStatus.awaitingDownload => Icons.hourglass_empty,
     _ => Icons.play_arrow,
   };
 

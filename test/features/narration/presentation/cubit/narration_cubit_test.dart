@@ -547,14 +547,197 @@ void main() {
     expect(cubit.state.settings?.voice, zeca);
     expect(repository.globalSaves.last.voice, zeca);
   });
+
+  test('the download boundary reloads content exactly once and awaits the '
+      'next chapter', () async {
+    final repository = _FakeRepository();
+    final engine = _FakeEngine(voices: [ana]);
+    final loader = _FakeContentLoader([_webContent(chapters: 1)]);
+    final cubit = _cubit(repository, engine, loadContent: loader.call);
+    addTearDown(cubit.close);
+    await cubit.load(_webContent(chapters: 1));
+
+    await cubit.play();
+
+    expect(loader.calls, 1);
+    expect(cubit.state.status, NarrationStatus.awaitingDownload);
+    expect(cubit.state.blockId, 'web-block-1');
+    expect(engine.spoken, ['Texto 1']);
+  });
+
+  test('a reload that finds a new chapter narrates it without user action',
+      () async {
+    final repository = _FakeRepository();
+    final engine = _FakeEngine(voices: [ana]);
+    final loader = _FakeContentLoader([
+      _webContent(chapters: 2),
+      _webContent(chapters: 2, downloading: false),
+    ]);
+    final cubit = _cubit(repository, engine, loadContent: loader.call);
+    addTearDown(cubit.close);
+    await cubit.load(_webContent(chapters: 1));
+
+    await cubit.play();
+
+    expect(engine.spoken, ['Texto 1', 'Texto 2']);
+    expect(cubit.state.blockId, 'web-block-2');
+    expect(cubit.state.status, NarrationStatus.completed);
+  });
+
+  test('the download boundary never stores the book as completed', () async {
+    final repository = _FakeRepository();
+    final loader = _FakeContentLoader([_webContent(chapters: 1)]);
+    final cubit = _cubit(
+      repository,
+      _FakeEngine(voices: [ana]),
+      loadContent: loader.call,
+    );
+    addTearDown(cubit.close);
+    await cubit.load(_webContent(chapters: 1));
+
+    await cubit.play();
+
+    expect(repository.progressSaves.last.blockId, 'web-block-1');
+    expect(repository.progressSaves.last.completed, isFalse);
+  });
+
+  test('a fully downloaded web book still ends at its last block', () async {
+    final repository = _FakeRepository();
+    final loader = _FakeContentLoader([_webContent(chapters: 2)]);
+    final cubit = _cubit(
+      repository,
+      _FakeEngine(voices: [ana]),
+      loadContent: loader.call,
+    );
+    addTearDown(cubit.close);
+    await cubit.load(_webContent(chapters: 2, downloading: false));
+
+    await cubit.play();
+
+    expect(loader.calls, 0);
+    expect(cubit.state.status, NarrationStatus.completed);
+    expect(repository.progressSaves.last.completed, isTrue);
+  });
+
+  test('a pdf book never reloads at its last block', () async {
+    final repository = _FakeRepository();
+    final loader = _FakeContentLoader([_content()]);
+    final cubit = _cubit(
+      repository,
+      _FakeEngine(voices: [ana]),
+      loadContent: loader.call,
+    );
+    addTearDown(cubit.close);
+    await cubit.load(_content());
+
+    await cubit.play();
+
+    expect(loader.calls, 0);
+    expect(cubit.state.status, NarrationStatus.completed);
+  });
+
+  test('a downloading book with no reloader awaits the next chapter', () async {
+    final repository = _FakeRepository();
+    final cubit = _cubit(repository, _FakeEngine(voices: [ana]));
+    addTearDown(cubit.close);
+    await cubit.load(_webContent(chapters: 1));
+
+    await cubit.play();
+
+    expect(cubit.state.status, NarrationStatus.awaitingDownload);
+    expect(repository.progressSaves.last.completed, isFalse);
+  });
+
+  test('a failed reload at the boundary still reports awaiting download',
+      () async {
+    final repository = _FakeRepository();
+    final cubit = _cubit(
+      repository,
+      _FakeEngine(voices: [ana]),
+      loadContent: (_) async => throw StateError('offline'),
+    );
+    addTearDown(cubit.close);
+    await cubit.load(_webContent(chapters: 1));
+
+    await cubit.play();
+
+    expect(cubit.state.status, NarrationStatus.awaitingDownload);
+  });
 }
 
-NarrationCubit _cubit(_FakeRepository repository, _FakeEngine engine) =>
-    NarrationCubit(
-      repository: repository,
-      engine: engine,
-      clock: () => DateTime.utc(2026),
-    );
+NarrationCubit _cubit(
+  _FakeRepository repository,
+  _FakeEngine engine, {
+  NarrationContentLoader? loadContent,
+}) => NarrationCubit(
+  repository: repository,
+  engine: engine,
+  clock: () => DateTime.utc(2026),
+  loadContent: loadContent,
+);
+
+/// A web book whose queue holds [chapters] chapters of one block each, still
+/// downloading unless [downloading] is false.
+ReaderBookContent _webContent({
+  required int chapters,
+  bool downloading = true,
+}) => ReaderBookContent(
+  book: Book(
+    id: 'book',
+    title: 'Obra',
+    sourceType: BookSourceType.web,
+    sourceRef: 'https://exemplo.com/series/obra/',
+    status: downloading ? BookStatus.processing : BookStatus.ready,
+    processingProgress: downloading ? 0.5 : 1,
+    pageCount: 4,
+    chapterCount: chapters,
+    blockCount: chapters,
+    activeContentRunId: 'run',
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  ),
+  chapters: [
+    for (var order = 0; order < chapters; order++)
+      ReaderChapter(
+        chapter: ChapterDraft(
+          id: 'chapter-${order + 1}',
+          title: 'Capítulo ${order + 1}',
+          sortOrder: order,
+          startPage: order + 1,
+          endPage: order + 1,
+          cleanText: 'Texto ${order + 1}',
+        ),
+        blocks: [
+          NarrationBlockDraft(
+            id: 'web-block-${order + 1}',
+            chapterId: 'chapter-${order + 1}',
+            sortOrder: 0,
+            originalText: 'Texto ${order + 1}',
+            normalizedText: 'Texto ${order + 1}',
+            characterCount: 7,
+            startPage: order + 1,
+            endPage: order + 1,
+          ),
+        ],
+      ),
+  ],
+);
+
+/// Counts how many times narration asked the book for fresh content.
+final class _FakeContentLoader {
+  _FakeContentLoader(this.responses);
+
+  final List<ReaderBookContent?> responses;
+  var calls = 0;
+
+  Future<ReaderBookContent?> call(String bookId) async {
+    final response = responses.isEmpty
+        ? null
+        : responses[calls.clamp(0, responses.length - 1)];
+    calls++;
+    return response;
+  }
+}
 
 final class _FakeEngine implements NarrationEngine {
   _FakeEngine({

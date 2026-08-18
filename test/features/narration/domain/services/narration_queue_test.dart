@@ -68,6 +68,43 @@ void main() {
     expect(queue.first, isNull);
     expect(queue.last, isNull);
   });
+
+  test('a queue only awaits download for a web book that is still '
+      'downloading', () {
+    expect(NarrationQueue.fromContent(_content()).awaitsDownload, isFalse);
+    expect(
+      NarrationQueue.fromContent(_webContent(BookStatus.ready)).awaitsDownload,
+      isFalse,
+    );
+    expect(
+      NarrationQueue.fromContent(
+        _webContent(BookStatus.processing),
+      ).awaitsDownload,
+      isTrue,
+    );
+  });
+}
+
+/// The same chapters as [_content], but owned by a web book in [status].
+ReaderBookContent _webContent(BookStatus status) {
+  final pdf = _content();
+  return ReaderBookContent(
+    book: Book(
+      id: 'book',
+      title: 'Livro',
+      sourceType: BookSourceType.web,
+      sourceRef: 'https://exemplo.com/series/obra/',
+      status: status,
+      processingProgress: status == BookStatus.ready ? 1 : 0.5,
+      pageCount: 3,
+      chapterCount: pdf.chapters.length,
+      blockCount: pdf.book.blockCount,
+      activeContentRunId: 'run',
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    ),
+    chapters: pdf.chapters,
+  );
 }
 
 ReaderBookContent _content({bool allEmpty = false}) {

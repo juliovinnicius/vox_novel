@@ -1,9 +1,13 @@
+import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 
 final class NarrationQueue {
   NarrationQueue.fromContent(ReaderBookContent content)
-    : entries = List.unmodifiable([
+    : awaitsDownload =
+          content.book.sourceType == BookSourceType.web &&
+          content.book.status == BookStatus.processing,
+      entries = List.unmodifiable([
         for (final chapter in content.chapters)
           for (final block in chapter.blocks)
             NarrationQueueEntry(
@@ -16,6 +20,10 @@ final class NarrationQueue {
       ]);
 
   final List<NarrationQueueEntry> entries;
+
+  /// Whether the book still has chapters downloading, so the end of these
+  /// entries is a download boundary rather than the end of the book.
+  final bool awaitsDownload;
 
   bool get isEmpty => entries.isEmpty;
   NarrationQueueEntry? get first => entries.firstOrNull;

@@ -140,6 +140,10 @@ enum NarrationStatus {
   playing,
   paused,
   completed,
+
+  /// The queue ran out of blocks while the book still has chapters
+  /// downloading — the book has not ended, the next chapter has not arrived.
+  awaitingDownload,
   unavailable,
   error,
 }
