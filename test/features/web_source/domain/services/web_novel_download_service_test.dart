@@ -1,0 +1,437 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vox_novel/features/content_ingestion/domain/services/chapter_ingest.dart';
+import 'package:vox_novel/features/library/domain/entities/book.dart';
+import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
+import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
+import 'package:vox_novel/features/web_source/domain/entities/site_recipe.dart';
+import 'package:vox_novel/features/web_source/domain/repositories/web_source_repository.dart';
+import 'package:vox_novel/features/web_source/domain/services/site_recipe_registry.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_fetcher.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_novel_download_service.dart';
+
+const SiteRecipe exampleRecipe = SiteRecipe(
+  domain: 'exemplo.com',
+  seriesPathPrefix: '/series/',
+  seriesLinkSelector: "a[itemprop=item][href*='/series/']",
+  chapterIndexSelector: 'div.eplister li > a',
+  chapterIndexTitleSelector: 'div.epl-title',
+  chapterIndexOrder: ChapterIndexOrder.descending,
+  chapterTitleSelector: 'h1.entry-title',
+  contentSelector: 'div.epcontent.entry-content',
+  paragraphSelector: 'p',
+  nextChapterSelector: 'a[rel=next]',
+  disallowedPathPatterns: ['/pdf/', '/search/', '/?s='],
+  minimumChapterCharacters: 200,
+);
+
+String chapterUrl(int ordinal) =>
+    'https://exemplo.com/obra-sintetica-capitulo-$ordinal/';
+
+/// A chapter page whose body clears the recipe's minimum length in a single
+/// paragraph, so one chapter yields exactly one narration block.
+String chapterPage(int ordinal) =>
+    '<html><body><h1 class="entry-title">Página do capítulo $ordinal</h1>'
+    '<div class="epcontent entry-content"><p>'
+    '${'Texto sintético do capítulo $ordinal. ' * 10}'
+    '</p></div></body></html>';
+
+final class FakeWebFetcher implements WebFetcher {
+  FakeWebFetcher(this.pages, {this.delays = const {}});
+
+  final Map<String, String> pages;
+  final Map<String, Duration> delays;
+  final List<Uri> requests = [];
+
+  @override
+  Future<WebFetchResult> fetch(Uri url) async {
+    requests.add(url);
+    final delay = delays[url.toString()];
+    if (delay != null) {
+      await Future<void>.delayed(delay);
+    }
+    final body = pages[url.toString()];
+    if (body == null) {
+      return WebFetchFailed(
+        WebFetchFailureKind.notFound,
+        'Página não encontrada: $url',
+      );
+    }
+    return WebFetchSucceeded(url: url, body: body);
+  }
+}
+
+final class FakeBookRepository implements BookRepository {
+  FakeBookRepository(this.book);
+
+  Book? book;
+
+  @override
+  Future<Book?> findById(String id) async => book?.id == id ? book : null;
+
+  @override
+  Stream<List<Book>> watchAll() => throw UnimplementedError();
+  @override
+  Future<Book?> findByHash(String hash) => throw UnimplementedError();
+  @override
+  Future<void> insert(Book book) => throw UnimplementedError();
+  @override
+  Future<void> replaceImportedFile({
+    required String id,
+    required String originalFileName,
+    required String storedFilePath,
+    required String fileHash,
+    required BookStatus status,
+    required double processingProgress,
+    required DateTime updatedAt,
+  }) => throw UnimplementedError();
+  @override
+  Future<void> updateMetadata({
+    required String id,
+    required String title,
+    required String? author,
+    required DateTime updatedAt,
+  }) => throw UnimplementedError();
+  @override
+  Future<void> deleteById(String id) => throw UnimplementedError();
+}
+
+final class FakeWebSourceRepository implements WebSourceRepository {
+  FakeWebSourceRepository(this.entries);
+
+  final List<WebChapterEntry> entries;
+
+  WebChapterEntry _at(int sortOrder) =>
+      entries.firstWhere((entry) => entry.sortOrder == sortOrder);
+
+  void _replace(WebChapterEntry entry) =>
+      entries[entries.indexWhere((it) => it.sortOrder == entry.sortOrder)] =
+          entry;
+
+  @override
+  Future<List<WebChapterEntry>> pending(String bookId) async =>
+      (entries.where((entry) => entry.state != WebChapterState.stored).toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)));
+
+  @override
+  Future<List<WebChapterEntry>> failed(String bookId) async =>
+      entries.where((entry) => entry.state == WebChapterState.failed).toList();
+
+  @override
+  Future<WebChapterCounts> counts(String bookId) async => WebChapterCounts(
+    total: entries.length,
+    stored: entries.where((e) => e.state == WebChapterState.stored).length,
+    failed: entries.where((e) => e.state == WebChapterState.failed).length,
+  );
+
+  @override
+  Future<void> markStored(String bookId, int sortOrder, DateTime at) async {
+    final entry = _at(sortOrder);
+    _replace(
+      WebChapterEntry(
+        bookId: entry.bookId,
+        sortOrder: entry.sortOrder,
+        url: entry.url,
+        title: entry.title,
+        state: WebChapterState.stored,
+        attemptCount: entry.attemptCount,
+        updatedAt: at,
+      ),
+    );
+  }
+
+  @override
+  Future<void> markFailed(
+    String bookId,
+    int sortOrder,
+    String reason,
+    DateTime at,
+  ) async {
+    final entry = _at(sortOrder);
+    _replace(
+      WebChapterEntry(
+        bookId: entry.bookId,
+        sortOrder: entry.sortOrder,
+        url: entry.url,
+        title: entry.title,
+        state: WebChapterState.failed,
+        attemptCount: entry.attemptCount + 1,
+        lastError: reason,
+        updatedAt: at,
+      ),
+    );
+  }
+
+  @override
+  Future<Set<String>> knownUrls(String bookId) async =>
+      entries.map((entry) => entry.url).toSet();
+  @override
+  Future<void> replaceIndex(String bookId, List<WebChapterRef> chapters) =>
+      throw UnimplementedError();
+  @override
+  Future<int> appendNew(String bookId, List<WebChapterRef> chapters) =>
+      throw UnimplementedError();
+}
+
+final class FakeProcessingRepository implements TextProcessingRepository {
+  final createdRuns = <(String bookId, String runId)>[];
+  final chapters = <ChapterDraft>[];
+  final blocks = <NarrationBlockDraft>[];
+  final partialActivations = <String>[];
+  final runCountUpdates = <(String, int, int, double)>[];
+  final progressUpdates = <(ProcessingStage, double)>[];
+  final activations = <(String runId, int pages, int chapters, int blocks)>[];
+  final discards = <(String runId, BookStatus status)>[];
+
+  /// Cumulative staged-block count at the moment each chapter was marked
+  /// stored, recorded by the test through [onStage].
+  void Function()? onStage;
+
+  int chaptersAtFirstActivation = -1;
+  final activationsAtEachStage = <int>[];
+
+  @override
+  Future<void> createRun({
+    required String bookId,
+    required String runId,
+    required DateTime startedAt,
+  }) async => createdRuns.add((bookId, runId));
+
+  @override
+  Future<void> stageChaptersAndBlocks({
+    required String runId,
+    required String bookId,
+    required List<ChapterDraft> chapters,
+    required List<NarrationBlockDraft> blocks,
+    required DateTime createdAt,
+  }) async {
+    this.chapters.addAll(chapters);
+    this.blocks.addAll(blocks);
+    activationsAtEachStage.add(activations.length);
+    onStage?.call();
+  }
+
+  @override
+  Future<void> activatePartialRun({
+    required String runId,
+    required DateTime activatedAt,
+  }) async {
+    partialActivations.add(runId);
+    chaptersAtFirstActivation = chapters.length;
+  }
+
+  @override
+  Future<void> updateRunCounts({
+    required String runId,
+    required int chapterCount,
+    required int blockCount,
+    required double progress,
+    required DateTime updatedAt,
+  }) async =>
+      runCountUpdates.add((runId, chapterCount, blockCount, progress));
+
+  @override
+  Future<void> updateProgress({
+    required String bookId,
+    required ProcessingStage stage,
+    required double progress,
+    required DateTime updatedAt,
+  }) async => progressUpdates.add((stage, progress));
+
+  @override
+  Future<void> activateRun({
+    required String runId,
+    required int pageCount,
+    required int chapterCount,
+    required int blockCount,
+    required DateTime completedAt,
+  }) async =>
+      activations.add((runId, pageCount, chapterCount, blockCount));
+
+  @override
+  Future<void> discardRun({
+    required String runId,
+    required BookStatus terminalStatus,
+    required DateTime updatedAt,
+  }) async => discards.add((runId, terminalStatus));
+
+  @override
+  Future<void> stageRawPage(String runId, RawPage page) =>
+      throw UnimplementedError();
+  @override
+  Stream<RawPage> streamRawPages(String runId) => throw UnimplementedError();
+  @override
+  Future<void> stageCleanPage(String runId, CleanPage page) =>
+      throw UnimplementedError();
+  @override
+  Future<ActiveProcessedContent?> readActiveContent(String bookId) =>
+      throw UnimplementedError();
+}
+
+void main() {
+  const bookId = 'book-1';
+  final now = DateTime.utc(2026, 8, 18, 9);
+
+  late FakeBookRepository books;
+  late FakeWebSourceRepository source;
+  late FakeProcessingRepository processing;
+  late FakeWebFetcher fetcher;
+  var nextId = 0;
+
+  Book webBook({
+    String? activeContentRunId,
+    int chapterCount = 0,
+    int blockCount = 0,
+  }) => Book(
+    id: bookId,
+    title: 'Obra sintética',
+    status: BookStatus.processing,
+    processingProgress: 0,
+    createdAt: now,
+    updatedAt: now,
+    sourceType: BookSourceType.web,
+    sourceRef: 'https://exemplo.com/series/obra-sintetica/',
+    chapterCount: chapterCount,
+    blockCount: blockCount,
+    activeContentRunId: activeContentRunId,
+  );
+
+  WebChapterEntry entry(int ordinal, {String? title}) => WebChapterEntry(
+    bookId: bookId,
+    sortOrder: ordinal,
+    url: chapterUrl(ordinal),
+    title: title ?? 'Capítulo $ordinal do índice',
+    state: WebChapterState.pending,
+    attemptCount: 0,
+    updatedAt: now,
+  );
+
+  WebNovelDownloadService serviceFor() => WebNovelDownloadService(
+    books: books,
+    source: source,
+    processing: processing,
+    ingest: ChapterIngest(
+      processing: processing,
+      chapterId: () => 'chapter-${++nextId}',
+      blockId: () => 'block-${++nextId}',
+    ),
+    fetcher: fetcher,
+    recipes: SiteRecipeRegistry(const [exampleRecipe]),
+    clock: () => now,
+    runId: () => 'run-1',
+  );
+
+  setUp(() {
+    nextId = 0;
+    books = FakeBookRepository(webBook());
+    source = FakeWebSourceRepository([entry(1), entry(2), entry(3)]);
+    processing = FakeProcessingRepository();
+    fetcher = FakeWebFetcher({
+      for (var ordinal = 1; ordinal <= 3; ordinal++)
+        chapterUrl(ordinal): chapterPage(ordinal),
+    });
+  });
+
+  test('activates the run at the first stored chapter, not at the end', () async {
+    await serviceFor().download(bookId);
+
+    expect(processing.createdRuns, [(bookId, 'run-1')]);
+    expect(processing.partialActivations, ['run-1']);
+    expect(processing.chaptersAtFirstActivation, 1);
+  });
+
+  test('stages each chapter with its narration blocks in the same step', () async {
+    final blocksWhenStored = <int>[];
+    processing.onStage = () => blocksWhenStored.add(processing.blocks.length);
+
+    await serviceFor().download(bookId);
+
+    expect(blocksWhenStored, [1, 2, 3]);
+    expect(processing.blocks.map((block) => block.chapterId), [
+      'chapter-1',
+      'chapter-3',
+      'chapter-5',
+    ]);
+    expect(processing.chapters.map((chapter) => chapter.id), [
+      'chapter-1',
+      'chapter-3',
+      'chapter-5',
+    ]);
+  });
+
+  test('reports stored-over-total progress at the downloading stage', () async {
+    await serviceFor().download(bookId);
+
+    expect(processing.progressUpdates, [
+      (ProcessingStage.downloading, 1 / 3),
+      (ProcessingStage.downloading, 2 / 3),
+      (ProcessingStage.downloading, 1.0),
+    ]);
+  });
+
+  test('refreshes the run counts as each chapter lands', () async {
+    await serviceFor().download(bookId);
+
+    expect(processing.runCountUpdates, [
+      ('run-1', 1, 1, 1 / 3),
+      ('run-1', 2, 2, 2 / 3),
+      ('run-1', 3, 3, 1.0),
+    ]);
+  });
+
+  test('completes the run only after every indexed chapter is stored', () async {
+    await serviceFor().download(bookId);
+
+    expect(processing.activationsAtEachStage, [0, 0, 0]);
+    expect(processing.activations, [('run-1', 3, 3, 3)]);
+  });
+
+  test('reports completed when the whole index is stored', () async {
+    expect(await serviceFor().download(bookId), WebDownloadOutcome.completed);
+    expect(
+      source.entries.map((entry) => entry.state),
+      everyElement(WebChapterState.stored),
+    );
+  });
+
+  test('persists chapters in index order regardless of ingest timing', () async {
+    fetcher = FakeWebFetcher(
+      fetcher.pages,
+      delays: {
+        chapterUrl(1): const Duration(milliseconds: 30),
+        chapterUrl(2): const Duration(milliseconds: 15),
+      },
+    );
+
+    await serviceFor().download(bookId);
+
+    expect(processing.chapters.map((chapter) => chapter.sortOrder), [1, 2, 3]);
+    expect(fetcher.requests.map((url) => url.toString()), [
+      chapterUrl(1),
+      chapterUrl(2),
+      chapterUrl(3),
+    ]);
+  });
+
+  test('stores each chapter ordinal in its page bounds', () async {
+    await serviceFor().download(bookId);
+
+    expect(
+      processing.chapters.map(
+        (chapter) => (chapter.startPage, chapter.endPage),
+      ),
+      [(1, 1), (2, 2), (3, 3)],
+    );
+    expect(processing.blocks.map((block) => block.startPage), [1, 2, 3]);
+  });
+
+  test('titles each chapter from the persisted index entry', () async {
+    await serviceFor().download(bookId);
+
+    expect(processing.chapters.map((chapter) => chapter.title), [
+      'Capítulo 1 do índice',
+      'Capítulo 2 do índice',
+      'Capítulo 3 do índice',
+    ]);
+  });
+}
