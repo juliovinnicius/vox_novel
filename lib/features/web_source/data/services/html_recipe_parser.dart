@@ -28,7 +28,10 @@ sealed class ChapterIndexParseResult {
 }
 
 final class ChapterIndexParsed extends ChapterIndexParseResult {
-  const ChapterIndexParsed(this.chapters);
+  const ChapterIndexParsed({required this.title, required this.chapters});
+
+  /// The series title the page carries, per the recipe's title selector.
+  final String title;
 
   /// Deduplicated and ordered oldest-first, with `sortOrder` starting at 1.
   final List<WebChapterRef> chapters;
@@ -126,14 +129,27 @@ final class HtmlRecipeParser {
         ? entries.reversed.toList()
         : entries;
 
-    return ChapterIndexParsed([
-      for (var position = 0; position < ordered.length; position++)
-        WebChapterRef(
-          url: ordered[position].key,
-          title: ordered[position].value,
-          sortOrder: position + 1,
-        ),
-    ]);
+    return ChapterIndexParsed(
+      title: _title(document, recipe),
+      chapters: [
+        for (var position = 0; position < ordered.length; position++)
+          WebChapterRef(
+            url: ordered[position].key,
+            title: ordered[position].value,
+            sortOrder: position + 1,
+          ),
+      ],
+    );
+  }
+
+  /// The href of the series a chapter page links back to through the recipe's
+  /// breadcrumb, or `null` when the page carries no such link.
+  String? parseSeriesLink(String html, SiteRecipe recipe) {
+    final anchor = html_parser
+        .parse(html)
+        .querySelector(recipe.seriesLinkSelector);
+    final href = anchor?.attributes['href']?.trim();
+    return href == null || href.isEmpty ? null : href;
   }
 
   static bool _disallowed(Element anchor, SiteRecipe recipe, Uri base) {
