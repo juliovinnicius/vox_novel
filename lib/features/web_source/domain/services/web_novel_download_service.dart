@@ -3,6 +3,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
+import 'package:vox_novel/features/pdf_processing/domain/services/text_cleaner.dart';
 import 'package:vox_novel/features/web_source/data/services/html_recipe_parser.dart';
 import 'package:vox_novel/features/web_source/domain/repositories/web_source_repository.dart';
 import 'package:vox_novel/features/web_source/domain/services/site_recipe_registry.dart';
@@ -31,6 +32,7 @@ final class WebNovelDownloadService {
     required WebDownloadClock clock,
     required WebDownloadRunId runId,
     HtmlRecipeParser parser = const HtmlRecipeParser(),
+    TextCleaner cleaner = const TextCleaner(),
   }) : // Public dependency names intentionally omit private implementation
        // prefixes while preserving named constructor injection.
        // ignore: prefer_initializing_formals
@@ -50,7 +52,9 @@ final class WebNovelDownloadService {
        // ignore: prefer_initializing_formals
        _runId = runId,
        // ignore: prefer_initializing_formals
-       _parser = parser;
+       _parser = parser,
+       // ignore: prefer_initializing_formals
+       _cleaner = cleaner;
 
   final BookRepository _books;
   final WebSourceRepository _source;
@@ -61,6 +65,16 @@ final class WebNovelDownloadService {
   final WebDownloadClock _clock;
   final WebDownloadRunId _runId;
   final HtmlRecipeParser _parser;
+  final TextCleaner _cleaner;
+
+  /// A web page has no repeated headers or footers to profile, so the shared
+  /// cleaner runs with an empty profile: it still strips control characters,
+  /// bare page numbers, and stray URLs, while the PDF-tuned edge heuristics
+  /// stay inert and cannot discard a legitimate short line.
+  static const HeaderFooterProfile _neutralProfile = HeaderFooterProfile(
+    headers: <String>{},
+    footers: <String>{},
+  );
 
   /// Shown when a site's pages no longer match its recipe, so nothing in the
   /// book could be extracted.
@@ -173,7 +187,12 @@ final class WebNovelDownloadService {
             // position resume working without a schema change.
             startPage: entry.sortOrder,
             endPage: entry.sortOrder,
-            cleanText: chapter.text,
+            cleanText: _cleaner
+                .clean(
+                  RawPage(pageNumber: entry.sortOrder, text: chapter.text),
+                  _neutralProfile,
+                )
+                .text,
           ),
         ],
         createdAt: _clock(),

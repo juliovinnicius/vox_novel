@@ -471,6 +471,78 @@ void main() {
     ]);
   });
 
+  group('cleaning', () {
+    /// A chapter page whose body is built from explicit paragraphs, so a test
+    /// controls exactly which lines reach the cleaner.
+    String pageOf(List<String> paragraphs) =>
+        '<html><body><h1 class="entry-title">Página do capítulo</h1>'
+        '<div class="epcontent entry-content">'
+        '${paragraphs.map((paragraph) => '<p>$paragraph</p>').join()}'
+        '</div></body></html>';
+
+    /// Long enough to clear the recipe's 200-character minimum on its own.
+    String body(int ordinal) => 'Texto sintético do capítulo $ordinal. ' * 10;
+
+    void serveSingleChapter(List<String> paragraphs) {
+      source = FakeWebSourceRepository([entry(1)]);
+      fetcher = FakeWebFetcher({chapterUrl(1): pageOf(paragraphs)});
+    }
+
+    String storedText() => processing.chapters.single.cleanText;
+
+    test('strips a stray url line out of the chapter text', () async {
+      serveSingleChapter([body(1), 'https://exemplo.com/anuncio', body(1)]);
+
+      await serviceFor().download(bookId);
+
+      expect(storedText(), isNot(contains('https://exemplo.com/anuncio')));
+      expect(storedText(), contains('Texto sintético do capítulo 1.'));
+    });
+
+    test('strips a bare page-number line out of the chapter text', () async {
+      serveSingleChapter([body(1), '247', body(1)]);
+
+      await serviceFor().download(bookId);
+
+      expect(storedText().split('\n'), isNot(contains('247')));
+    });
+
+    test('strips control characters out of the chapter text', () async {
+      serveSingleChapter(['Texto\u007Flimpo do capítulo.', body(1)]);
+
+      await serviceFor().download(bookId);
+
+      expect(storedText(), contains('Textolimpo do capítulo.'));
+      expect(storedText(), isNot(contains('\u007F')));
+    });
+
+    test('keeps a short standalone line in the chapter text', () async {
+      serveSingleChapter([body(1), '— Sim.', body(1)]);
+
+      await serviceFor().download(bookId);
+
+      expect(storedText().split('\n'), contains('— Sim.'));
+    });
+
+    test('keeps a line repeated across every chapter of the book', () async {
+      const repeated = 'Traduzido pela equipe do site.';
+      source = FakeWebSourceRepository([entry(1), entry(2), entry(3)]);
+      fetcher = FakeWebFetcher({
+        for (var ordinal = 1; ordinal <= 3; ordinal++)
+          chapterUrl(ordinal): pageOf([repeated, body(ordinal)]),
+      });
+
+      await serviceFor().download(bookId);
+
+      expect(
+        processing.chapters.map(
+          (chapter) => chapter.cleanText.split('\n').first,
+        ),
+        [repeated, repeated, repeated],
+      );
+    });
+  });
+
   group('chapter failures', () {
     late FakeClock clock;
     late FakeTransport transport;
