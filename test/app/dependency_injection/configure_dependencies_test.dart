@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -30,8 +31,21 @@ import 'package:vox_novel/features/visual_reader/data/repositories/drift_visual_
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
 import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
+import 'package:vox_novel/features/web_source/data/services/polite_web_fetcher.dart';
+import 'package:vox_novel/features/web_source/domain/repositories/web_source_repository.dart';
+import 'package:vox_novel/features/web_source/domain/services/import_web_book_service.dart';
+import 'package:vox_novel/features/web_source/domain/services/site_recipe_registry.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_fetcher.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_novel_download_service.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_novel_index_resolver.dart';
+import 'package:vox_novel/features/web_source/presentation/cubit/import_web_book_cubit.dart';
+import 'package:vox_novel/features/web_source/presentation/cubit/import_web_book_state.dart';
+import 'package:vox_novel/features/web_source/presentation/widgets/import_web_book_dialog.dart';
 
 void main() {
+  // The composition root loads the site-recipe asset through rootBundle.
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late GetIt locator;
 
   setUp(() {
@@ -68,6 +82,14 @@ void main() {
     expect(locator.isRegistered<NarrationRepository>(), isTrue);
     expect(locator.isRegistered<NarrationEngine>(), isTrue);
     expect(locator.isRegistered<NarrationCubitRegistry>(), isTrue);
+    expect(locator.isRegistered<SiteRecipeRegistry>(), isTrue);
+    expect(locator.isRegistered<WebFetcher>(), isTrue);
+    expect(locator.isRegistered<WebSourceRepository>(), isTrue);
+    expect(locator.isRegistered<WebNovelIndexResolver>(), isTrue);
+    expect(locator.isRegistered<WebNovelDownloadService>(), isTrue);
+    expect(locator.isRegistered<ImportWebBookService>(), isTrue);
+    expect(locator.isRegistered<ImportWebBookCubit>(), isTrue);
+    expect(locator<WebFetcher>(), isA<PoliteWebFetcher>());
     expect(
       locator<VisualReaderRepository>(),
       isA<DriftVisualReaderRepository>(),
@@ -479,6 +501,104 @@ void main() {
       await reopened.close();
     },
   );
+
+  test('the shipped recipe is loaded from the bundled asset', () async {
+    await configureDependencies(
+      instance: locator,
+      databaseExecutor: NativeDatabase.memory(),
+      pdfTextExtractor: _Extractor(),
+    );
+
+    final recipes = await locator.getAsync<SiteRecipeRegistry>();
+    expect(recipes.forHost('centralnovel.com')?.domain, 'centralnovel.com');
+    expect(recipes.forHost('exemplo.com'), isNull);
+  });
+
+  test('the composed web import rejects an unsupported domain without a '
+      'network call', () async {
+    final fetcher = _RecordingFetcher();
+    await configureDependencies(
+      instance: locator,
+      databaseExecutor: NativeDatabase.memory(),
+      pdfTextExtractor: _Extractor(),
+      webFetcher: fetcher,
+    );
+
+    await locator.getAsync<SiteRecipeRegistry>();
+    final result = await locator<ImportWebBookService>().import(
+      'https://outrosite.com/series/obra/',
+    );
+
+    expect(
+      (result as WebBookImportRejected).reason,
+      ImportWebBookRejection.unsupportedDomain,
+    );
+    expect(fetcher.requests, isEmpty);
+    expect(
+      await locator<BookRepository>().findBySourceRef(
+        'https://outrosite.com/series/obra/',
+      ),
+      isNull,
+    );
+  });
+
+  test('the composed import cubit reports the rejection it resolved', () async {
+    await configureDependencies(
+      instance: locator,
+      databaseExecutor: NativeDatabase.memory(),
+      pdfTextExtractor: _Extractor(),
+      webFetcher: _RecordingFetcher(),
+    );
+
+    await locator<ImportWebBookCubit>().submit('nem sequer uma url');
+
+    expect(
+      locator<ImportWebBookCubit>().state,
+      const ImportWebBookState(errorMessage: 'Informe uma URL válida'),
+    );
+  });
+
+  testWidgets('the library route offers the web import affordance', (
+    tester,
+  ) async {
+    await configureDependencies(
+      instance: locator,
+      databaseExecutor: NativeDatabase.memory(),
+      // A widget test's fake clock never completes real file I/O, so the
+      // support directory is supplied instead of created.
+      supportDirectory: Directory.systemTemp,
+      pdfTextExtractor: _Extractor(),
+      webFetcher: _RecordingFetcher(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp.router(routerConfig: locator<GoRouter>()),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Importar da web'), findsOneWidget);
+    await tester.tap(find.text('Importar da web'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(ImportWebBookDialog), findsOneWidget);
+  });
+}
+
+/// A fetcher that records every URL it was asked for and never touches the
+/// network, so "rejected before any request" is observable in the composed
+/// container.
+final class _RecordingFetcher implements WebFetcher {
+  final List<Uri> requests = [];
+
+  @override
+  Future<WebFetchResult> fetch(Uri url) async {
+    requests.add(url);
+    return const WebFetchFailed(
+      WebFetchFailureKind.network,
+      'Sem conexão com a internet',
+    );
+  }
 }
 
 Future<void> _seedBook(BookRepository repository) => repository.insert(

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:vox_novel/app/app_cubit.dart';
 import 'package:vox_novel/app/router/app_router.dart';
 import 'package:vox_novel/core/database/app_database.dart';
+import 'package:vox_novel/features/content_ingestion/domain/services/chapter_ingest.dart';
 import 'package:vox_novel/features/import_book/data/services/file_picker_pdf_picker.dart';
 import 'package:vox_novel/features/import_book/data/services/local_book_file_storage.dart';
 import 'package:vox_novel/features/import_book/domain/services/book_file_storage.dart';
@@ -37,6 +40,15 @@ import 'package:vox_novel/features/visual_reader/domain/repositories/visual_read
 import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
 import 'package:vox_novel/features/visual_reader/presentation/pages/reader_page.dart';
 import 'package:vox_novel/features/visual_reader/presentation/widgets/original_pdf_view.dart';
+import 'package:vox_novel/features/web_source/data/repositories/drift_web_source_repository.dart';
+import 'package:vox_novel/features/web_source/data/services/polite_web_fetcher.dart';
+import 'package:vox_novel/features/web_source/domain/repositories/web_source_repository.dart';
+import 'package:vox_novel/features/web_source/domain/services/import_web_book_service.dart';
+import 'package:vox_novel/features/web_source/domain/services/site_recipe_registry.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_fetcher.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_novel_download_service.dart';
+import 'package:vox_novel/features/web_source/domain/services/web_novel_index_resolver.dart';
+import 'package:vox_novel/features/web_source/presentation/cubit/import_web_book_cubit.dart';
 
 typedef VisualReaderCubitFactory =
     VisualReaderCubit Function(
@@ -157,6 +169,8 @@ Future<void> configureDependencies({
   NarrationRepository? narrationRepository,
   NarrationEngine? narrationEngine,
   NarrationCubitFactory? narrationCubitFactory,
+  SiteRecipeRegistry? siteRecipeRegistry,
+  WebFetcher? webFetcher,
   PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
 }) async {
   final locator = instance ?? GetIt.instance;
@@ -326,6 +340,79 @@ Future<void> configureDependencies({
     );
   }
 
+  if (!locator.isRegistered<SiteRecipeRegistry>()) {
+    if (siteRecipeRegistry != null) {
+      locator.registerSingleton<SiteRecipeRegistry>(siteRecipeRegistry);
+    } else {
+      // Composing the container must not block on I/O: the asset read starts
+      // here and is awaited by the first web import instead. Awaiting it here
+      // deadlocks every widget test, whose fake clock never completes it.
+      locator.registerSingletonAsync<SiteRecipeRegistry>(
+        () => SiteRecipeRegistry.load(rootBundle),
+      );
+    }
+  }
+  if (!locator.isRegistered<WebFetcher>()) {
+    locator.registerSingleton<WebFetcher>(webFetcher ?? PoliteWebFetcher());
+  }
+  if (!locator.isRegistered<WebSourceRepository>()) {
+    locator.registerSingleton<WebSourceRepository>(
+      DriftWebSourceRepository(locator<AppDatabase>(), clock: now),
+    );
+  }
+  if (!locator.isRegistered<ChapterIngest>()) {
+    locator.registerSingleton(
+      ChapterIngest(processing: locator(), chapterId: nextId, blockId: nextId),
+    );
+  }
+  // Everything below reads the recipes at construction, so it stays lazy until
+  // the first import, by when the asset has been awaited.
+  if (!locator.isRegistered<WebNovelIndexResolver>()) {
+    locator.registerLazySingleton(
+      () => WebNovelIndexResolver(fetcher: locator(), recipes: locator()),
+    );
+  }
+  if (!locator.isRegistered<WebNovelDownloadService>()) {
+    locator.registerLazySingleton(
+      () => WebNovelDownloadService(
+        books: locator(),
+        source: locator(),
+        processing: locator(),
+        ingest: locator(),
+        fetcher: locator(),
+        recipes: locator(),
+        clock: now,
+        runId: nextId,
+      ),
+    );
+  }
+  if (!locator.isRegistered<ImportWebBookService>()) {
+    locator.registerLazySingleton(
+      () => ImportWebBookService(
+        books: locator(),
+        source: locator(),
+        resolver: locator(),
+        // The import returns as soon as the index is persisted; the queue
+        // drains in the background so the book is readable meanwhile.
+        startDownload: (bookId) =>
+            locator<WebNovelDownloadService>().download(bookId).ignore(),
+        generateId: nextId,
+        clock: now,
+      ),
+    );
+  }
+  if (!locator.isRegistered<ImportWebBookCubit>()) {
+    locator.registerSingleton(
+      ImportWebBookCubit(
+        importBook: (url) async {
+          await locator.getAsync<SiteRecipeRegistry>();
+          return locator<ImportWebBookService>().import(url);
+        },
+      ),
+      dispose: (cubit) => cubit.close(),
+    );
+  }
+
   if (!locator.isRegistered<GoRouter>()) {
     locator.registerSingleton<GoRouter>(
       createAppRouter(
@@ -333,6 +420,7 @@ Future<void> configureDependencies({
           libraryCubit: locator(),
           importBookCubit: locator(),
           textProcessingCubit: locator(),
+          importWebBookCubit: locator(),
         ),
         readerPageBuilder: (_, bookId) {
           final registry = locator<ReaderCubitRegistry>();
