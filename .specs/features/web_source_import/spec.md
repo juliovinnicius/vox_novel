@@ -143,8 +143,10 @@ cleaning, chapter, and narration-block stages.
 
 **Acceptance Criteria**:
 
-1. WHEN the processing service runs THEN it SHALL depend on a source-agnostic
-   content-source abstraction and SHALL NOT reference PDF-specific types.
+1. WHEN a content source produces clean chapter text THEN it SHALL reach
+   persistence through one shared ingest core that references no source-specific
+   types, and adding a source SHALL NOT fork that core.
+   *(Amended 2026-08-19 — see the Amendments section below.)*
 2. WHEN a book's source is a PDF THEN processing SHALL produce the same chapters
    and narration blocks it produced before this feature, for the same input file.
 3. WHEN a source supplies its own chapter index THEN the system SHALL use that
@@ -277,6 +279,38 @@ change.
   process them without interleaving requests beyond the per-domain rate limit.
 - WHEN a redirect chain leads outside the recipe's domain THEN the system SHALL
   abandon that request rather than fetching an unconfigured host.
+
+---
+
+
+## Amendments
+
+### 2026-08-19 — WEB-06 AC1 re-anchored on AD-009
+
+**Original wording**: "WHEN the processing service runs THEN it SHALL depend on a
+source-agnostic content-source abstraction and SHALL NOT reference PDF-specific
+types."
+
+**Why amended**: This AC was written before AD-009. AD-009 chose a different
+boundary for the same goal — paged sources stay batch-processed, chaptered
+sources are ingested incrementally, and both route through one shared
+`ChapterIngest` that owns clean-text-to-blocks persistence. Its recorded
+trade-off is explicit: "Two orchestrators exist over one ingest core." Under that
+decision the paged orchestrator legitimately keeps `PdfTextExtractor`, so the
+original wording and the active architectural decision cannot both hold.
+
+**What was kept**: the user story's actual goal — "adding a source does not fork
+the pipeline" — which the shared ingest core delivers and which
+`test/features/content_ingestion/domain/services/chapter_ingest_test.dart` and
+`test/architecture/web_source_architecture_test.dart` cover.
+
+**What was given up**: a single generic `ContentSource` seam at the top of
+`TextProcessingService`. Building it would mean refactoring the settled PDF path
+and revoking AD-009; the user chose the amendment on 2026-08-19 after the
+Verifier surfaced the conflict.
+
+**Status**: AD-009 remains active and governs. No `ContentSource` abstraction is
+planned.
 
 ---
 
