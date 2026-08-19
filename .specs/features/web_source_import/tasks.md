@@ -775,6 +775,150 @@ state, not an error.
 
 ---
 
+### F1: Resume pending web downloads when the app starts
+
+**What**: Re-enqueue every web book left `processing` with unstored chapters, so an interrupted download continues after a restart.
+**Where**: `lib/app/dependency_injection/configure_dependencies.dart`, `lib/features/web_source/domain/services/web_novel_download_service.dart`
+**Depends on**: T23
+**Reuses**: `WebNovelDownloadService.download` (already resumes from the first unstored chapter), `BookRepository`
+**Requirement**: WEB-11
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: Verifier gap 1 (blocker). `download` had exactly one call site — the
+import flow — so the tested resume logic was never triggered on restart. The
+feature's own integration test supplied the trigger itself.
+
+**Done when**:
+- [ ] Starting the app re-enqueues each web book with status `processing` and at least one unstored chapter
+- [ ] A web book with every chapter stored is not re-enqueued
+- [ ] A PDF book is never handed to the web download service
+- [ ] Resume issues no request for a chapter already stored
+- [ ] Startup does not await the download — composition returns before the queue drains (awaiting real I/O during composition deadlocks `testWidgets`)
+- [ ] Gate check passes: `flutter test`
+- [ ] Test count: >=5 new tests pass (no silent deletions)
+
+**Tests**: unit, integration
+**Gate**: full
+**Commit**: `fix(web-source): resume pending downloads on startup`
+
+---
+
+### F2: Hold the per-host rate limit under concurrent drains
+
+**What**: Reserve a host's next slot synchronously, before awaiting, so two concurrent downloads cannot read the same stale timestamp and fire together.
+**Where**: `lib/features/web_source/data/services/polite_web_fetcher.dart`
+**Depends on**: None
+**Reuses**: Existing `_throttle` and injected clock/delay seams
+**Requirement**: WEB-09
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: Verifier gap 2. `_throttle` read `_lastRequestAt`, awaited, then
+wrote — so concurrent callers to one host both fired immediately. Reproduced as
+request gaps of `[1s, 0s]`. The fetcher is a DI singleton, so two web books
+draining at once race. Spec edge case E8 had no test.
+
+**Done when**:
+- [ ] Two concurrent fetches to one host are spaced by at least `minimumHostInterval`
+- [ ] Two concurrent fetches to different hosts are not serialized against each other
+- [ ] Sequential fetches keep their existing spacing — the current throttle tests pass unchanged
+- [ ] `Retry-After` handling still wins over the base interval
+- [ ] Tests drive concurrency with the injected clock/delay, never real sleeps
+- [ ] Gate check passes: `flutter test test/features/web_source`
+- [ ] Test count: >=4 new tests pass (no silent deletions)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `fix(web-source): hold the host rate limit under concurrency`
+
+---
+
+### F3: Make the library cancel action stop a web download
+
+**What**: Route the existing cancel affordance to `WebNovelDownloadService.cancel` when the book's source is web.
+**Where**: `lib/features/library/presentation/pages/library_page.dart`, `lib/app/dependency_injection/configure_dependencies.dart`
+**Depends on**: F1
+**Reuses**: `WebNovelDownloadService.cancel`, existing cancel wiring for PDF
+**Requirement**: WEB-11
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: Verifier gap 3. A downloading web book is `processing`, so the
+library renders "Cancelar processamento", which routed to
+`TextProcessingService.cancel` — it finds no run for a web book and returns, so
+the button was visible and inert.
+
+**Done when**:
+- [ ] Cancelling a web book calls the web download service and stops the queue
+- [ ] Cancelling a PDF book still routes to `TextProcessingCubit.cancel`
+- [ ] Chapters already stored survive the cancel
+- [ ] Gate check passes: `flutter test test/features/library && flutter test test/app`
+- [ ] Test count: >=4 new tests pass (no silent deletions)
+
+**Tests**: widget, unit
+**Gate**: full
+**Commit**: `fix(library): cancel web downloads from the library`
+
+---
+
+### F4: Persist the downloading stage for a web book
+
+**What**: Let a web run actually reach `ProcessingStage.downloading`, and make the download tests able to catch it if it does not.
+**Where**: `lib/features/pdf_processing/data/repositories/drift_text_processing_repository.dart`, `lib/features/pdf_processing/domain/repositories/text_processing_repository.dart`
+**Depends on**: None
+**Reuses**: Existing `createRun` / `updateProgress` monotonic-stage rule
+**Requirement**: WEB-04
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: Found by the Phase 5 worker, confirmed by the orchestrator, missed by
+the Verifier. `createRun` hardcodes `ProcessingStage.extracting` (index 1) and
+`updateProgress` drops any stage whose index is lower, while `downloading` is
+index 0 — so every `updateProgress(stage: downloading)` is silently discarded and
+a web book's persisted stage stays `extracting` for the whole download. The
+download service's fake repository has no stage guard, so no unit test saw it.
+
+**Done when**:
+- [ ] A web book's persisted `processingStage` is `downloading` while its queue drains
+- [ ] The PDF path still starts at `extracting` and its stage sequence is unchanged
+- [ ] The monotonic-stage rule still rejects a genuine backwards transition
+- [ ] The download service's fake processing repository enforces the same stage rule the Drift repository does, so this class of defect fails a unit test
+- [ ] Gate check passes: `flutter test`
+- [ ] Test count: >=4 new tests pass (no silent deletions)
+
+**Tests**: unit, integration
+**Gate**: full
+**Commit**: `fix(processing): persist the downloading stage`
+
+---
+
+### F5: Assert heuristic chapter detection never runs on a web source
+
+**What**: Make WEB-08 AC3 directly observable instead of inferring it from matching counts.
+**Where**: `test/features/web_source/domain/services/web_novel_download_service_test.dart`
+**Depends on**: None
+**Reuses**: Existing download-service test harness
+**Requirement**: WEB-08
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: Verifier gap 5. Coverage was indirect — chapter counts matching index
+entries 1:1 — with no assertion that `ChapterDetector` is never invoked.
+
+**Done when**:
+- [ ] A test asserts `ChapterDetector` is not invoked for a web chapter ingest
+- [ ] The assertion fails if the web path is changed to run detection
+- [ ] Index segmentation is still asserted 1:1 against the stored entries
+- [ ] Gate check passes: `flutter test test/features/web_source`
+- [ ] Test count: >=2 new tests pass (no silent deletions)
+
+**Tests**: unit
+**Gate**: quick
+**Commit**: `test(web-source): assert index segmentation skips detection`
+
+---
+
 ## Phase Execution Map
 
 ```
@@ -805,7 +949,8 @@ specified and stays unstarted until the MVP has been used.
 | 2 | Phase 3 | T8–T11 | 4 | Complete |
 | 3 | Phase 4 | T12–T16 | 5 | Complete |
 | 4b | Phase 4b | T27 | 1 | Complete |
-| 4 | Phase 5 + Phase 6 | T17–T20, T28, T21–T24 | 9 | Pending |
+| 4 | Phase 5 + Phase 6 | T17–T20, T28, T21–T24 | 9 | Complete |
+| 5 | Verifier fixes | F1–F5 | 5 | Pending |
 | — | Phase 7 | T25–T26 | 2 | Deferred (P2, out of this round) |
 
 The Verifier runs automatically after T24 — the last task of the P1 group being
