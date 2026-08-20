@@ -110,6 +110,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: Edge case: dispose with no current block (lifecycle)
 - last seen: 2026-07-19T15:06:23Z
 
+### L-017 — Enforce module boundaries by scanning import paths, not type-name patterns, since a name pattern misses any collaborator whose name does not fit it
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `architecture` · harmful: 0
+- features: web_source_import
+- evidence: test/architecture/web_source_architecture_test.dart:65 (Mutation 4) (architecture)
+- last seen: 2026-08-20T22:31:07Z
+
 ## Quarantined (failed when applied — ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

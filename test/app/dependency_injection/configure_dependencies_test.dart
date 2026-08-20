@@ -718,9 +718,6 @@ Future<void> _seedPartiallyDownloadedWebBook(AppDatabase database) async {
   await source.markStored(_webBookId, 1, DateTime.utc(2026));
 }
 
-/// Serves synthetic chapter pages and records every URL it was asked for, so
-/// a resume started by the container is observable without touching the
-/// network.
 /// The shipped recipe for the seeded host, supplied directly so the container
 /// needs no asset read.
 const SiteRecipe _centralNovelRecipe = SiteRecipe(
@@ -761,6 +758,9 @@ final class _GatedChapterFetcher implements WebFetcher {
   }
 }
 
+/// Serves synthetic chapter pages and records every URL it was asked for, so
+/// a resume started by the container is observable without touching the
+/// network.
 final class _ChapterFetcher implements WebFetcher {
   final List<Uri> requests = [];
   final Completer<void> lastRequested = Completer<void>();

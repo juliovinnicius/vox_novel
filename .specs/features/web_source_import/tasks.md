@@ -919,6 +919,38 @@ entries 1:1 — with no assertion that `ChapterDetector` is never invoked.
 
 ---
 
+### V1: Make the composed cancel route observable
+
+**What**: Replace the container assertion that only checked the cancel callback was non-null with one that drives a real drain and asserts it stops.
+**Where**: `test/app/dependency_injection/configure_dependencies_test.dart`
+**Requirement**: WEB-11
+
+**Origin**: Verifier iteration 2, surviving mutant. Replacing the DI wiring with
+an inert `(bookId) async {}` left all 612 tests green.
+
+**Done when**:
+- [x] An inert cancel seam fails the suite
+- [x] Cancelling with a mangled book id also fails it, so the test asserts identity rather than reachability
+
+---
+
+### V2: Guard the ingest core by imports, not type names
+
+**What**: Scan every file in `content_ingestion` against an allowlist of imports.
+**Where**: `test/architecture/web_source_architecture_test.dart`
+**Requirement**: WEB-06
+
+**Origin**: Verifier iteration 3, residual 1 (lesson L-017). The first version
+matched type-name patterns, so an `HtmlRecipeParser` import into the ingest core
+survived the whole suite.
+
+**Done when**:
+- [x] A web-source import into the ingest core fails the suite
+- [x] A doc comment naming a PDF type does not fail it
+- [x] The scan covers every file in `content_ingestion`, not one path
+
+---
+
 ## Phase Execution Map
 
 ```
@@ -951,6 +983,7 @@ specified and stays unstarted until the MVP has been used.
 | 4b | Phase 4b | T27 | 1 | Complete |
 | 4 | Phase 5 + Phase 6 | T17–T20, T28, T21–T24 | 9 | Complete |
 | 5 | Verifier fixes | F1–F5 | 5 | Complete |
+| 6 | Verification hardening | V1–V2 | 2 | Complete |
 | — | Phase 7 | T25–T26 | 2 | Deferred (P2, out of this round) |
 
 The Verifier runs automatically after T24 — the last task of the P1 group being

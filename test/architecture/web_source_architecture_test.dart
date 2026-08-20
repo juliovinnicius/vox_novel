@@ -52,20 +52,42 @@ void main() {
     );
   });
 
-  test('the shared ingest core names no source-specific type (WEB-06)', () {
-    final source = File(
-      'lib/features/content_ingestion/domain/services/chapter_ingest.dart',
-    ).readAsStringSync();
+  test('the shared ingest core imports no source-specific library '
+      '(WEB-06)', () {
+    // Every collaborator the ingest core is allowed to know. All are
+    // source-agnostic despite living under features/pdf_processing/ for
+    // historical reasons: chapter and block drafts, the staging repository,
+    // the id-generator typedef, and the block splitter.
+    const allowed = {
+      'dart:async',
+      'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart',
+      'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart',
+      'package:vox_novel/features/pdf_processing/domain/services/chapter_detector.dart',
+      'package:vox_novel/features/pdf_processing/domain/services/narration_block_splitter.dart',
+    };
 
-    // The ingest core is what both sources share, so a source-specific type
-    // reaching it is the fork WEB-06 forbids. Its collaborators live under
-    // features/pdf_processing/ for historical reasons but are source-agnostic;
-    // what must never appear is a PDF or web type.
-    final sourceSpecific = RegExp(
-      r'\b(Pdf[A-Z]\w*|\w*Pdf\b|Web[A-Z]\w*|SiteRecipe\w*)',
-    ).allMatches(source).map((match) => match.group(0)!).toSet();
+    // Scanning imports rather than type names: a name pattern only catches the
+    // collaborators someone thought to name, and misses any whose identifier
+    // does not fit the pattern.
+    final unexpected = <String>{};
+    for (final file in dartSourcesIn('lib/features/content_ingestion')) {
+      for (final match in RegExp(
+        r"""^import\s+'([^']+)'""",
+        multiLine: true,
+      ).allMatches(file.readAsStringSync())) {
+        final uri = match.group(1)!;
+        if (!allowed.contains(uri)) unexpected.add('${file.path}: $uri');
+      }
+    }
 
-    expect(sourceSpecific, isEmpty);
+    expect(
+      unexpected,
+      isEmpty,
+      reason:
+          'AD-009 keeps one ingest core over two orchestrators. An import a '
+          'single source owns forks that core; widen the allowlist only for a '
+          'collaborator both sources genuinely share.',
+    );
   });
 
   test('the web download service stays out of the global processing tail '

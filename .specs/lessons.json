@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 17,
+  "next_id": 18,
   "lessons": [
     {
       "id": "L-001",
@@ -292,6 +292,24 @@
       ],
       "created": "2026-07-19T15:06:23Z",
       "last_seen": "2026-07-19T15:06:23Z"
+    },
+    {
+      "id": "L-017",
+      "key": "surviving_mutant::enforce module boundaries by scanning import paths not type name patterns since a name pattern misses any collaborator whose name does not fit it",
+      "text": "Enforce module boundaries by scanning import paths, not type-name patterns, since a name pattern misses any collaborator whose name does not fit it",
+      "signal": "surviving_mutant",
+      "scope": "architecture",
+      "status": "candidate",
+      "features": [
+        "web_source_import"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "test/architecture/web_source_architecture_test.dart:65 (Mutation 4) (architecture)"
+      ],
+      "created": "2026-08-20T22:31:07Z",
+      "last_seen": "2026-08-20T22:31:07Z"
     }
   ]
 }
