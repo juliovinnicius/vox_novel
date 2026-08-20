@@ -950,7 +950,7 @@ specified and stays unstarted until the MVP has been used.
 | 3 | Phase 4 | T12–T16 | 5 | Complete |
 | 4b | Phase 4b | T27 | 1 | Complete |
 | 4 | Phase 5 + Phase 6 | T17–T20, T28, T21–T24 | 9 | Complete |
-| 5 | Verifier fixes | F1–F5 | 5 | Pending |
+| 5 | Verifier fixes | F1–F5 | 5 | Complete |
 | — | Phase 7 | T25–T26 | 2 | Deferred (P2, out of this round) |
 
 The Verifier runs automatically after T24 — the last task of the P1 group being
