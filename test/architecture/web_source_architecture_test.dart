@@ -52,6 +52,22 @@ void main() {
     );
   });
 
+  test('the shared ingest core names no source-specific type (WEB-06)', () {
+    final source = File(
+      'lib/features/content_ingestion/domain/services/chapter_ingest.dart',
+    ).readAsStringSync();
+
+    // The ingest core is what both sources share, so a source-specific type
+    // reaching it is the fork WEB-06 forbids. Its collaborators live under
+    // features/pdf_processing/ for historical reasons but are source-agnostic;
+    // what must never appear is a PDF or web type.
+    final sourceSpecific = RegExp(
+      r'\b(Pdf[A-Z]\w*|\w*Pdf\b|Web[A-Z]\w*|SiteRecipe\w*)',
+    ).allMatches(source).map((match) => match.group(0)!).toSet();
+
+    expect(sourceSpecific, isEmpty);
+  });
+
   test('the web download service stays out of the global processing tail '
       '(AD-009)', () {
     // Prose may name the constraint; only executable references count.

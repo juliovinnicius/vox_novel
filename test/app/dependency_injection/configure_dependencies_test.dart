@@ -35,6 +35,7 @@ import 'package:vox_novel/features/visual_reader/domain/repositories/visual_read
 import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
 import 'package:vox_novel/features/web_source/data/repositories/drift_web_source_repository.dart';
 import 'package:vox_novel/features/web_source/data/services/polite_web_fetcher.dart';
+import 'package:vox_novel/features/web_source/domain/entities/site_recipe.dart';
 import 'package:vox_novel/features/web_source/domain/repositories/web_source_repository.dart';
 import 'package:vox_novel/features/web_source/domain/services/import_web_book_service.dart';
 import 'package:vox_novel/features/web_source/domain/services/site_recipe_registry.dart';
@@ -601,30 +602,49 @@ void main() {
     expect(book?.chapterCount, 2);
   });
 
-  testWidgets('the composed library page carries a web cancel route', (
+  testWidgets('the composed library page stops a running web download', (
     tester,
   ) async {
+    final database = AppDatabase(NativeDatabase.memory());
+    locator.registerSingleton<AppDatabase>(
+      database,
+      dispose: (database) => database.close(),
+    );
+    await _seedPartiallyDownloadedWebBook(database);
+    final fetcher = _GatedChapterFetcher();
+
     await configureDependencies(
       instance: locator,
-      databaseExecutor: NativeDatabase.memory(),
       supportDirectory: Directory.systemTemp,
       pdfTextExtractor: _Extractor(),
-      webFetcher: _RecordingFetcher(),
+      webFetcher: fetcher,
+      // Supplied so the container resolves without the asset read; awaiting
+      // real I/O inside a widget test never completes on its fake clock.
+      siteRecipeRegistry: SiteRecipeRegistry(const [_centralNovelRecipe]),
+      // The drain is started explicitly below, so the startup resume must not
+      // race it.
+      resumeWebDownloads: _noStartupResume,
     );
 
     await tester.pumpWidget(
       MaterialApp.router(routerConfig: locator<GoRouter>()),
     );
     await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
 
-    // The page-level tests prove this callback routes a web book away from the
-    // PDF path, and the service tests prove cancel stops the queue and keeps
-    // stored chapters. What the container owes is supplying the route at all.
     final page = tester.widget<LibraryPage>(find.byType(LibraryPage));
-    expect(page.cancelWebDownload, isNotNull);
-    // Not invoked here: resolving it pulls the asset-backed recipe registry,
-    // and awaiting real I/O inside a widget test hangs on the fake clock.
+    unawaited(locator<WebNovelDownloadService>().download(_webBookId));
+    await tester.pump();
+    expect(fetcher.requests.map((url) => url.toString()), [_webChapterUrl(2)]);
+
+    unawaited(page.cancelWebDownload!(_webBookId));
+    fetcher.release();
+    for (var frame = 0; frame < 5; frame++) {
+      await tester.pump();
+    }
+
+    // Chapter 3 was still queued. A cancel route that reaches the download
+    // service stops before it; an inert one lets the queue drain on.
+    expect(fetcher.requests.map((url) => url.toString()), [_webChapterUrl(2)]);
   });
 
   testWidgets('the library route offers the web import affordance', (
@@ -701,6 +721,46 @@ Future<void> _seedPartiallyDownloadedWebBook(AppDatabase database) async {
 /// Serves synthetic chapter pages and records every URL it was asked for, so
 /// a resume started by the container is observable without touching the
 /// network.
+/// The shipped recipe for the seeded host, supplied directly so the container
+/// needs no asset read.
+const SiteRecipe _centralNovelRecipe = SiteRecipe(
+  domain: 'centralnovel.com',
+  seriesPathPrefix: '/series/',
+  seriesLinkSelector: "a[itemprop=item][href*='/series/']",
+  chapterIndexSelector: 'div.eplister li > a',
+  chapterIndexTitleSelector: 'div.epl-title',
+  chapterIndexOrder: ChapterIndexOrder.descending,
+  chapterTitleSelector: 'h1.entry-title',
+  contentSelector: 'div.epcontent.entry-content',
+  paragraphSelector: 'p',
+  nextChapterSelector: 'a[rel=next]',
+  disallowedPathPatterns: ['/pdf/', '/search/', '/?s='],
+  minimumChapterCharacters: 200,
+);
+
+Future<void> _noStartupResume() async {}
+
+/// Holds its first response open, so a cancel can land while the queue is
+/// mid-chapter rather than after it has already drained.
+final class _GatedChapterFetcher implements WebFetcher {
+  final List<Uri> requests = [];
+  final Completer<void> _gate = Completer<void>();
+
+  void release() {
+    if (!_gate.isCompleted) _gate.complete();
+  }
+
+  @override
+  Future<WebFetchResult> fetch(Uri url) async {
+    requests.add(url);
+    await _gate.future;
+    return WebFetchSucceeded(
+      url: url,
+      body: _webChapterPage(int.parse(url.pathSegments.first.split('-').last)),
+    );
+  }
+}
+
 final class _ChapterFetcher implements WebFetcher {
   final List<Uri> requests = [];
   final Completer<void> lastRequested = Completer<void>();

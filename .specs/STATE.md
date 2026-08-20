@@ -82,13 +82,22 @@
 - **Date**: 2026-08-17
 - **Status**: active
 
+### AD-011
+- **Decision**: Keep AD-009's ingest-core boundary and amend WEB-06 AC1 to match, rather than build the generic `ContentSource` seam the AC originally demanded.
+- **Reason**: The AC predated AD-009. AD-009 already delivers the story's goal — adding a source does not fork the pipeline — through one shared `ChapterIngest`; satisfying the AC literally would mean refactoring the settled PDF path and revoking AD-009.
+- **Trade-off**: `TextProcessingService` keeps `PdfTextExtractor`, so "the processing service references no PDF-specific types" is knowingly not true; only the ingest core is source-agnostic, and an architecture test now enforces that narrower promise.
+- **Scope**: Content ingestion boundaries and any future content source.
+- **Date**: 2026-08-19
+- **Status**: active
+
+
 ## Handoff
 
-- **Feature**: narration / `.specs/features/narration`
-- **Phase / Task**: Validate — automated PASS; combined Milestone 3–4 UAT deferred
-- **Completed**: Milestones 1–4; narration 50/50 ACs reviewed, 15/15 mutants, 370 tests, APK debug
+- **Feature**: web_source_import / `.specs/features/web_source_import`
+- **Phase / Task**: Validate — Verifier iteration 2 returned a narrow FAIL; both remaining gaps addressed, iteration 3 pending
+- **Completed**: T1–T24, T27–T28, fixes F1–F5; 612 tests, analyze clean, debug APK builds
 - **In-progress** (file:line): none
-- **Next step**: execute `.specs/features/narration/uat.md` when the user has device access, then begin Milestone 5
+- **Next step**: re-dispatch the Verifier (iteration 3 of a 3-iteration bound), then decide whether a cancelled web book should stay cancelled across a restart — `resumePending` currently re-enqueues it, and WEB-11 AC5/AC6 are silent on which wins
 - **Blockers**: none
-- **Uncommitted files**: narration validation, traceability, and verifier-generated lessons
-- **Branch**: `main`
+- **Uncommitted files**: none
+- **Branch**: `feat/web-source-import`

@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/web_source_import/design.md`
-**Status**: Approved — executing T1–T24
+**Status**: T1–T24, T27–T28 and fixes F1–F5 complete. T25–T26 (P2) unstarted.
 
 ---
 

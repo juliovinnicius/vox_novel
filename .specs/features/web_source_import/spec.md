@@ -318,27 +318,30 @@ planned.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| WEB-01 | P1: Import a web novel by URL | Design | Pending |
-| WEB-02 | P1: Import a web novel by URL (URL validation and disallowed paths) | Design | Pending |
-| WEB-03 | P1: Import a web novel by URL (duplicate series identity) | Design | Pending |
-| WEB-04 | P1: Read and narrate while chapters download | Design | Pending |
-| WEB-05 | P1: Read and narrate while chapters download (status transitions) | Design | Pending |
-| WEB-06 | P1: Source-agnostic extraction pipeline | Design | Pending |
-| WEB-07 | P1: Source-agnostic extraction pipeline (PDF parity) | Design | Pending |
-| WEB-08 | P1: Source-agnostic extraction pipeline (index-authoritative chapters) | Design | Pending |
-| WEB-09 | P1: Resumable queue (throttle and Retry-After) | Design | Pending |
-| WEB-10 | P1: Resumable queue (retry, backoff, failed chapters) | Design | Pending |
-| WEB-11 | P1: Resumable queue (resume after restart, cancel) | Design | Pending |
-| WEB-12 | P1: Resumable queue (extraction failure and unsupported layout) | Design | Pending |
+| WEB-01 | P1: Import a web novel by URL | Execute | Implementing |
+| WEB-02 | P1: Import a web novel by URL (URL validation and disallowed paths) | Execute | Implementing |
+| WEB-03 | P1: Import a web novel by URL (duplicate series identity) | Execute | Implementing |
+| WEB-04 | P1: Read and narrate while chapters download | Execute | Implementing |
+| WEB-05 | P1: Read and narrate while chapters download (status transitions) | Execute | Implementing |
+| WEB-06 | P1: Source-agnostic extraction pipeline | Execute | Implementing |
+| WEB-07 | P1: Source-agnostic extraction pipeline (PDF parity) | Execute | Implementing |
+| WEB-08 | P1: Source-agnostic extraction pipeline (index-authoritative chapters) | Execute | Implementing |
+| WEB-09 | P1: Resumable queue (throttle and Retry-After) | Execute | Implementing |
+| WEB-10 | P1: Resumable queue (retry, backoff, failed chapters) | Execute | Implementing |
+| WEB-11 | P1: Resumable queue (resume after restart, cancel) | Execute | Implementing |
+| WEB-12 | P1: Resumable queue (extraction failure and unsupported layout) | Execute | Implementing |
 | WEB-13 | P2: Fetch new chapters for an ongoing novel | - | Pending |
 | WEB-14 | P2: Retry failed chapters | - | Pending |
-| WEB-15 | P3: Add a domain without code changes | - | Pending |
+| WEB-15 | P3: Add a domain without code changes | Execute | Implementing (recipe registry only) |
 
 **ID format:** `WEB-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 15 total, 0 mapped to tasks, 15 unmapped ⚠️
+**Coverage:** 15 total. WEB-01 to WEB-12 are mapped to T1-T28 plus fixes F1-F5
+and carry test evidence in `validation.md`. WEB-15 is partly delivered (a new
+domain needs only a recipe entry). WEB-13 and WEB-14 are P2 and unstarted
+(T25-T26).
 
 ---
 
