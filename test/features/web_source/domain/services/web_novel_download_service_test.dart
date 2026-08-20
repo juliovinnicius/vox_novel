@@ -503,6 +503,37 @@ void main() {
     ]);
   });
 
+  group('index-authoritative segmentation', () {
+    /// A body carrying a line the PDF heuristic would read as a chapter
+    /// heading. The index already segmented this source, so detection must
+    /// never run over it (WEB-08 AC3).
+    String pageWithHeadingLine() =>
+        '<html><body><h1 class="entry-title">Página do capítulo</h1>'
+        '<div class="epcontent entry-content">'
+        '<p>${'Antes do trecho. ' * 15}</p>'
+        '<p>Capítulo 7</p>'
+        '<p>${'Depois do trecho. ' * 15}</p>'
+        '</div></body></html>';
+
+    setUp(() {
+      source = FakeWebSourceRepository([entry(1)]);
+      fetcher = FakeWebFetcher({chapterUrl(1): pageWithHeadingLine()});
+    });
+
+    test('a heading-shaped line inside a chapter does not split it', () async {
+      await serviceFor().download(bookId);
+
+      expect(processing.chapters.length, 1);
+      expect(processing.chapters.single.cleanText, contains('Capítulo 7'));
+    });
+
+    test('the index entry titles the chapter, not a line in its body', () async {
+      await serviceFor().download(bookId);
+
+      expect(processing.chapters.single.title, 'Capítulo 1 do índice');
+    });
+  });
+
   group('cleaning', () {
     /// A chapter page whose body is built from explicit paragraphs, so a test
     /// controls exactly which lines reach the cleaner.
