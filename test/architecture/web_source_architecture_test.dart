@@ -379,6 +379,7 @@ final class FakeProcessingRepository implements TextProcessingRepository {
     required String bookId,
     required String runId,
     required DateTime startedAt,
+    ProcessingStage stage = ProcessingStage.extracting,
   }) async {}
 
   @override

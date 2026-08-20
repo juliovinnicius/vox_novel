@@ -82,6 +82,59 @@ void main() {
     expect([run.id, run.bookId, run.state], ['run-1', 'book-1', 'staging']);
   });
 
+  test('create run records the stage a chaptered source starts in', () async {
+    await repository.createRun(
+      bookId: 'book-1',
+      runId: 'run-web',
+      startedAt: now,
+      stage: ProcessingStage.downloading,
+    );
+
+    final book = await database.select(database.books).getSingle();
+    expect(book.processingStage, ProcessingStage.downloading);
+  });
+
+  test('a downloading book accepts further downloading progress', () async {
+    await repository.createRun(
+      bookId: 'book-1',
+      runId: 'run-web',
+      startedAt: now,
+      stage: ProcessingStage.downloading,
+    );
+
+    await repository.updateProgress(
+      bookId: 'book-1',
+      stage: ProcessingStage.downloading,
+      progress: .5,
+      updatedAt: now,
+    );
+
+    final book = await database.select(database.books).getSingle();
+    expect(
+      [book.processingStage, book.processingProgress],
+      [ProcessingStage.downloading, .5],
+    );
+  });
+
+  test('a downloading book still reaches a later stage', () async {
+    await repository.createRun(
+      bookId: 'book-1',
+      runId: 'run-web',
+      startedAt: now,
+      stage: ProcessingStage.downloading,
+    );
+
+    await repository.updateProgress(
+      bookId: 'book-1',
+      stage: ProcessingStage.buildingBlocks,
+      progress: .8,
+      updatedAt: now,
+    );
+
+    final book = await database.select(database.books).getSingle();
+    expect(book.processingStage, ProcessingStage.buildingBlocks);
+  });
+
   test('staged rows are exact and excluded from active reads', () async {
     await createRun('run-1');
     await stageComplete('run-1');

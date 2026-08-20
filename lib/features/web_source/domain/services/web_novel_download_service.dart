@@ -161,6 +161,7 @@ final class WebNovelDownloadService {
         bookId: bookId,
         runId: runId,
         startedAt: _clock(),
+        stage: ProcessingStage.downloading,
       );
     }
 

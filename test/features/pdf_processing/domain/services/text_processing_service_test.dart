@@ -420,6 +420,7 @@ final class _ProcessingRepository implements TextProcessingRepository {
     required String bookId,
     required String runId,
     required DateTime startedAt,
+    ProcessingStage stage = ProcessingStage.extracting,
   }) async {}
   @override
   Future<void> stageRawPage(String runId, RawPage page) async {

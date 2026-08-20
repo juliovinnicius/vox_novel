@@ -16,10 +16,17 @@ final class ActiveProcessedContent {
 }
 
 abstract interface class TextProcessingRepository {
+  /// Opens a staging run for [bookId].
+  ///
+  /// [stage] is the stage the book enters. A paged source starts extracting; a
+  /// chaptered source starts downloading, and must say so here because
+  /// `updateProgress` refuses to move a book to an earlier stage than the one
+  /// it already carries.
   Future<void> createRun({
     required String bookId,
     required String runId,
     required DateTime startedAt,
+    ProcessingStage stage = ProcessingStage.extracting,
   });
 
   Future<void> stageRawPage(String runId, RawPage page);

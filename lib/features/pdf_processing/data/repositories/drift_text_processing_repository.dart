@@ -14,6 +14,7 @@ final class DriftTextProcessingRepository implements TextProcessingRepository {
     required String bookId,
     required String runId,
     required DateTime startedAt,
+    ProcessingStage stage = ProcessingStage.extracting,
   }) {
     return _database.transaction(() async {
       await _database
@@ -32,7 +33,7 @@ final class DriftTextProcessingRepository implements TextProcessingRepository {
         db.BooksCompanion(
           status: const Value(BookStatus.processing),
           processingProgress: const Value(0),
-          processingStage: const Value(ProcessingStage.extracting),
+          processingStage: Value(stage),
           updatedAt: Value(startedAt),
         ),
       );

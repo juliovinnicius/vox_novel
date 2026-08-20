@@ -227,6 +227,9 @@ final class FakeProcessingRepository implements TextProcessingRepository {
   /// stored, recorded by the test through [onStage].
   void Function()? onStage;
 
+  /// The stage a book would actually carry, under the Drift repository's rule.
+  ProcessingStage? persistedStage;
+
   int chaptersAtFirstActivation = -1;
   final activationsAtEachStage = <int>[];
 
@@ -235,7 +238,11 @@ final class FakeProcessingRepository implements TextProcessingRepository {
     required String bookId,
     required String runId,
     required DateTime startedAt,
-  }) async => createdRuns.add((bookId, runId));
+    ProcessingStage stage = ProcessingStage.extracting,
+  }) async {
+    createdRuns.add((bookId, runId));
+    persistedStage = stage;
+  }
 
   @override
   Future<void> stageChaptersAndBlocks({
@@ -276,7 +283,15 @@ final class FakeProcessingRepository implements TextProcessingRepository {
     required ProcessingStage stage,
     required double progress,
     required DateTime updatedAt,
-  }) async => progressUpdates.add((stage, progress));
+  }) async {
+    progressUpdates.add((stage, progress));
+    // The Drift repository refuses to move a book to an earlier stage than the
+    // one it carries. Mirroring that here is what lets a unit test see a stage
+    // update that production would silently discard.
+    final current = persistedStage;
+    if (current != null && stage.index < current.index) return;
+    persistedStage = stage;
+  }
 
   @override
   Future<void> activateRun({
@@ -413,6 +428,13 @@ void main() {
       (ProcessingStage.downloading, 2 / 3),
       (ProcessingStage.downloading, 1.0),
     ]);
+  });
+
+  test('leaves the book carrying the downloading stage while its queue '
+      'drains', () async {
+    await serviceFor().download(bookId);
+
+    expect(processing.persistedStage, ProcessingStage.downloading);
   });
 
   test('refreshes the run counts as each chapter lands', () async {
