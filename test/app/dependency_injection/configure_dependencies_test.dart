@@ -18,6 +18,7 @@ import 'package:vox_novel/features/library/data/repositories/drift_book_reposito
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
+import 'package:vox_novel/features/library/presentation/pages/library_page.dart';
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
@@ -598,6 +599,32 @@ void main() {
     // The two chapters this resume stored: the seeded one was marked stored
     // in the queue without content, as a cancelled pass leaves it.
     expect(book?.chapterCount, 2);
+  });
+
+  testWidgets('the composed library page carries a web cancel route', (
+    tester,
+  ) async {
+    await configureDependencies(
+      instance: locator,
+      databaseExecutor: NativeDatabase.memory(),
+      supportDirectory: Directory.systemTemp,
+      pdfTextExtractor: _Extractor(),
+      webFetcher: _RecordingFetcher(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp.router(routerConfig: locator<GoRouter>()),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    // The page-level tests prove this callback routes a web book away from the
+    // PDF path, and the service tests prove cancel stops the queue and keeps
+    // stored chapters. What the container owes is supplying the route at all.
+    final page = tester.widget<LibraryPage>(find.byType(LibraryPage));
+    expect(page.cancelWebDownload, isNotNull);
+    // Not invoked here: resolving it pulls the asset-backed recipe registry,
+    // and awaiting real I/O inside a widget test hangs on the fake clock.
   });
 
   testWidgets('the library route offers the web import affordance', (

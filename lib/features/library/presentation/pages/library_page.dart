@@ -15,12 +15,16 @@ import 'package:vox_novel/features/pdf_processing/presentation/cubit/text_proces
 import 'package:vox_novel/features/web_source/presentation/cubit/import_web_book_cubit.dart';
 import 'package:vox_novel/features/web_source/presentation/widgets/import_web_book_dialog.dart';
 
+/// Stops the chapter queue of the web book with this id.
+typedef CancelWebDownload = Future<void> Function(String bookId);
+
 final class LibraryPage extends StatefulWidget {
   const LibraryPage({
     required this.libraryCubit,
     required this.importBookCubit,
     this.textProcessingCubit,
     this.importWebBookCubit,
+    this.cancelWebDownload,
     this.onOpenBook,
     super.key,
   });
@@ -28,6 +32,10 @@ final class LibraryPage extends StatefulWidget {
   final ImportBookCubit importBookCubit;
   final TextProcessingCubit? textProcessingCubit;
   final ImportWebBookCubit? importWebBookCubit;
+
+  /// Stops a web book's chapter queue. A web book has no `TextProcessingService`
+  /// run, so the shared cancel affordance needs this second route.
+  final CancelWebDownload? cancelWebDownload;
   final ValueChanged<Book>? onOpenBook;
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -79,6 +87,7 @@ final class _LibraryPageState extends State<LibraryPage> {
         child: _LibraryView(
           processingCubit: processingCubit,
           importWebBookCubit: widget.importWebBookCubit,
+          cancelWebDownload: widget.cancelWebDownload,
           onOpenBook: widget.onOpenBook,
         ),
       ),
@@ -96,10 +105,12 @@ final class _LibraryView extends StatelessWidget {
   const _LibraryView({
     required this.processingCubit,
     required this.importWebBookCubit,
+    required this.cancelWebDownload,
     required this.onOpenBook,
   });
   final TextProcessingCubit? processingCubit;
   final ImportWebBookCubit? importWebBookCubit;
+  final CancelWebDownload? cancelWebDownload;
   final ValueChanged<Book>? onOpenBook;
   @override
   Widget build(BuildContext context) {
@@ -187,19 +198,30 @@ final class _LibraryView extends StatelessWidget {
     onEdit: (book) => _edit(context, book),
     onDelete: (book) => _delete(context, book),
     onOpen: (book) => _open(context, book),
-    onCancelProcessing: processingCubit == null
-        ? null
-        : (book) => processingCubit!.cancel(book.id),
+    onCancelProcessing: _cancelProcessing,
   );
   Widget _gridItem(BuildContext context, Book book) => BookGridItem(
     book: book,
     onEdit: (book) => _edit(context, book),
     onDelete: (book) => _delete(context, book),
     onOpen: (book) => _open(context, book),
-    onCancelProcessing: processingCubit == null
-        ? null
-        : (book) => processingCubit!.cancel(book.id),
+    onCancelProcessing: _cancelProcessing,
   );
+  /// A web book's queue lives in `WebNovelDownloadService`; only a PDF book has
+  /// a processing run to cancel.
+  ValueChanged<Book>? get _cancelProcessing {
+    final cancelWeb = cancelWebDownload;
+    final cancelPdf = processingCubit;
+    if (cancelWeb == null && cancelPdf == null) return null;
+    return (book) {
+      if (book.sourceType == BookSourceType.web) {
+        cancelWeb?.call(book.id);
+        return;
+      }
+      cancelPdf?.cancel(book.id);
+    };
+  }
+
   void _open(BuildContext context, Book book) {
     final callback = onOpenBook;
     if (callback != null) {

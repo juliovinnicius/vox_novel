@@ -200,6 +200,44 @@ void main() {
       await _drainAsyncCubit(tester);
     },
   );
+  for (final grid in [false, true]) {
+    testWidgets('${grid ? 'grid' : 'list'} cancelling a web book stops its '
+        'download', (tester) async {
+      final fixture = _Fixture();
+      await tester.pumpWidget(fixture.app());
+      fixture.repository.controller.add([_webBook('9')]);
+      await tester.pump();
+      if (grid) {
+        await tester.tap(find.byTooltip('Visualização em grade'));
+        await tester.pump();
+      }
+
+      await tester.tap(find.byTooltip('Cancelar processamento de Book 9'));
+      await tester.pump();
+
+      expect(fixture.cancelledWebBookIds, ['9']);
+    });
+  }
+
+  testWidgets('cancelling a pdf book still routes to the processing '
+      'cubit', (tester) async {
+    final pending = Completer<ProcessingResult>();
+    final fixture = _Fixture(processBook: (_) => pending.future);
+    await tester.pumpWidget(fixture.app());
+    fixture.repository.controller.add([
+      _book('2', status: BookStatus.processing),
+    ]);
+    unawaited(fixture.processingCubit.process('2'));
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Cancelar processamento de Book 2'));
+    await tester.pump();
+
+    expect(fixture.cancelledBookIds, ['2']);
+    expect(fixture.cancelledWebBookIds, isEmpty);
+    pending.complete(const ProcessingResult.cancelled());
+    await _drainAsyncCubit(tester);
+  });
 }
 
 Future<void> _drainAsyncCubit(WidgetTester tester) async {
@@ -225,6 +263,7 @@ final class _Fixture {
   final repository = _Repository();
   final ProcessBook _processBook;
   final cancelledBookIds = <String>[];
+  final cancelledWebBookIds = <String>[];
   late final TextProcessingCubit processingCubit;
   Completer<void>? pending;
   Widget app({ValueChanged<Book>? onOpenBook, ImportWebBookCubit? webCubit}) {
@@ -250,11 +289,24 @@ final class _Fixture {
         ),
         textProcessingCubit: processingCubit,
         importWebBookCubit: webCubit,
+        cancelWebDownload: (bookId) async => cancelledWebBookIds.add(bookId),
         onOpenBook: onOpenBook,
       ),
     );
   }
 }
+
+Book _webBook(String id, {BookStatus status = BookStatus.processing}) => Book(
+  id: id,
+  title: 'Book $id',
+  sourceType: BookSourceType.web,
+  sourceRef: 'https://exemplo.com/series/obra-$id/',
+  status: status,
+  processingProgress: 0,
+  chapterCount: 1,
+  createdAt: DateTime(2026),
+  updatedAt: DateTime(2026),
+);
 
 Book _book(
   String id, {

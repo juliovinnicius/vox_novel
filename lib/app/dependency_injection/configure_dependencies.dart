@@ -429,6 +429,8 @@ Future<void> configureDependencies({
           importBookCubit: locator(),
           textProcessingCubit: locator(),
           importWebBookCubit: locator(),
+          cancelWebDownload: (bookId) =>
+              locator<WebNovelDownloadService>().cancel(bookId),
         ),
         readerPageBuilder: (_, bookId) {
           final registry = locator<ReaderCubitRegistry>();
