@@ -101,6 +101,97 @@ void main() {
     );
   });
 
+  group('concurrent drains', () {
+    /// Two books downloading at once share one fetcher singleton, so the host
+    /// limit has to hold across callers, not just across sequential calls.
+    List<Duration> gapsBetween(FakeTransport transport) => [
+      for (var i = 1; i < transport.requests.length; i++)
+        transport.requests[i].at.difference(transport.requests[i - 1].at),
+    ];
+
+    test('charges a full host interval to every concurrent request '
+        'but the first', () async {
+      final transport = FakeTransport(clock, (_, _) => ok('corpo'));
+      final fetcher = fetcherFor(transport);
+      final start = clock.now;
+
+      await Future.wait([
+        fetcher.fetch(page),
+        fetcher.fetch(page.replace(path: '/series/obra/capitulo-2/')),
+        fetcher.fetch(page.replace(path: '/series/obra/capitulo-3/')),
+      ]);
+
+      expect(transport.requests.length, 3);
+      // The clock is a single virtual instant that jumps when a delay is
+      // requested, so concurrent send timestamps cannot be compared directly;
+      // what it does measure faithfully is the total interval the host was
+      // charged. Three requests owe two intervals. While the slot was claimed
+      // only after awaiting, two callers read the same timestamp and the host
+      // was charged one.
+      expect(
+        clock.now.difference(start),
+        greaterThanOrEqualTo(const Duration(seconds: 2)),
+      );
+    });
+
+    test('does not serialize concurrent requests to different '
+        'hosts', () async {
+      final transport = FakeTransport(clock, (_, _) => ok('corpo'));
+      final fetcher = fetcherFor(transport);
+
+      await Future.wait([
+        fetcher.fetch(page),
+        fetcher.fetch(Uri.parse('https://outro.com/series/obra/')),
+      ]);
+
+      expect(gapsBetween(transport), [Duration.zero]);
+    });
+
+    test('gives every concurrent request to one host its own '
+        'response', () async {
+      final transport = FakeTransport(
+        clock,
+        (url, _) => ok('corpo de ${url.path}'),
+      );
+      final fetcher = fetcherFor(transport);
+
+      final results = await Future.wait([
+        fetcher.fetch(page.replace(path: '/a/')),
+        fetcher.fetch(page.replace(path: '/b/')),
+        fetcher.fetch(page.replace(path: '/c/')),
+      ]);
+
+      expect(
+        results.map((result) => (result as WebFetchSucceeded).body),
+        ['corpo de /a/', 'corpo de /b/', 'corpo de /c/'],
+      );
+    });
+
+    test('a Retry-After wait still outlasts the host interval when a '
+        'second caller is queued', () async {
+      final transport = FakeTransport(
+        clock,
+        (_, index) =>
+            index == 0 ? status(429, headers: {'retry-after': '5'}) : ok('corpo'),
+      );
+      final fetcher = fetcherFor(transport);
+
+      await Future.wait([
+        fetcher.fetch(page),
+        fetcher.fetch(page.replace(path: '/series/obra/capitulo-2/')),
+      ]);
+
+      final retried = transport.requests
+          .where((request) => request.url == page)
+          .toList();
+      expect(retried.length, 2);
+      expect(
+        retried[1].at.difference(retried[0].at),
+        greaterThanOrEqualTo(const Duration(seconds: 5)),
+      );
+    });
+  });
+
   test('waits at least the Retry-After duration after a 429', () async {
     final transport = FakeTransport(
       clock,

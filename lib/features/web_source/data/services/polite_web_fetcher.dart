@@ -56,7 +56,10 @@ final class PoliteWebFetcher implements WebFetcher {
   final HttpSend _send;
   final WebFetcherClock _clock;
   final WebFetcherDelay _delay;
-  final Map<String, DateTime> _lastRequestAt = {};
+  /// The earliest instant each host may next be requested. A caller claims its
+  /// slot here **before** awaiting, so a concurrent caller reserves the one
+  /// after it instead of reading the same stale timestamp and firing alongside.
+  final Map<String, DateTime> _nextAllowedAt = {};
 
   @override
   Future<WebFetchResult> fetch(Uri url) async {
@@ -173,14 +176,14 @@ final class PoliteWebFetcher implements WebFetcher {
 
   Future<void> _throttle(String host) async {
     final key = _canonicalHost(host);
-    final last = _lastRequestAt[key];
-    if (last != null) {
-      final elapsed = _clock().difference(last);
-      if (elapsed < minimumHostInterval) {
-        await _delay(minimumHostInterval - elapsed);
-      }
+    final now = _clock();
+    final reserved = _nextAllowedAt[key];
+    final slot = reserved == null || reserved.isBefore(now) ? now : reserved;
+    _nextAllowedAt[key] = slot.add(minimumHostInterval);
+    final wait = slot.difference(now);
+    if (wait > Duration.zero) {
+      await _delay(wait);
     }
-    _lastRequestAt[key] = _clock();
   }
 
   static Duration? _retryAfter(Map<String, String> headers) {
