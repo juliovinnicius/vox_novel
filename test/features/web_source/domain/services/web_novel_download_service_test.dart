@@ -94,15 +94,21 @@ final class FakeWebFetcher implements WebFetcher {
 }
 
 final class FakeBookRepository implements BookRepository {
-  FakeBookRepository(this.book);
+  FakeBookRepository(this.book, {this.others = const []});
 
   Book? book;
 
-  @override
-  Future<Book?> findById(String id) async => book?.id == id ? book : null;
+  /// The rest of the library, so a startup scan sees more than one book.
+  final List<Book> others;
+
+  List<Book> get _all => [?book, ...others];
 
   @override
-  Stream<List<Book>> watchAll() => throw UnimplementedError();
+  Future<Book?> findById(String id) async =>
+      _all.where((candidate) => candidate.id == id).firstOrNull;
+
+  @override
+  Stream<List<Book>> watchAll() => Stream.value(_all);
   @override
   Future<Book?> findByHash(String hash) => throw UnimplementedError();
   @override
@@ -313,13 +319,15 @@ void main() {
   var nextId = 0;
 
   Book webBook({
+    String id = bookId,
+    BookStatus status = BookStatus.processing,
     String? activeContentRunId,
     int chapterCount = 0,
     int blockCount = 0,
   }) => Book(
-    id: bookId,
+    id: id,
     title: 'Obra sintética',
-    status: BookStatus.processing,
+    status: status,
     processingProgress: 0,
     createdAt: now,
     updatedAt: now,
@@ -907,6 +915,84 @@ void main() {
       expect(outcome, WebDownloadOutcome.paused);
       expect(processing.discards, isEmpty);
       expect(service.messageFor(bookId), isNull);
+    });
+  });
+
+  group('startup resume', () {
+    Book pdfBook({BookStatus status = BookStatus.processing}) => Book(
+      id: 'book-pdf',
+      title: 'Livro em PDF',
+      status: status,
+      processingProgress: 0,
+      createdAt: now,
+      updatedAt: now,
+      storedFilePath: '/books/livro.pdf',
+    );
+
+    test('re-enqueues a web book left processing with unstored '
+        'chapters', () async {
+      source = FakeWebSourceRepository([
+        entry(1, state: WebChapterState.stored),
+        entry(2),
+        entry(3),
+      ]);
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-0', chapterCount: 1, blockCount: 1),
+      );
+      final service = serviceFor();
+
+      final resumed = await service.resumePending();
+      // Joins the pass the resume already started, rather than starting one.
+      final outcome = await service.download(bookId);
+
+      expect(resumed, [bookId]);
+      expect(outcome, WebDownloadOutcome.completed);
+      expect(fetcher.requests.map((url) => url.toString()), [
+        chapterUrl(2),
+        chapterUrl(3),
+      ]);
+      expect(
+        source.entries.map((entry) => entry.state),
+        everyElement(WebChapterState.stored),
+      );
+    });
+
+    test('does not re-enqueue a web book whose chapters are all '
+        'stored', () async {
+      source = FakeWebSourceRepository([
+        entry(1, state: WebChapterState.stored),
+        entry(2, state: WebChapterState.stored),
+        entry(3, state: WebChapterState.stored),
+      ]);
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-0', chapterCount: 3, blockCount: 3),
+      );
+
+      expect(await serviceFor().resumePending(), isEmpty);
+      expect(fetcher.requests, isEmpty);
+    });
+
+    test('never hands a pdf book to the web queue', () async {
+      books = FakeBookRepository(pdfBook());
+
+      expect(await serviceFor().resumePending(), isEmpty);
+      expect(fetcher.requests, isEmpty);
+    });
+
+    test('re-enqueues only the web books still processing', () async {
+      books = FakeBookRepository(
+        webBook(),
+        others: [
+          pdfBook(),
+          webBook(id: 'book-ready', status: BookStatus.ready),
+        ],
+      );
+      final service = serviceFor();
+
+      final resumed = await service.resumePending();
+      await service.download(bookId);
+
+      expect(resumed, [bookId]);
     });
   });
 }

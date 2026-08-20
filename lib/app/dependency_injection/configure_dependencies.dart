@@ -164,6 +164,7 @@ Future<void> configureDependencies({
   ProcessingExecutor processingExecutor = isolateProcessingExecutor,
   void Function(int workerIdentity)? onCpuWorkerIsolate,
   Future<void> Function()? initializePdfEngine,
+  Future<void> Function()? resumeWebDownloads,
   VisualReaderRepository? visualReaderRepository,
   VisualReaderCubitFactory? visualReaderCubitFactory,
   NarrationRepository? narrationRepository,
@@ -413,6 +414,13 @@ Future<void> configureDependencies({
     );
   }
 
+  // A download interrupted by a restart is re-enqueued here, fire and forget:
+  // it waits for the recipe asset and reads the library, and awaiting either
+  // during composition deadlocks every widget test. Injectable because even
+  // unawaited it leaves the queue's throttle timers alive past a widget test's
+  // disposal, so a test composing the app for another reason opts out.
+  (resumeWebDownloads ?? () => _resumeWebDownloads(locator))().ignore();
+
   if (!locator.isRegistered<GoRouter>()) {
     locator.registerSingleton<GoRouter>(
       createAppRouter(
@@ -443,6 +451,13 @@ Future<void> configureDependencies({
       dispose: (router) => router.dispose(),
     );
   }
+}
+
+/// Waits for the recipe asset the download service reads at construction,
+/// then re-enqueues every web book left mid-download.
+Future<void> _resumeWebDownloads(GetIt locator) async {
+  await locator.allReady();
+  await locator<WebNovelDownloadService>().resumePending();
 }
 
 Future<void> resetDependencies({GetIt? instance}) async {

@@ -105,6 +105,29 @@ final class WebNovelDownloadService {
     return future;
   }
 
+  /// Re-enqueues every web book whose queue still has chapters without stored
+  /// text, so a download interrupted by an app restart continues. Returns the
+  /// ids it enqueued.
+  ///
+  /// The drains are started, not awaited: the caller composes the app and must
+  /// not block on the queue.
+  Future<List<String>> resumePending() async {
+    final library = await _books.watchAll().first;
+    final resumed = <String>[];
+    for (final book in library) {
+      if (book.sourceType != BookSourceType.web ||
+          book.status != BookStatus.processing) {
+        continue;
+      }
+      if ((await _source.pending(book.id)).isEmpty) {
+        continue;
+      }
+      resumed.add(book.id);
+      download(book.id).ignore();
+    }
+    return resumed;
+  }
+
   /// Stops issuing requests for [bookId], keeping every chapter already
   /// stored, and completes once the running pass has wound down.
   Future<void> cancel(String bookId) async {

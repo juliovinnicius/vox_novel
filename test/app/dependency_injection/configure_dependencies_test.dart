@@ -14,6 +14,7 @@ import 'package:vox_novel/features/import_book/domain/services/book_file_storage
 import 'package:vox_novel/features/import_book/domain/services/import_book_service.dart';
 import 'package:vox_novel/features/import_book/domain/services/pdf_picker.dart';
 import 'package:vox_novel/features/import_book/presentation/cubit/import_book_cubit.dart';
+import 'package:vox_novel/features/library/data/repositories/drift_book_repository.dart';
 import 'package:vox_novel/features/library/domain/repositories/book_repository.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/library/domain/services/library_service.dart';
@@ -31,6 +32,7 @@ import 'package:vox_novel/features/visual_reader/data/repositories/drift_visual_
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/repositories/visual_reader_repository.dart';
 import 'package:vox_novel/features/visual_reader/presentation/cubit/visual_reader_cubit.dart';
+import 'package:vox_novel/features/web_source/data/repositories/drift_web_source_repository.dart';
 import 'package:vox_novel/features/web_source/data/services/polite_web_fetcher.dart';
 import 'package:vox_novel/features/web_source/domain/repositories/web_source_repository.dart';
 import 'package:vox_novel/features/web_source/domain/services/import_web_book_service.dart';
@@ -558,6 +560,46 @@ void main() {
     );
   });
 
+  test('startup resumes a partially downloaded web book with no explicit '
+      'download call', () async {
+    final database = AppDatabase(NativeDatabase.memory());
+    locator.registerSingleton<AppDatabase>(
+      database,
+      dispose: (database) => database.close(),
+    );
+    await _seedPartiallyDownloadedWebBook(database);
+    final fetcher = _ChapterFetcher();
+
+    await configureDependencies(
+      instance: locator,
+      supportDirectory: Directory.systemTemp,
+      pdfTextExtractor: _Extractor(),
+      webFetcher: fetcher,
+    );
+
+    // Composition must return before the queue drains: awaiting the resume
+    // here deadlocks every widget test, whose fake clock never completes
+    // real I/O.
+    expect(fetcher.requests, isEmpty);
+
+    await fetcher.lastRequested.future.timeout(const Duration(seconds: 10));
+    final outcome = await locator<WebNovelDownloadService>().download(
+      _webBookId,
+    );
+
+    expect(outcome, WebDownloadOutcome.completed);
+    expect(fetcher.requests.map((url) => url.toString()), [
+      _webChapterUrl(2),
+      _webChapterUrl(3),
+    ]);
+    expect(await locator<WebSourceRepository>().pending(_webBookId), isEmpty);
+    final book = await locator<BookRepository>().findById(_webBookId);
+    expect(book?.status, domain.BookStatus.ready);
+    // The two chapters this resume stored: the seeded one was marked stored
+    // in the queue without content, as a cancelled pass leaves it.
+    expect(book?.chapterCount, 2);
+  });
+
   testWidgets('the library route offers the web import affordance', (
     tester,
   ) async {
@@ -583,6 +625,70 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(ImportWebBookDialog), findsOneWidget);
   });
+}
+
+const String _webBookId = 'web-book';
+
+String _webChapterUrl(int ordinal) =>
+    'https://centralnovel.com/obra-sintetica-capitulo-$ordinal/';
+
+/// A chapter page matching the shipped recipe's selectors, long enough to
+/// clear its minimum chapter length.
+String _webChapterPage(int ordinal) =>
+    '<html><body><h1 class="entry-title">Capítulo $ordinal</h1>'
+    '<div class="epcontent entry-content"><p>'
+    '${'Texto sintético do capítulo $ordinal. ' * 10}'
+    '</p></div></body></html>';
+
+/// A web book left mid-download by a previous run: three indexed chapters,
+/// the first already stored.
+Future<void> _seedPartiallyDownloadedWebBook(AppDatabase database) async {
+  await DriftBookRepository(database).insert(
+    domain.Book(
+      id: _webBookId,
+      title: 'Obra sintética',
+      sourceType: domain.BookSourceType.web,
+      sourceRef: 'https://centralnovel.com/series/obra-sintetica/',
+      status: domain.BookStatus.processing,
+      processingProgress: 0,
+      pageCount: 3,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    ),
+  );
+  final source = DriftWebSourceRepository(
+    database,
+    clock: () => DateTime.utc(2026),
+  );
+  await source.replaceIndex(_webBookId, [
+    for (var ordinal = 1; ordinal <= 3; ordinal++)
+      WebChapterRef(
+        url: _webChapterUrl(ordinal),
+        title: 'Capítulo $ordinal',
+        sortOrder: ordinal,
+      ),
+  ]);
+  await source.markStored(_webBookId, 1, DateTime.utc(2026));
+}
+
+/// Serves synthetic chapter pages and records every URL it was asked for, so
+/// a resume started by the container is observable without touching the
+/// network.
+final class _ChapterFetcher implements WebFetcher {
+  final List<Uri> requests = [];
+  final Completer<void> lastRequested = Completer<void>();
+
+  @override
+  Future<WebFetchResult> fetch(Uri url) async {
+    requests.add(url);
+    if (url.toString() == _webChapterUrl(3) && !lastRequested.isCompleted) {
+      lastRequested.complete();
+    }
+    return WebFetchSucceeded(
+      url: url,
+      body: _webChapterPage(int.parse(url.pathSegments.first.split('-').last)),
+    );
+  }
 }
 
 /// A fetcher that records every URL it was asked for and never touches the

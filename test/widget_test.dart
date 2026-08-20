@@ -32,6 +32,11 @@ import 'package:vox_novel/features/visual_reader/domain/repositories/visual_read
 import 'package:vox_novel/features/visual_reader/presentation/widgets/original_pdf_view.dart';
 import 'package:vox_novel/main.dart' as application;
 
+/// Composition kicks off the startup resume of interrupted web downloads.
+/// These tests compose the app for other reasons, and the queue's throttle
+/// timers would outlive the widget tree, so they opt out.
+Future<void> _noResume() async {}
+
 void main() {
   testWidgets('application smoke test renders one Biblioteca', (tester) async {
     final router = createAppRouter();
@@ -55,6 +60,7 @@ void main() {
     final applicationFuture = application
         .createApplication(
           instance: locator,
+          resumeWebDownloads: _noResume,
           databaseExecutor: NativeDatabase.memory(),
           supportDirectory: Directory.systemTemp,
           pdfTextExtractor: _TextExtractor(),
@@ -71,6 +77,7 @@ void main() {
                 ProcessingExecutor processingExecutor =
                     isolateProcessingExecutor,
                 Future<void> Function()? initializePdfEngine,
+                Future<void> Function()? resumeWebDownloads,
                 VisualReaderRepository? visualReaderRepository,
                 VisualReaderCubitFactory? visualReaderCubitFactory,
                 PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
@@ -87,6 +94,7 @@ void main() {
                   textProcessingRepository: textProcessingRepository,
                   processingExecutor: processingExecutor,
                   initializePdfEngine: initializePdfEngine,
+                  resumeWebDownloads: resumeWebDownloads,
                   visualReaderRepository: visualReaderRepository,
                   visualReaderCubitFactory: visualReaderCubitFactory,
                   pdfSurfaceBuilder: pdfSurfaceBuilder,
@@ -131,6 +139,7 @@ void main() {
 
     final app = await application.createApplication(
       instance: locator,
+      resumeWebDownloads: _noResume,
       databaseExecutor: NativeDatabase(databaseFile),
       supportDirectory: root,
       pdfPicker: _FixturePicker(source.path),
@@ -205,6 +214,7 @@ void main() {
     final restarted = await tester.runAsync(
       () => application.createApplication(
         instance: locator,
+        resumeWebDownloads: _noResume,
         databaseExecutor: NativeDatabase(databaseFile),
         supportDirectory: root,
         pdfTextExtractor: _TextExtractor(),
@@ -469,6 +479,7 @@ void main() {
         final app = await tester.runAsync(
           () => application.createApplication(
             instance: locator,
+            resumeWebDownloads: _noResume,
             databaseExecutor: NativeDatabase(databaseFile),
             supportDirectory: root,
             pdfTextExtractor: _TextExtractor(),
