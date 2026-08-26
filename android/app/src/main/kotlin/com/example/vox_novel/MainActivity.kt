@@ -1,5 +1,7 @@
 package com.example.vox_novel
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// A plain FlutterActivity does not expose the engine the background media
+// service attaches to, so speech would stop with the activity.
+class MainActivity : AudioServiceActivity()

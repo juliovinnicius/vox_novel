@@ -12,9 +12,17 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 **Spec**: `.specs/features/background_narration/spec.md`
 **Status**: Draft — awaiting approval
 
-> **T2 is a stop point.** It answers whether `flutter_tts` keeps speaking once the
-> activity is destroyed. If the answer is no, Phase 2 onward is invalid as
-> designed and the platform-channel fallback must be decided before continuing.
+> **T2 is a stop point for Phase 3, not for Phase 2.** It answers whether
+> `flutter_tts` keeps speaking once the activity is destroyed. A negative answer
+> invalidates Phase 3's premise — that `flutter_tts` renders speech inside the
+> `audio_service` handler — and the platform-channel fallback must be decided
+> before Phase 3 begins. It does **not** invalidate Phase 2: app-scoped playback
+> ownership is required under either approach, and the fallback would swap the
+> `NarrationEngine` implementation while leaving `NarrationSession` unchanged.
+> (Corrected 2026-08-26; the first draft wrongly gated Phase 2 on this task.)
+>
+> T2 needs a physical Android device. It is therefore sequenced after Phase 2,
+> which needs none.
 
 ---
 
@@ -50,16 +58,22 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 Phases are ordered and run sequentially — each phase completes before the next begins, and tasks within a phase execute in order.
 
-### Phase 1: Platform ground and the unknown
+### Phase 1: Platform ground
 
 ```
-T1 → T2
+T1
 ```
 
 ### Phase 2: Session extraction (parity)
 
 ```
 T3 → T4 → T5 → T6
+```
+
+### Phase 2b: The unknown (device-gated stop point)
+
+```
+T2
 ```
 
 ### Phase 3: Platform surface
@@ -106,7 +120,7 @@ T12 → T13 → T14 → T15
 
 **What**: Build the smallest possible handler that speaks on a loop through `flutter_tts` under `audio_service`, run it on a physical device, and record whether speech continues after the app is swiped out of recents and whether media buttons reach the session.
 **Where**: `.specs/features/background_narration/design.md` (Research Findings — replace the "Unknown" row with the measured answer), throwaway spike code that is **not** committed
-**Depends on**: T1
+**Depends on**: T1 (sequenced after Phase 2 because it needs a physical device)
 **Reuses**: `FlutterTtsNarrationEngine`
 **Requirement**: BGN-01, BGN-15
 
@@ -116,7 +130,7 @@ T12 → T13 → T14 → T15
 - [ ] The design's Research Findings row states, as measured fact, whether speech continues after the activity is destroyed
 - [ ] It records whether media buttons reached the session, and whether `AudioService.androidForceEnableMediaButtons()` was needed
 - [ ] Device model, Android version, and commit are recorded alongside the result
-- [ ] If either answer is negative, the task STOPS and reports; the platform-channel fallback is decided with the user before Phase 2 begins
+- [ ] If either answer is negative, the task STOPS and reports; the platform-channel fallback is decided with the user before Phase 3 begins
 - [ ] No spike code remains in the tree
 - [ ] Gate check passes: `flutter analyze && flutter test && flutter build apk --debug`
 
@@ -130,7 +144,7 @@ T12 → T13 → T14 → T15
 
 **What**: Introduce `NarrationSessionState` — the single value every surface renders.
 **Where**: `lib/features/narration/domain/entities/narration_models.dart`
-**Depends on**: T2
+**Depends on**: T1
 **Reuses**: `NarrationStatus`, `NarrationQueueEntry`, and the `_unset` sentinel `copyWith` pattern used across this codebase
 **Requirement**: BGN-06
 
@@ -230,7 +244,7 @@ T12 → T13 → T14 → T15
 
 **What**: Translate platform media commands into session calls and publish session state to the notification and lock screen.
 **Where**: `lib/features/narration/data/services/narration_audio_handler.dart`
-**Depends on**: T6
+**Depends on**: T6, T2
 **Reuses**: `sessionStream`; `NarrationQueueEntry.chapterTitle` for the notification's secondary line
 **Requirement**: BGN-04, BGN-05, BGN-06, BGN-15
 
@@ -445,10 +459,11 @@ T12 → T13 → T14 → T15
 ## Phase Execution Map
 
 ```
-Phase 1 → Phase 2 → Phase 3 → Phase 4
+Phase 1 → Phase 2 → Phase 2b → Phase 3 → Phase 4
 
-Phase 1:  T1 ──→ T2
+Phase 1:  T1
 Phase 2:  T3 ──→ T4 ──→ T5 ──→ T6
+Phase 2b: T2   (device-gated stop point)
 Phase 3:  T7 ──→ T8 ──→ T9 ──→ T10 ──→ T11
 Phase 4:  T12 ──→ T13 ──→ T14 ──→ T15
 ```
@@ -459,12 +474,13 @@ Execution is strictly sequential — there is no intra-phase parallelism.
 
 | Batch | Phases | Tasks | Count | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Phase 1 + Phase 2 | T1–T6 | 6 | Pending |
-| 2 | Phase 3 | T7–T11 | 5 | Pending |
+| 1 | Phase 1 + Phase 2 | T1, T3–T6 | 5 | Pending |
+| — | Phase 2b | T2 | 1 | Blocked — no Android device available 2026-08-26 |
+| 2 | Phase 3 | T7–T11 | 5 | Blocked by T2 |
 | 3 | Phase 4 | T12–T15 | 4 | Pending |
 
-Batch 1 contains the T2 stop point; it must report before batch 2 is dispatched
-regardless of the batching model chosen.
+Batch 1 fits a single worker budget, so it runs inline. Batch 2 must not be
+dispatched until T2 reports.
 
 ---
 
@@ -495,12 +511,12 @@ regardless of the batching model chosen.
 | Task | Depends On (body) | Diagram Shows | Status |
 | --- | --- | --- | --- |
 | T1 | None | (phase start) | ✅ Match |
-| T2 | T1 | T1 → T2 | ✅ Match |
-| T3 | T2 | Phase 1 → Phase 2 | ✅ Match |
+| T3 | T1 | Phase 1 → Phase 2 | ✅ Match |
+| T2 | T1 | Phase 2 → Phase 2b | ✅ Match |
 | T4 | T3 | T3 → T4 | ✅ Match |
 | T5 | T4 | T4 → T5 | ✅ Match |
 | T6 | T5 | T5 → T6 | ✅ Match |
-| T7 | T6 | Phase 2 → Phase 3 | ✅ Match |
+| T7 | T6, T2 | Phase 2b → Phase 3 | ✅ Match |
 | T8 | T7 | T7 → T8 | ✅ Match |
 | T9 | T8 | T8 → T9 | ✅ Match |
 | T10 | T9 | T9 → T10 | ✅ Match |
