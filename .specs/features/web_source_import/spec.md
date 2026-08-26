@@ -285,6 +285,27 @@ change.
 
 ## Amendments
 
+### 2026-08-26 — WEB-11 AC6 scoped to the session (clarification)
+
+**Question**: AC5 requires an interrupted download to resume after a restart and
+AC6 requires a user cancel to stop the queue. Neither says which wins when the
+user cancels and then relaunches the app.
+
+**Decision**: cancel is **session-scoped**. A cancelled web book keeps status
+`processing` with its remaining chapters pending, so the startup resume
+re-enqueues it on the next launch. Cancel means "stop fetching now", not "stop
+fetching this novel".
+
+**Why**: AC5's success criterion — a novel of over a thousand chapters completing
+across app restarts — depends on the resume being unconditional. A durable
+"paused by the user" state would need a new book or queue state, a resume
+affordance in the library, and a schema migration; it was judged not worth that
+before the MVP has been used.
+
+**Consequence a user sees**: a deliberate cancel is undone by relaunching the
+app. If that proves wrong in use, the durable-pause design is the follow-up.
+
+
 ### 2026-08-19 — WEB-06 AC1 re-anchored on AD-009
 
 **Original wording**: "WHEN the processing service runs THEN it SHALL depend on a

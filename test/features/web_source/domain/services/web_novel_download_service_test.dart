@@ -1025,6 +1025,25 @@ void main() {
       expect(fetcher.requests, isEmpty);
     });
 
+    test('re-enqueues a book the user cancelled in an earlier session', () async {
+      source = FakeWebSourceRepository([
+        entry(1, state: WebChapterState.stored),
+        entry(2),
+        entry(3),
+      ]);
+      books = FakeBookRepository(
+        webBook(activeContentRunId: 'run-0', chapterCount: 1, blockCount: 1),
+      );
+      final service = serviceFor();
+      // A cancel leaves the book processing with chapters pending; it is
+      // scoped to the session, so the next launch picks the queue back up
+      // (spec Amendments, 2026-08-26).
+      unawaited(service.download(bookId));
+      await service.cancel(bookId);
+
+      expect(await service.resumePending(), [bookId]);
+    });
+
     test('never hands a pdf book to the web queue', () async {
       books = FakeBookRepository(pdfBook());
 

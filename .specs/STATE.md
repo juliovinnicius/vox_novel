@@ -90,6 +90,15 @@
 - **Date**: 2026-08-19
 - **Status**: active
 
+### AD-012
+- **Decision**: A user cancel of a web download is session-scoped; the startup resume re-enqueues the book on the next launch.
+- **Reason**: WEB-11 AC5's success criterion — a thousand-chapter novel completing across restarts — depends on an unconditional resume, and a durable paused state would need new book/queue state, a resume affordance, and a migration.
+- **Trade-off**: A deliberate cancel is undone by relaunching the app; the user accepted this on 2026-08-26 pending real use.
+- **Scope**: Web download queue lifecycle.
+- **Date**: 2026-08-26
+- **Status**: active
+
+
 ## Handoff
 
 - **Feature**: web_source_import / `.specs/features/web_source_import`
