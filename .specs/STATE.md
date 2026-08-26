@@ -93,10 +93,11 @@
 ## Handoff
 
 - **Feature**: web_source_import / `.specs/features/web_source_import`
-- **Phase / Task**: Validate — Verifier iteration 2 returned a narrow FAIL; both remaining gaps addressed, iteration 3 pending
-- **Completed**: T1–T24, T27–T28, fixes F1–F5; 612 tests, analyze clean, debug APK builds
+- **Phase / Task**: Validate — Verifier iteration 3 returned PASS; feature complete on its branch
+- **Completed**: T1–T24, T27–T28, fixes F1–F5, hardening V1–V2; 613 tests, analyze clean, debug APK builds
 - **In-progress** (file:line): none
-- **Next step**: re-dispatch the Verifier (iteration 3 of a 3-iteration bound), then decide whether a cancelled web book should stay cancelled across a restart — `resumePending` currently re-enqueues it, and WEB-11 AC5/AC6 are silent on which wins
+- **Next step**: merge `feat/web-source-import` into `main`; decide whether a cancelled web book stays cancelled across a restart (`resumePending` re-enqueues it today; WEB-11 AC5/AC6 are silent); no UAT script exists for this feature
 - **Blockers**: none
 - **Uncommitted files**: none
-- **Branch**: `feat/web-source-import`
+- **Branch**: `feat/web-source-import` (42 commits ahead of `main`)
+- **Note**: `validation.md` covers `69ad930..c58d705`; the later `f531da5` (ingest-core import scan) postdates the report
