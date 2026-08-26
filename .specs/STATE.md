@@ -64,7 +64,7 @@
 - **Trade-off**: Reader composition coordinates two Cubits and an engine registry instead of one combined state object.
 - **Scope**: Narration, reader integration, application lifecycle, and future background media playback.
 - **Date**: 2026-07-18
-- **Status**: active
+- **Status**: superseded by AD-013
 
 ### AD-009
 - **Decision**: Split content sources by shape — paged sources (PDF) stay batch-processed, chaptered sources (web) are ingested incrementally — and route both through one shared `ChapterIngest` collaborator that owns clean-text-to-blocks persistence.
@@ -99,14 +99,24 @@
 - **Status**: active
 
 
+### AD-013
+- **Decision**: Narration playback is owned by an application-scoped `NarrationSession`; the media handler and the route Cubit are both clients that drive it and render one shared state stream. Platform media packages (`audio_service`, `audio_session`) stay confined to `features/narration/data/`.
+- **Reason**: A background session outlives any route, so route-scoped ownership cannot survive Milestone 5. AD-008 anticipated exactly this replacement. Deriving the notification and the in-app player from one value makes "every surface agrees" structural instead of something tests must chase.
+- **Trade-off**: The 565-line `NarrationCubit` must be split before any platform work, which is the feature's largest regression risk; the existing narration suite is the parity gate.
+- **Scope**: All narration playback, media session integration, and audio focus.
+- **Date**: 2026-08-26
+- **Status**: active
+- **Supersedes**: AD-008
+
+
 ## Handoff
 
-- **Feature**: web_source_import / `.specs/features/web_source_import`
-- **Phase / Task**: Validate — Verifier iteration 3 returned PASS; feature complete on its branch
-- **Completed**: T1–T24, T27–T28, fixes F1–F5, hardening V1–V2; 613 tests, analyze clean, debug APK builds
+- **Feature**: background_narration / `.specs/features/background_narration`
+- **Phase / Task**: Design approved — Tasks not yet written
+- **Completed**: Specify (18 requirements, BGN-01..BGN-18), Discuss (context.md), Design (approach A confirmed, AD-013 recorded)
 - **In-progress** (file:line): none
-- **Next step**: merge `feat/web-source-import` into `main`; decide whether a cancelled web book stays cancelled across a restart (`resumePending` re-enqueues it today; WEB-11 AC5/AC6 are silent); no UAT script exists for this feature
-- **Blockers**: none
+- **Next step**: write `tasks.md`; its first task must be the device spike on whether `flutter_tts` keeps speaking once the activity is destroyed — the rest of the design depends on that answer
+- **Blockers**: the spike above is unanswered; Context7 was unavailable, so package findings came from pub.dev
 - **Uncommitted files**: none
-- **Branch**: `feat/web-source-import` (42 commits ahead of `main`)
-- **Note**: `validation.md` covers `69ad930..c58d705`; the later `f531da5` (ingest-core import scan) postdates the report
+- **Branch**: `feat/background-narration`
+- **Note**: `main` is 43 commits ahead of `origin/main` and unpushed
