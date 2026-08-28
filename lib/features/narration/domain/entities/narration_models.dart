@@ -157,4 +157,68 @@ void _validateRate(double rate) {
   }
 }
 
+/// The one value every narration surface renders.
+///
+/// The in-app player, the media notification, and the lock screen are all
+/// projections of this: deriving them from a single value is what keeps them
+/// from disagreeing about what is playing.
+final class NarrationSessionState {
+  const NarrationSessionState({
+    this.status = NarrationStatus.initial,
+    this.bookId,
+    this.bookTitle,
+    this.current,
+    this.awaitsDownload = false,
+    this.message,
+  });
+
+  final NarrationStatus status;
+  final String? bookId;
+  final String? bookTitle;
+
+  /// The block being spoken, or the one play would start from.
+  final NarrationQueueEntry? current;
+
+  /// The queue ran out while the book still has chapters downloading, so its
+  /// end is a download boundary rather than the end of the book.
+  final bool awaitsDownload;
+
+  /// A one-shot message for the reader, cleared once shown.
+  final String? message;
+
+  NarrationSessionState copyWith({
+    NarrationStatus? status,
+    Object? bookId = _unset,
+    Object? bookTitle = _unset,
+    Object? current = _unset,
+    bool? awaitsDownload,
+    Object? message = _unset,
+  }) => NarrationSessionState(
+    status: status ?? this.status,
+    bookId: identical(bookId, _unset) ? this.bookId : bookId as String?,
+    bookTitle: identical(bookTitle, _unset)
+        ? this.bookTitle
+        : bookTitle as String?,
+    current: identical(current, _unset)
+        ? this.current
+        : current as NarrationQueueEntry?,
+    awaitsDownload: awaitsDownload ?? this.awaitsDownload,
+    message: identical(message, _unset) ? this.message : message as String?,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is NarrationSessionState &&
+      other.status == status &&
+      other.bookId == bookId &&
+      other.bookTitle == bookTitle &&
+      other.current == current &&
+      other.awaitsDownload == awaitsDownload &&
+      other.message == message;
+
+  @override
+  int get hashCode =>
+      Object.hash(status, bookId, bookTitle, current, awaitsDownload, message);
+}
+
 const Object _unset = Object();
