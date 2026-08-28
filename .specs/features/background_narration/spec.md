@@ -50,7 +50,7 @@ of narration has to keep the app open and the screen awake.
 | End of book | Stop and end the service | User decision, 2026-08-26 | y |
 | Reopening during playback | Reconnect with no gap in speech | User decision, 2026-08-26 | y |
 | Reader position on reopen | Follows the narrated block | User decision, 2026-08-26 | y |
-| Dismissing the notification | Dismissal is only possible while paused, and it ends the session and releases the service | Matches Android's media-notification convention; a playing foreground service cannot be dismissed. Not discussed with the user. | n |
+| Dismissing the notification | Dismissal is only possible while paused | **Confirmed by the platform, not a choice**: `audio_service` asserts that a non-dismissible notification requires dropping foreground state on pause, so "ongoing while playing, dismissible while paused" is the only configuration available (T2 spike, 2026-08-28). | y |
 | Notification content | Book title as the primary line, chapter title as the secondary line | The two facts a listener needs to confirm what is playing; block numbers are meaningless out of context. Not discussed with the user. | n |
 | Headphones unplugged | Pause (see BGN-09, P2) | Standard media behaviour: audio must not jump to the speaker. Not discussed with the user; kept at P2 so it can be dropped without touching P1. | n |
 | Notification permission denied (Android 13+) | Narration still plays; the app states once that controls are unavailable outside it | Refusing to play would punish the reader for a permission the core feature does not need. Platform behaviour to be confirmed during Design. | n |

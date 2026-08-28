@@ -18,12 +18,20 @@ in this environment**) → web search. Findings and their confidence:
 | `audio_service` does **not** handle audio focus or becoming-noisy; it delegates to `audio_session` (`interruptionEventStream`, `becomingNoisyEventStream`) | Verified | pub.dev package page |
 | Required manifest entries: `WAKE_LOCK`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (SDK 34+), a service with `android:foregroundServiceType="mediaPlayback"`, and a `MediaButtonReceiver` | Verified | pub.dev package page |
 | `audio_service 0.18.19` + `audio_session 0.2.4` resolve cleanly against this project's SDK `^3.12.0` and `flutter_tts 4.2.5` | Verified | `flutter pub add --dry-run` |
-| Whether `flutter_tts` 4.2.5 keeps speaking on Android once the activity is destroyed (app swiped out of recents, BGN-01 AC3) | **Unknown** | Not documented in what I could reach. Treated as the feature's first task — a spike that must be answered on a device before the rest is built. |
+| `flutter_tts` 4.2.5 **keeps speaking** after the activity is destroyed, under `audio_service`'s foreground service (BGN-01 AC3) | **Measured** | T2 spike, 2026-08-28. `RecentsContainer: removeTask` for `com.example.vox_novel/.MainActivity` at `20:01:12.714`; speech continued through four more paragraphs (`spoke n=6` … `speak n=10`) until `20:01:31.855`, ending only when the user pressed pause. The process kept its pid throughout. |
+| Media button events reach the session **only** with `AudioService.androidForceEnableMediaButtons()` | **Measured** | T2 spike, 2026-08-28. Without the call, `cmd media_session dispatch pause` and `dispatch play-pause` both returned success and never reached the handler while the session was listed and playing. With the call, the same dispatch produced `SPIKE cmd=pause`. The call is required, not optional. |
+| `androidNotificationOngoing: true` requires `androidStopForegroundOnPause: true` | **Measured** | The package asserts `!androidNotificationOngoing \|\| androidStopForegroundOnPause` (`audio_service.dart:3525`); the build fails otherwise. The spec's "dismissible only while paused" assumption is therefore a platform/library constraint, not a product choice. |
+| Pausing drops the service's foreground state while the media session itself survives | **Measured** | T2 spike. Immediately after a pause, `cmd media_session list-sessions` still listed the app while `dumpsys activity services` no longer reported `isForeground=true`. After several minutes paused, an earlier observation found the session list empty. |
 
-Because TTS produces no audio stream Android recognises as playback, media
-button routing is the part most likely to need
-`androidForceEnableMediaButtons()`. That is a documented API, but its
-effectiveness for this app is unproven here and is part of the same spike.
+**Spike environment**: Xiaomi `2210129SG` (`ziyi_global`), Android 15, SDK 35, on
+commit `873fbda`. MIUI blocked `adb install` until "Install via USB" was enabled
+and blocks input injection entirely, so the two taps were performed by hand.
+
+TTS produces no audio stream Android recognises as playback, and the spike
+confirmed the consequence: media buttons are dropped until
+`androidForceEnableMediaButtons()` is called. Phase 3 must call it during
+initialisation, and an assertion should protect it — removing that one line
+silently breaks every external control while leaving the notification intact.
 
 ---
 
@@ -169,6 +177,7 @@ both from one value is what keeps BGN-06 true by construction.
 | `NarrationCubitRegistry` exists only to enforce a single foreground owner | `configure_dependencies.dart` | Leaving it alongside an app-scoped session creates the two-sources-of-truth BGN-06 forbids | Reduce it to an attach point in the same task that introduces the session. |
 | Lifecycle pause is asserted by an existing UAT case | `reader_narration_host.dart:63`; `.specs/features/narration/uat.md` UAT-10 | A passing UAT would contradict the new behaviour | Rewrite UAT-10 as part of this feature; the spec records the inversion as deliberate. |
 | Nothing in the suite can exercise a real foreground service | whole feature | Platform behaviour would be verified only by hand | Keep `audio_service` and `audio_session` behind Dart interfaces, add an import-scanning architecture test confining them to `data/`, and drive every AC through fakes. Genuinely device-only behaviour goes to a UAT script. |
+| A long-paused session may be reclaimed, so "resume from the notification" is not guaranteed indefinitely | measured in the T2 spike | BGN-08 and BGN-12 promise the notification stays available after a permanent focus loss; if the system reclaims it, the reader loses the one-tap resume | Phase 3 decides the pause/foreground configuration deliberately and the UAT script (T15) checks resuming after a long pause. Not resolvable from Dart alone. |
 | Two new dependencies on the critical audio path | `pubspec.yaml` | Package regressions could break playback | Both are behind adapters; swapping either means rewriting one data-layer file. |
 
 ---
