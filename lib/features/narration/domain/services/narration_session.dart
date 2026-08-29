@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_playback.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_queue.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_settings_resolver.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
@@ -18,7 +19,7 @@ typedef NarrationContentLoader =
 /// issued the command — the in-app player, the media notification, or a
 /// headset button. A background session outlives any route, so ownership
 /// cannot live in a route-scoped Cubit (AD-013).
-final class NarrationSession {
+final class NarrationSession implements NarrationPlayback {
   NarrationSession({
     required NarrationRepository repository,
     required NarrationEngine engine,
@@ -70,9 +71,11 @@ final class NarrationSession {
 
   /// The current value, so a surface attaching mid-playback starts correct
   /// rather than empty (BGN-16).
+  @override
   NarrationSessionState get state => _state;
 
   /// The single source of truth every surface renders (BGN-06).
+  @override
   Stream<NarrationSessionState> get stream => _states.stream;
 
   Future<void> load(ReaderBookContent content) async {
@@ -247,6 +250,7 @@ final class NarrationSession {
     _pendingStart = _queue?.entryFor(chapterId, blockId);
   }
 
+  @override
   Future<void> play() async {
     if (_transitioning ||
         !const [
@@ -394,6 +398,7 @@ final class NarrationSession {
       status == NarrationStatus.completed ||
       status == NarrationStatus.awaitingDownload;
 
+  @override
   Future<void> pause() async {
     if (_transitioning || _state.status != NarrationStatus.playing) return;
     _transitioning = true;
@@ -403,7 +408,9 @@ final class NarrationSession {
     _transitioning = false;
   }
 
+  @override
   Future<void> previous() => _navigate(-1);
+  @override
   Future<void> next() => _navigate(1);
 
   Future<void> _navigate(int offset) async {
@@ -517,6 +524,7 @@ final class NarrationSession {
   }
 
   /// Ends the session, stopping speech and persisting where it stopped.
+  @override
   Future<void> stop() async {
     final generation = ++_generation;
     await _stopAndPersist(generation);
