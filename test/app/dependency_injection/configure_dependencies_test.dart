@@ -366,6 +366,44 @@ void main() {
       expect(session.state.status, NarrationStatus.playing);
     });
 
+    test('deleting the narrated book reaches the session', () async {
+      final engine = _NarrationEngine();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: engine,
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: _Interruptions(),
+        startMediaSession: _noMediaSession,
+      );
+      final session = locator<NarrationSession>();
+      final content = _ReaderRepository().content;
+      await session.load(content);
+
+      // A fileless book so the deletion has no local file to quarantine; the
+      // wiring under test is the callback, not the storage path.
+      final web = domain.Book(
+        id: content.book.id,
+        title: content.book.title,
+        sourceType: domain.BookSourceType.web,
+        sourceRef: 'https://exemplo.com/series/obra/',
+        status: domain.BookStatus.ready,
+        processingProgress: 1,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      );
+      await locator<BookRepository>().insert(web);
+
+      final deleted = await locator<LibraryService>().deleteBook(web);
+
+      expect(deleted.success, isTrue);
+      // Without the wiring the library deletes the row and leaves a session —
+      // and a notification — pointing at a book that no longer exists.
+      expect(session.state.bookId, isNull);
+      expect(session.state.status, NarrationStatus.initial);
+    });
+
     test('a supplied interruptions source replaces the platform one', () async {
       final interruptions = _Interruptions();
       await configureDependencies(

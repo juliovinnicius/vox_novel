@@ -75,7 +75,10 @@ final class NarrationSession implements NarrationPlayback {
   NarrationQueue? _queue;
   NarrationQueueEntry? _pendingStart;
   var _generation = 0;
-  var _transitioning = false;
+  /// Commands from the app, the notification and a headset can arrive at the
+  /// same moment. They queue behind each other rather than being dropped, so
+  /// every surface ends on the state the last one asked for (BGN-12).
+  Future<void> _commands = Future.value();
   var _closed = false;
   var _reportedMediaSessionFailure = false;
   var _askedForNotifications = false;
@@ -96,6 +99,24 @@ final class NarrationSession implements NarrationPlayback {
   Stream<NarrationSessionState> get stream => _states.stream;
 
   Future<void> load(ReaderBookContent content) async {
+    // Re-entering the reader for the book already loaded must not disturb it.
+    // The host loads on every mount, so without this, leaving the library and
+    // opening the book being narrated killed the live session (BGN-16).
+    if (_state.bookId == content.book.id &&
+        _content?.book.activeContentRunId == content.book.activeContentRunId &&
+        _state.status != NarrationStatus.initial) {
+      return;
+    }
+    // A different book replaces this one: stop the speech that is running
+    // before its queue is thrown away, or it plays on under the new book
+    // (BGN-18).
+    if (_state.status == NarrationStatus.playing) {
+      try {
+        await _engine.stop();
+      } catch (_) {
+        // The queue is being replaced either way.
+      }
+    }
     final generation = ++_generation;
     _content = content;
     final queue = NarrationQueue.fromContent(content);
@@ -269,8 +290,38 @@ final class NarrationSession implements NarrationPlayback {
 
   @override
   Future<void> play() async {
-    if (_transitioning ||
-        !const [
+    // Waits for queued transitions, then plays *outside* the queue: speaking
+    // runs for the length of a paragraph, and holding the queue for that long
+    // would make pause unable to interrupt it.
+    await _commands;
+    await _play();
+  }
+
+  @override
+  Future<void> pause() {
+    if (_state.status != NarrationStatus.playing) return _commands;
+    // The status flips synchronously so the button never lags, and the
+    // generation bump invalidates the speech already in flight. Only the
+    // engine stop and the progress write go through the queue.
+    final generation = ++_generation;
+    _emit(_state.copyWith(status: NarrationStatus.paused, message: null));
+    return _serialize(() => _stopAndPersist(generation));
+  }
+
+  @override
+  Future<void> previous() => _serialize(() => _navigate(-1));
+
+  @override
+  Future<void> next() => _serialize(() => _navigate(1));
+
+  Future<void> _serialize(Future<void> Function() command) {
+    final queued = _commands.then((_) => command());
+    _commands = queued.then<void>((_) {}, onError: (_) {});
+    return queued;
+  }
+
+  Future<void> _play() async {
+    if (!const [
           NarrationStatus.ready,
           NarrationStatus.paused,
           NarrationStatus.completed,
@@ -416,30 +467,14 @@ final class NarrationSession implements NarrationPlayback {
       status == NarrationStatus.completed ||
       status == NarrationStatus.awaitingDownload;
 
-  @override
-  Future<void> pause() async {
-    if (_transitioning || _state.status != NarrationStatus.playing) return;
-    _transitioning = true;
-    final generation = ++_generation;
-    _emit(_state.copyWith(status: NarrationStatus.paused, message: null));
-    await _stopAndPersist(generation);
-    _transitioning = false;
-  }
-
-  @override
-  Future<void> previous() => _navigate(-1);
-  @override
-  Future<void> next() => _navigate(1);
-
   Future<void> _navigate(int offset) async {
-    if (_transitioning || _state.settings == null) return;
+    if (_state.settings == null) return;
     final current = _state.current;
     if (current == null) return;
     final target = offset < 0
         ? _queue!.previous(current)
         : _queue!.next(current);
     if (target == null) return;
-    _transitioning = true;
     final wasPlaying = _state.status == NarrationStatus.playing;
     final generation = ++_generation;
     if (wasPlaying) {
@@ -447,7 +482,6 @@ final class NarrationSession implements NarrationPlayback {
         await _engine.stop();
       } catch (_) {
         await _speechFailure(current, generation);
-        _transitioning = false;
         return;
       }
     }
@@ -470,23 +504,15 @@ final class NarrationSession implements NarrationPlayback {
           ),
         );
       }
-      _transitioning = false;
       return;
     }
-    _transitioning = false;
     if (wasPlaying && _active(generation)) await _start(target);
   }
 
   Future<void> reloadContent(ReaderBookContent content) async {
-    final wasPlaying = _state.status == NarrationStatus.playing;
+    // `load` stops the running speech before replacing the queue, so this no
+    // longer stops it too — doing both silenced the engine twice.
     ++_generation;
-    if (wasPlaying) {
-      try {
-        await _engine.stop();
-      } catch (_) {
-        // Reload still replaces stale content.
-      }
-    }
     await load(content);
   }
 
@@ -603,6 +629,14 @@ final class NarrationSession implements NarrationPlayback {
   Future<void> stop() async {
     final generation = ++_generation;
     await _stopAndPersist(generation);
+    if (!_active(generation)) return;
+    // Ending the session has to be visible. Persisting silently left every
+    // surface — the notification included — still reporting playing, so a
+    // MEDIA_STOP from a headset produced a notification that lied.
+    _content = null;
+    _queue = null;
+    _pendingStart = null;
+    _emit(const NarrationSessionState());
   }
 
   Future<void> close() async {

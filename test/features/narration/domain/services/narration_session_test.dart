@@ -97,6 +97,99 @@ void main() {
     });
   });
 
+  group('re-entering and stopping', () {
+    test('loading the book already narrated leaves it playing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      // The reader host loads on every mount, so leaving the library and
+      // re-opening the narrated book must not disturb the live session.
+      await session.load(_content(chapters: 2));
+
+      expect(session.state.status, NarrationStatus.playing);
+      expect(engine.stopCalls, 0);
+      expect(engine.spoken, ['Texto 1']);
+    });
+
+    test('loading another book silences the one playing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      await session.load(_content(chapters: 2, id: 'outro'));
+
+      // Without this the first book's paragraph plays on under the second.
+      expect(engine.stopCalls, 1);
+      expect(session.state.bookId, 'outro');
+    });
+
+    test('stop ends the session visibly, not just quietly', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      await session.stop();
+
+      // Persisting without emitting left every surface — the notification
+      // included — still reporting playing.
+      expect(session.state, const NarrationSessionState());
+      expect(engine.stopCalls, 1);
+      expect(repository.progressSaves.last.blockId, 'block-1');
+    });
+  });
+
+  group('commands arriving together', () {
+    test('a pause then a play ends playing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      unawaited(session.pause());
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      // Arrival order wins (BGN-12). Dropping the second command instead of
+      // queueing it left the surfaces disagreeing.
+      expect(session.state.status, NarrationStatus.playing);
+    });
+
+    test('a play then a pause ends paused', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+
+      unawaited(session.play());
+      await pumpEventQueue();
+      unawaited(session.pause());
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.paused);
+    });
+
+    test('pause reaches the surfaces without waiting for the engine', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+      engine.stopFuture = Completer<void>().future;
+
+      unawaited(session.pause());
+
+      // Synchronous: the button must not lag behind the engine.
+      expect(session.state.status, NarrationStatus.paused);
+    });
+  });
+
   group('play and pause', () {
     test('play speaks the current block and reports playing', () async {
       final session = sessionFor();
@@ -203,6 +296,25 @@ void main() {
 
       expect(engine.spoken, ['Texto 1', 'Texto 2']);
       expect(session.state.status, NarrationStatus.playing);
+    });
+  });
+
+  group('resuming after an interruption', () {
+    test('a resumed block is spoken again from its beginning', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 3));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+      await session.pause();
+
+      engine.speakFuture = null;
+      await session.play();
+      await pumpEventQueue();
+
+      // AC13: the interrupted paragraph restarts rather than continuing from
+      // wherever the engine stopped mid-sentence.
+      expect(engine.spoken.take(2), ['Texto 1', 'Texto 1']);
     });
   });
 
@@ -536,6 +648,18 @@ void main() {
         true,
         'block-1',
       ]);
+    });
+
+    test('closing a session that never loaded never touches the engine',
+        () async {
+      final session = sessionFor();
+
+      await session.close();
+
+      // A session built by the container but never used has nothing to stop,
+      // and on a device with no narration configured asking anyway is an
+      // error rather than a no-op.
+      expect(engine.stopCalls, 0);
     });
 
     test('close on an empty session persists nothing', () async {
