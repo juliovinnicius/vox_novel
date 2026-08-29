@@ -1,0 +1,505 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vox_novel/features/library/domain/entities/book.dart';
+import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
+import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
+import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
+import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
+
+/// BGN-03, BGN-05, BGN-13, BGN-18 — the session owns playback for the whole
+/// application, so these assertions cover what a surface can ask of it without
+/// any Cubit alive.
+void main() {
+  final ana = NarrationVoice(name: 'Ana', locale: 'pt-BR');
+  final bia = NarrationVoice(name: 'Bia', locale: 'pt-BR');
+
+  late _FakeRepository repository;
+  late _FakeEngine engine;
+
+  NarrationSession sessionFor({
+    NarrationContentLoader? loadContent,
+  }) => NarrationSession(
+    repository: repository,
+    engine: engine,
+    clock: () => DateTime.utc(2026),
+    loadContent: loadContent,
+  );
+
+  setUp(() {
+    repository = _FakeRepository();
+    engine = _FakeEngine(voices: [ana, bia]);
+  });
+
+  group('load', () {
+    test('starts ready at the first block of a fresh book', () async {
+      final session = sessionFor();
+
+      await session.load(_content(chapters: 2));
+
+      expect(session.state.status, NarrationStatus.ready);
+      expect(session.state.current?.blockId, 'block-1');
+      expect(session.state.bookTitle, 'Obra');
+      expect(engine.spoken, isEmpty);
+    });
+
+    test('publishes every state change on its stream', () async {
+      final session = sessionFor();
+      final seen = <NarrationStatus>[];
+      session.stream.listen((state) => seen.add(state.status));
+
+      await session.load(_content(chapters: 2));
+      await pumpEventQueue();
+
+      expect(seen, [NarrationStatus.loading, NarrationStatus.ready]);
+    });
+
+    test('reports unavailable when the device offers no voice', () async {
+      engine.voices = const [];
+      final session = sessionFor();
+
+      await session.load(_content(chapters: 1));
+
+      expect(session.state.status, NarrationStatus.unavailable);
+      expect(session.state.message, NarrationSession.unavailableMessage);
+    });
+
+    test('restores the saved block instead of the first', () async {
+      repository.progressByBook['book'] = _progressAt(
+        'chapter-2',
+        'block-2',
+        voice: ana,
+      );
+      final session = sessionFor();
+
+      await session.load(_content(chapters: 3));
+
+      expect(session.state.current?.blockId, 'block-2');
+      expect(session.state.status, NarrationStatus.ready);
+    });
+
+    test('loading a second book stops the first session', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      await session.play();
+
+      await session.load(_content(chapters: 2, id: 'outro'));
+
+      expect(session.state.bookId, 'outro');
+      expect(session.state.current?.blockId, 'block-1');
+      // The first book's playback must not keep speaking into the new one.
+      expect(session.state.status, NarrationStatus.ready);
+    });
+  });
+
+  group('play and pause', () {
+    test('play speaks the current block and reports playing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+      engine.speakFuture = Completer<void>().future;
+
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.playing);
+      expect(engine.spoken, ['Texto 1']);
+    });
+
+    test('a second play while already playing speaks nothing more', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      await session.play();
+
+      expect(engine.spoken, ['Texto 1']);
+    });
+
+    test('pause stops the engine and persists where it stopped', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      await session.pause();
+
+      expect(session.state.status, NarrationStatus.paused);
+      expect(engine.stopCalls, 1);
+      expect(repository.progressSaves.last.blockId, 'block-1');
+    });
+
+    test('pause while already paused stops nothing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+
+      await session.pause();
+
+      expect(engine.stopCalls, 0);
+    });
+  });
+
+  group('navigation', () {
+    test('next moves exactly one block', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 3));
+
+      await session.next();
+
+      expect(session.state.current?.blockId, 'block-2');
+    });
+
+    test('previous moves exactly one block back', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 3));
+      await session.next();
+      await session.next();
+
+      await session.previous();
+
+      expect(session.state.current?.blockId, 'block-2');
+    });
+
+    test('navigating persists the destination block', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+
+      await session.next();
+
+      expect(repository.progressSaves.last.blockId, 'block-2');
+      expect(repository.progressSaves.last.completed, isFalse);
+    });
+
+    test('previous at the first block changes nothing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+
+      await session.previous();
+
+      expect(session.state.current?.blockId, 'block-1');
+      expect(repository.progressSaves, isEmpty);
+    });
+
+    test('navigating while playing restarts speech at the destination',
+        () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 3));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      // Not awaited: the destination block's speech is held open by the
+      // pending completer, so awaiting next() would wait for speech that never
+      // finishes.
+      unawaited(session.next());
+      await pumpEventQueue();
+
+      expect(engine.spoken, ['Texto 1', 'Texto 2']);
+      expect(session.state.status, NarrationStatus.playing);
+    });
+  });
+
+  group('end of book', () {
+    test('playing the last block completes without wrapping', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.completed);
+      expect(engine.spoken, ['Texto 1']);
+      expect(repository.progressSaves.last.completed, isTrue);
+    });
+
+    test('play on a completed book speaks nothing more', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+      await session.play();
+      await pumpEventQueue();
+
+      await session.play();
+
+      expect(engine.spoken, ['Texto 1']);
+    });
+
+    test('next on the last block keeps the completed state', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+      await session.play();
+      await pumpEventQueue();
+
+      await session.next();
+
+      expect(session.state.status, NarrationStatus.completed);
+      expect(session.state.current?.blockId, 'block-1');
+    });
+  });
+
+  group('download boundary', () {
+    test('a still-downloading book awaits instead of ending', () async {
+      final loader = _FakeContentLoader(const []);
+      final session = sessionFor(loadContent: loader.call);
+      await session.load(_content(chapters: 1, downloading: true));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.awaitingDownload);
+      // A boundary is not the end of the book.
+      expect(repository.progressSaves.last.completed, isFalse);
+    });
+
+    test('the boundary asks the book for new chapters exactly once', () async {
+      final loader = _FakeContentLoader(const []);
+      final session = sessionFor(loadContent: loader.call);
+      await session.load(_content(chapters: 1, downloading: true));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(loader.calls, 1);
+    });
+
+    test('a chapter that landed mid-block continues narration', () async {
+      final loader = _FakeContentLoader([
+        _content(chapters: 2, downloading: true),
+      ]);
+      final session = sessionFor(loadContent: loader.call);
+      await session.load(_content(chapters: 1, downloading: true));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(engine.spoken, ['Texto 1', 'Texto 2']);
+    });
+  });
+
+  group('failures', () {
+    test('a speech failure pauses and keeps the block', () async {
+      engine.speakError = StateError('speech failed');
+      engine.configureFailures = 2;
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.paused);
+      expect(session.state.message, NarrationSession.speechMessage);
+      expect(session.state.current?.blockId, 'block-1');
+    });
+
+    test('a voice that fails is repaired to another and persisted', () async {
+      engine.configureFailures = 1;
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(session.state.settings?.voice, bia);
+      expect(repository.globalSaves.last.voice, bia);
+    });
+
+    test('a progress failure pauses with the progress message', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      repository.failProgressSave = true;
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.paused);
+      expect(session.state.message, NarrationSession.progressMessage);
+    });
+  });
+
+  group('lifecycle', () {
+    test('close stops the engine and persists', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      await session.close();
+
+      expect(engine.stopCalls, 1);
+      expect(repository.progressSaves.last.blockId, 'block-1');
+    });
+
+    test('close on an empty session persists nothing', () async {
+      final session = sessionFor();
+
+      await session.close();
+
+      expect(repository.progressSaves, isEmpty);
+    });
+  });
+}
+
+NarrationProgress _progressAt(
+  String chapterId,
+  String blockId, {
+  required NarrationVoice voice,
+}) => NarrationProgress(
+  bookId: 'book',
+  activeRunId: 'run',
+  chapterId: chapterId,
+  blockId: blockId,
+  completed: false,
+  // Progress rejects a settings value without a voice, so a stored position
+  // always carries the voice it was spoken with.
+  settings: NarrationSettings(voice: voice, rate: 1),
+  updatedAt: DateTime.utc(2026),
+);
+
+/// A book whose queue holds [chapters] chapters of one block each.
+ReaderBookContent _content({
+  required int chapters,
+  bool downloading = false,
+  String id = 'book',
+}) => ReaderBookContent(
+  book: Book(
+    id: id,
+    title: 'Obra',
+    sourceType: downloading ? BookSourceType.web : BookSourceType.pdf,
+    sourceRef: downloading ? 'https://exemplo.com/series/obra/' : null,
+    storedFilePath: downloading ? null : '/obra.pdf',
+    status: downloading ? BookStatus.processing : BookStatus.ready,
+    processingProgress: downloading ? 0.5 : 1,
+    pageCount: chapters,
+    chapterCount: chapters,
+    blockCount: chapters,
+    activeContentRunId: 'run',
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  ),
+  chapters: [
+    for (var order = 0; order < chapters; order++)
+      ReaderChapter(
+        chapter: ChapterDraft(
+          id: 'chapter-${order + 1}',
+          title: 'Capítulo ${order + 1}',
+          sortOrder: order,
+          startPage: order + 1,
+          endPage: order + 1,
+          cleanText: 'Texto ${order + 1}',
+        ),
+        blocks: [
+          NarrationBlockDraft(
+            id: 'block-${order + 1}',
+            chapterId: 'chapter-${order + 1}',
+            sortOrder: 0,
+            originalText: 'Texto ${order + 1}',
+            normalizedText: 'Texto ${order + 1}',
+            characterCount: 7,
+            startPage: order + 1,
+            endPage: order + 1,
+          ),
+        ],
+      ),
+  ],
+);
+
+final class _FakeContentLoader {
+  _FakeContentLoader(this.responses);
+
+  final List<ReaderBookContent?> responses;
+  var calls = 0;
+
+  Future<ReaderBookContent?> call(String bookId) async {
+    final response = responses.isEmpty
+        ? null
+        : responses[calls.clamp(0, responses.length - 1)];
+    calls++;
+    return response;
+  }
+}
+
+final class _FakeEngine implements NarrationEngine {
+  _FakeEngine({this.voices = const []});
+
+  List<NarrationVoice> voices;
+  Future<void>? speakFuture;
+  Object? speakError;
+  int configureFailures = 0;
+  final spoken = <String>[];
+  var stopCalls = 0;
+
+  @override
+  Future<List<NarrationVoice>> initialize() async => voices;
+
+  @override
+  Future<void> configure(NarrationVoice voice, double rate) async {
+    if (configureFailures > 0) {
+      configureFailures--;
+      throw StateError('voice missing');
+    }
+  }
+
+  @override
+  Future<void> speak(String text) async {
+    spoken.add(text);
+    if (speakError != null) throw speakError!;
+    await speakFuture;
+  }
+
+  @override
+  Future<void> stop() async => stopCalls++;
+
+  @override
+  Future<void> close() async {}
+}
+
+final class _FakeRepository implements NarrationRepository {
+  NarrationSettings global = NarrationSettings.defaults();
+  BookNarrationOverride? bookOverride;
+  final progressByBook = <String, NarrationProgress>{};
+  final globalSaves = <NarrationSettings>[];
+  final overrideSaves = <BookNarrationOverride>[];
+  final progressSaves = <NarrationProgress>[];
+  final deletedOverrides = <String>[];
+  var failProgressSave = false;
+
+  @override
+  Future<NarrationSettings> loadGlobalSettings() async => global;
+
+  @override
+  Future<void> saveGlobalSettings(NarrationSettings settings) async {
+    global = settings;
+    globalSaves.add(settings);
+  }
+
+  @override
+  Future<BookNarrationOverride?> loadBookOverride(String bookId) async =>
+      bookOverride;
+
+  @override
+  Future<void> saveBookOverride(BookNarrationOverride value) async {
+    bookOverride = value;
+    overrideSaves.add(value);
+  }
+
+  @override
+  Future<void> deleteBookOverride(String bookId) async {
+    bookOverride = null;
+    deletedOverrides.add(bookId);
+  }
+
+  @override
+  Future<NarrationProgress?> loadProgress(String bookId) async =>
+      progressByBook[bookId];
+
+  @override
+  Future<void> saveProgress(NarrationProgress value) async {
+    if (failProgressSave) throw StateError('progress failed');
+    progressByBook[value.bookId] = value;
+    progressSaves.add(value);
+  }
+}

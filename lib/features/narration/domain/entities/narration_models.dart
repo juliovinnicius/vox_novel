@@ -168,6 +168,11 @@ final class NarrationSessionState {
     this.bookId,
     this.bookTitle,
     this.current,
+    this.voices = const [],
+    this.settings,
+    this.usesBookOverride = false,
+    this.canPrevious = false,
+    this.canNext = false,
     this.awaitsDownload = false,
     this.message,
   });
@@ -176,8 +181,20 @@ final class NarrationSessionState {
   final String? bookId;
   final String? bookTitle;
 
-  /// The block being spoken, or the one play would start from.
+  /// The block being spoken, or the one play would start from. Every identity
+  /// a surface needs — run, chapter, block, chapter title — comes from here.
   final NarrationQueueEntry? current;
+
+  /// Voices the engine offers, and the settings playback speaks with. The
+  /// session owns them because speech repair rewrites the voice when one
+  /// fails, and because the media notification can start playback with no
+  /// Cubit alive to supply them.
+  final List<NarrationVoice> voices;
+  final NarrationSettings? settings;
+  final bool usesBookOverride;
+
+  final bool canPrevious;
+  final bool canNext;
 
   /// The queue ran out while the book still has chapters downloading, so its
   /// end is a download boundary rather than the end of the book.
@@ -191,6 +208,11 @@ final class NarrationSessionState {
     Object? bookId = _unset,
     Object? bookTitle = _unset,
     Object? current = _unset,
+    List<NarrationVoice>? voices,
+    NarrationSettings? settings,
+    bool? usesBookOverride,
+    bool? canPrevious,
+    bool? canNext,
     bool? awaitsDownload,
     Object? message = _unset,
   }) => NarrationSessionState(
@@ -202,6 +224,11 @@ final class NarrationSessionState {
     current: identical(current, _unset)
         ? this.current
         : current as NarrationQueueEntry?,
+    voices: voices ?? this.voices,
+    settings: settings ?? this.settings,
+    usesBookOverride: usesBookOverride ?? this.usesBookOverride,
+    canPrevious: canPrevious ?? this.canPrevious,
+    canNext: canNext ?? this.canNext,
     awaitsDownload: awaitsDownload ?? this.awaitsDownload,
     message: identical(message, _unset) ? this.message : message as String?,
   );
@@ -213,12 +240,36 @@ final class NarrationSessionState {
       other.bookId == bookId &&
       other.bookTitle == bookTitle &&
       other.current == current &&
+      _sameVoices(other.voices) &&
+      other.settings == settings &&
+      other.usesBookOverride == usesBookOverride &&
+      other.canPrevious == canPrevious &&
+      other.canNext == canNext &&
       other.awaitsDownload == awaitsDownload &&
       other.message == message;
 
+  bool _sameVoices(List<NarrationVoice> other) {
+    if (other.length != voices.length) return false;
+    for (var i = 0; i < voices.length; i++) {
+      if (other[i] != voices[i]) return false;
+    }
+    return true;
+  }
+
   @override
-  int get hashCode =>
-      Object.hash(status, bookId, bookTitle, current, awaitsDownload, message);
+  int get hashCode => Object.hash(
+    status,
+    bookId,
+    bookTitle,
+    current,
+    Object.hashAll(voices),
+    settings,
+    usesBookOverride,
+    canPrevious,
+    canNext,
+    awaitsDownload,
+    message,
+  );
 }
 
 const Object _unset = Object();
