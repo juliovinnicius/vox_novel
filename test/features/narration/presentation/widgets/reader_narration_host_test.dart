@@ -70,36 +70,40 @@ void main() {
     AppLifecycleState.paused,
     AppLifecycleState.detached,
   ]) {
-    testWidgets('$lifecycle synchronously pauses and awaits exact stop/save', (
-      tester,
-    ) async {
+    testWidgets('$lifecycle leaves narration playing (BGN-01)', (tester) async {
       final fixture = _Fixture();
       await _pumpHost(tester, fixture);
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
       await tester.pump();
 
-      final observer =
-          tester.state(find.byType(ReaderNarrationHost))
-              as WidgetsBindingObserver;
-      observer.didChangeAppLifecycleState(lifecycle);
-      expect(fixture.cubit.state.status, NarrationStatus.paused);
+      // The host deliberately no longer observes the lifecycle: the whole
+      // point of this milestone is that leaving the app keeps the narration
+      // going in the background media service. This inverts what
+      // `.specs/features/narration/uat.md` UAT-10 used to assert.
+      final binding = tester.binding;
+      binding.handleAppLifecycleStateChanged(lifecycle);
       await tester.pump();
-      expect(fixture.engine.stops, 1);
-      expect(
-        [
-          fixture.repository.progress?.activeRunId,
-          fixture.repository.progress?.chapterId,
-          fixture.repository.progress?.blockId,
-          fixture.repository.progress?.completed,
-        ],
-        ['run', 'chapter', 'block', false],
-      );
 
-      observer.didChangeAppLifecycleState(AppLifecycleState.resumed);
-      expect(fixture.cubit.state.status, NarrationStatus.paused);
+      expect(fixture.cubit.state.status, NarrationStatus.playing);
+      expect(fixture.engine.stops, 0);
     });
   }
+
+  testWidgets('the host no longer registers a lifecycle observer', (
+    tester,
+  ) async {
+    final fixture = _Fixture();
+    await _pumpHost(tester, fixture);
+    await tester.pumpAndSettle();
+
+    // A source-level guarantee: an observer here would reintroduce the pause
+    // no matter what the state machine does.
+    expect(
+      tester.state(find.byType(ReaderNarrationHost)),
+      isNot(isA<WidgetsBindingObserver>()),
+    );
+  });
 }
 
 Future<void> _pumpHost(

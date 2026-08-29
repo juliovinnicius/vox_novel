@@ -118,7 +118,7 @@ void main() {
         ['run-1', 'chapter-2', 'block-2', false],
       );
 
-      final pause = cubit.onAppLifecyclePause();
+      final pause = cubit.pause();
       expect(cubit.state.status, NarrationStatus.paused);
       await pause;
       expect(engine.stopCalls, 1);

@@ -60,8 +60,6 @@ final class NarrationCubit extends Cubit<NarrationState> {
 
   Future<void> next() => _session.next();
 
-  Future<void> onAppLifecyclePause() => _session.pause();
-
   Future<void> reloadContent(ReaderBookContent content) =>
       _session.reloadContent(content);
 

@@ -497,7 +497,7 @@ void main() {
     final playing = cubit.play();
     await Future<void>.delayed(Duration.zero);
 
-    final lifecycle = cubit.onAppLifecyclePause();
+    final lifecycle = cubit.pause();
     expect(cubit.state.status, NarrationStatus.paused);
     expect(repository.progressSaves, isEmpty);
     stop.complete();
