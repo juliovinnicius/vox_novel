@@ -11,6 +11,10 @@ enum AudioInterruption {
   /// Another app took the audio for good. Narration stays paused until the
   /// reader asks for it again.
   permanentLoss,
+
+  /// The audio output went away — headphones unplugged, a Bluetooth device
+  /// disconnected. Continuing would move the book to the room's speaker.
+  outputDisconnected,
 }
 
 /// A source of audio interruptions.

@@ -95,6 +95,45 @@ void main() {
     expect(playback.calls, isEmpty);
   });
 
+  test('unplugging the headphones pauses narration', () async {
+    playback.status = NarrationStatus.playing;
+
+    await interruptions.emit(AudioInterruption.outputDisconnected);
+
+    // Continuing would move the book to the room's speaker.
+    expect(playback.calls, ['pause']);
+  });
+
+  test('reconnecting the output does not resume narration', () async {
+    playback.status = NarrationStatus.playing;
+    await interruptions.emit(AudioInterruption.outputDisconnected);
+    playback.status = NarrationStatus.paused;
+
+    await interruptions.emit(AudioInterruption.transientGain);
+
+    // The reader took the headphones out on purpose.
+    expect(playback.calls, ['pause']);
+  });
+
+  test('unplugging while already paused changes nothing', () async {
+    playback.status = NarrationStatus.paused;
+
+    await interruptions.emit(AudioInterruption.outputDisconnected);
+
+    expect(playback.calls, isEmpty);
+  });
+
+  test('unplugging cancels a pending transient resume', () async {
+    playback.status = NarrationStatus.playing;
+    await interruptions.emit(AudioInterruption.transientLoss);
+    playback.status = NarrationStatus.paused;
+    await interruptions.emit(AudioInterruption.outputDisconnected);
+
+    await interruptions.emit(AudioInterruption.transientGain);
+
+    expect(playback.calls, ['pause']);
+  });
+
   test('closing stops following interruptions', () async {
     await monitor.close();
     playback.status = NarrationStatus.playing;

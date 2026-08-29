@@ -47,6 +47,12 @@ final class AudioFocusMonitor {
         _resumeWhenFocusReturns = false;
         if (_playback.state.status != NarrationStatus.playing) return;
         await _playback.pause();
+      case AudioInterruption.outputDisconnected:
+        // Never resumed by returning focus: the reader took the headphones
+        // out on purpose.
+        _resumeWhenFocusReturns = false;
+        if (_playback.state.status != NarrationStatus.playing) return;
+        await _playback.pause();
       case AudioInterruption.transientGain:
         if (!_resumeWhenFocusReturns) return;
         _resumeWhenFocusReturns = false;

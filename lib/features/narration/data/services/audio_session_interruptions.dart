@@ -15,6 +15,7 @@ final class AudioSessionInterruptions implements AudioInterruptions {
   final Future<platform.AudioSession> _session;
   final _events = StreamController<AudioInterruption>.broadcast();
   StreamSubscription<platform.AudioInterruptionEvent>? _subscription;
+  StreamSubscription<void>? _noisy;
 
   @override
   Stream<AudioInterruption> get events => _events.stream;
@@ -24,6 +25,9 @@ final class AudioSessionInterruptions implements AudioInterruptions {
     final session = await _session;
     await session.configure(const platform.AudioSessionConfiguration.speech());
     _subscription = session.interruptionEventStream.listen(_forward);
+    _noisy = session.becomingNoisyEventStream.listen(
+      (_) => _events.add(AudioInterruption.outputDisconnected),
+    );
   }
 
   void _forward(platform.AudioInterruptionEvent event) {
@@ -46,6 +50,7 @@ final class AudioSessionInterruptions implements AudioInterruptions {
   @override
   Future<void> close() async {
     await _subscription?.cancel();
+    await _noisy?.cancel();
     await _events.close();
   }
 }
