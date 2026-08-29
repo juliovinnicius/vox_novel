@@ -37,6 +37,10 @@ import 'package:vox_novel/main.dart' as application;
 /// timers would outlive the widget tree, so they opt out.
 Future<void> _noResume() async {}
 
+/// Composing the app brings the platform media session up; a widget test has
+/// no platform to bring it up on.
+Future<void> _noMediaSession() async {}
+
 void main() {
   testWidgets('application smoke test renders one Biblioteca', (tester) async {
     final router = createAppRouter();
@@ -61,6 +65,7 @@ void main() {
         .createApplication(
           instance: locator,
           resumeWebDownloads: _noResume,
+          startMediaSession: _noMediaSession,
           databaseExecutor: NativeDatabase.memory(),
           supportDirectory: Directory.systemTemp,
           pdfTextExtractor: _TextExtractor(),
@@ -78,6 +83,7 @@ void main() {
                     isolateProcessingExecutor,
                 Future<void> Function()? initializePdfEngine,
                 Future<void> Function()? resumeWebDownloads,
+                Future<void> Function()? startMediaSession,
                 VisualReaderRepository? visualReaderRepository,
                 VisualReaderCubitFactory? visualReaderCubitFactory,
                 PdfSurfaceBuilder pdfSurfaceBuilder = buildPdfrxSurface,
@@ -95,6 +101,7 @@ void main() {
                   processingExecutor: processingExecutor,
                   initializePdfEngine: initializePdfEngine,
                   resumeWebDownloads: resumeWebDownloads,
+                  startMediaSession: startMediaSession,
                   visualReaderRepository: visualReaderRepository,
                   visualReaderCubitFactory: visualReaderCubitFactory,
                   pdfSurfaceBuilder: pdfSurfaceBuilder,
@@ -140,6 +147,7 @@ void main() {
     final app = await application.createApplication(
       instance: locator,
       resumeWebDownloads: _noResume,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase(databaseFile),
       supportDirectory: root,
       pdfPicker: _FixturePicker(source.path),
@@ -215,6 +223,7 @@ void main() {
       () => application.createApplication(
         instance: locator,
         resumeWebDownloads: _noResume,
+        startMediaSession: _noMediaSession,
         databaseExecutor: NativeDatabase(databaseFile),
         supportDirectory: root,
         pdfTextExtractor: _TextExtractor(),
@@ -480,6 +489,7 @@ void main() {
           () => application.createApplication(
             instance: locator,
             resumeWebDownloads: _noResume,
+            startMediaSession: _noMediaSession,
             databaseExecutor: NativeDatabase(databaseFile),
             supportDirectory: root,
             pdfTextExtractor: _TextExtractor(),

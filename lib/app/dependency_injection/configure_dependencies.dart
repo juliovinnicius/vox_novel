@@ -26,6 +26,10 @@ import 'package:vox_novel/features/library/presentation/pages/library_page.dart'
 import 'package:vox_novel/features/narration/data/repositories/drift_narration_repository.dart';
 import 'package:vox_novel/features/narration/data/services/flutter_tts_narration_engine.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
+import 'package:vox_novel/features/narration/data/services/audio_session_interruptions.dart';
+import 'package:vox_novel/features/narration/data/services/narration_media_session.dart';
+import 'package:vox_novel/features/narration/domain/services/audio_focus_monitor.dart';
+import 'package:vox_novel/features/narration/domain/services/audio_interruptions.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
@@ -144,6 +148,8 @@ Future<void> configureDependencies({
   NarrationRepository? narrationRepository,
   NarrationEngine? narrationEngine,
   NarrationSession? narrationSession,
+  AudioInterruptions? audioInterruptions,
+  Future<void> Function()? startMediaSession,
   NarrationCubitFactory? narrationCubitFactory,
   SiteRecipeRegistry? siteRecipeRegistry,
   WebFetcher? webFetcher,
@@ -310,6 +316,20 @@ Future<void> configureDependencies({
       dispose: (session) => session.close(),
     );
   }
+  if (!locator.isRegistered<AudioInterruptions>()) {
+    locator.registerLazySingleton<AudioInterruptions>(
+      () => audioInterruptions ?? AudioSessionInterruptions(),
+    );
+  }
+  if (!locator.isRegistered<AudioFocusMonitor>()) {
+    locator.registerLazySingleton<AudioFocusMonitor>(
+      () => AudioFocusMonitor(
+        interruptions: locator(),
+        playback: locator<NarrationSession>(),
+      ),
+      dispose: (monitor) => monitor.close(),
+    );
+  }
   if (!locator.isRegistered<NarrationCubitRegistry>()) {
     locator.registerLazySingleton(
       () => NarrationCubitRegistry(
@@ -401,6 +421,11 @@ Future<void> configureDependencies({
   // disposal, so a test composing the app for another reason opts out.
   (resumeWebDownloads ?? () => _resumeWebDownloads(locator))().ignore();
 
+  // Fire and forget, for the same reason the resume above is: awaiting real
+  // platform initialisation during composition never completes under a widget
+  // test's fake clock.
+  (startMediaSession ?? () => _startNarrationMediaSession(locator))().ignore();
+
   if (!locator.isRegistered<GoRouter>()) {
     locator.registerSingleton<GoRouter>(
       createAppRouter(
@@ -441,6 +466,14 @@ Future<void> _resumeWebDownloads(GetIt locator) async {
   await locator.allReady();
   await locator<WebNovelDownloadService>().resumePending();
 }
+
+/// Resolved here rather than at the call site so a test that opts out never
+/// builds the real speech engine just to hand it to a no-op.
+Future<void> _startNarrationMediaSession(GetIt locator) =>
+    startNarrationMediaSession(
+      locator<NarrationSession>(),
+      locator<AudioFocusMonitor>(),
+    );
 
 Future<void> resetDependencies({GetIt? instance}) async {
   final locator = instance ?? GetIt.instance;
