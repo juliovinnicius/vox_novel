@@ -10,7 +10,13 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 **Design**: `.specs/features/background_narration/design.md`
 **Spec**: `.specs/features/background_narration/spec.md`
-**Status**: Draft — awaiting approval
+**Status**: Phase 1, 2 and 2b complete. Phase 3 unblocked.
+
+> **T5 and T6 shipped as one commit** (`dd02c48`). They proved inseparable: the
+> Cubit cannot take a session the container does not hand it, and the registry's
+> ownership contract dies with the change. `onAppLifecyclePause` was kept rather
+> than deleted here, so T5 stayed a provably behaviour-preserving refactor;
+> removing it is T9's deliberate inversion, where it is tested.
 
 > **T2 is a stop point for Phase 3, not for Phase 2.** It answers whether
 > `flutter_tts` keeps speaking once the activity is destroyed. A negative answer
@@ -474,9 +480,9 @@ Execution is strictly sequential — there is no intra-phase parallelism.
 
 | Batch | Phases | Tasks | Count | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Phase 1 + Phase 2 | T1, T3–T6 | 5 | Pending |
-| — | Phase 2b | T2 | 1 | Blocked — no Android device available 2026-08-26 |
-| 2 | Phase 3 | T7–T11 | 5 | Blocked by T2 |
+| 1 | Phase 1 + Phase 2 | T1, T3–T6 | 5 | Complete |
+| — | Phase 2b | T2 | 1 | Complete — spike answered on device 2026-08-28 |
+| 2 | Phase 3 | T7–T11 | 5 | Pending — unblocked, T2 cleared the stop point |
 | 3 | Phase 4 | T12–T15 | 4 | Pending |
 
 Batch 1 fits a single worker budget, so it runs inline. Batch 2 must not be

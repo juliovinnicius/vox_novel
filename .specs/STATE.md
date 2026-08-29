@@ -112,11 +112,11 @@
 ## Handoff
 
 - **Feature**: background_narration / `.specs/features/background_narration`
-- **Phase / Task**: Design approved — Tasks not yet written
-- **Completed**: Specify (18 requirements, BGN-01..BGN-18), Discuss (context.md), Design (approach A confirmed, AD-013 recorded)
+- **Phase / Task**: Phase 1, 2 and 2b complete (T1–T6). Phase 3 (T7–T11) is next and unblocked.
+- **Completed**: manifest and packages; the device spike; NarrationSessionState; NarrationSession owning playback; the Cubit as a client; the registry reduced to an attach point. 657 tests, analyze clean.
 - **In-progress** (file:line): none
-- **Next step**: write `tasks.md`; its first task must be the device spike on whether `flutter_tts` keeps speaking once the activity is destroyed — the rest of the design depends on that answer
-- **Blockers**: the spike above is unanswered; Context7 was unavailable, so package findings came from pub.dev
+- **Next step**: T7, the media audio handler. It must call `AudioService.androidForceEnableMediaButtons()` — the spike proved media keys never reach the session without it.
+- **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `feat/background-narration`
 - **Note**: `main` is 43 commits ahead of `origin/main` and unpushed
