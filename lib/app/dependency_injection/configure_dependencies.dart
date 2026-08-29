@@ -201,7 +201,13 @@ Future<void> configureDependencies({
   }
   if (!locator.isRegistered<LibraryService>()) {
     locator.registerSingleton(
-      LibraryService(repository: locator(), storage: locator(), clock: now),
+      LibraryService(
+        repository: locator(),
+        storage: locator(),
+        clock: now,
+        onBookDeleted: (bookId) =>
+            locator<NarrationSession>().discardBook(bookId),
+      ),
     );
   }
   if (!locator.isRegistered<LibraryCubit>()) {

@@ -137,7 +137,16 @@ final class FlutterTtsNarrationEngine implements NarrationEngine {
   }
 
   @override
-  Future<void> close() => stop();
+  /// Disposal must not fail. Stopping an engine that was never asked to speak
+  /// — or one whose platform channel is gone — is nothing worth reporting, and
+  /// throwing here takes the whole dependency reset down with it.
+  Future<void> close() async {
+    try {
+      await stop();
+    } on NarrationEngineException {
+      // Nothing left to stop.
+    }
+  }
 
   Future<void> _requireSuccess(String operation, Future<dynamic> result) async {
     try {

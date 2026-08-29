@@ -492,9 +492,13 @@ final class NarrationSession implements NarrationPlayback {
 
   Future<void> _stopAndPersist(int generation) async {
     final entry = _state.current;
+    // A session that never held a block never asked the engine to speak, so
+    // there is nothing to stop — and on a device without narration configured,
+    // asking anyway is an error rather than a no-op.
+    if (entry == null) return;
     try {
       await _engine.stop();
-      if (entry != null && _state.settings != null) {
+      if (_state.settings != null) {
         await _repository.saveProgress(
           _progress(entry, _state.settings!, completed: false),
         );
@@ -573,6 +577,25 @@ final class NarrationSession implements NarrationPlayback {
     _reportedMediaSessionFailure = true;
     _pendingMediaSessionMessage = mediaSessionMessage;
     _emit(_state.copyWith(message: mediaSessionMessage));
+  }
+
+  /// Ends the session if it is narrating [bookId].
+  ///
+  /// Called when a book is deleted: a session pointing at rows that no longer
+  /// exist would keep a notification alive for a book the reader removed.
+  Future<void> discardBook(String bookId) async {
+    if (_state.bookId != bookId) return;
+    final generation = ++_generation;
+    try {
+      await _engine.stop();
+    } catch (_) {
+      // The book is gone either way; there is nothing left to persist.
+    }
+    if (!_active(generation)) return;
+    _content = null;
+    _queue = null;
+    _pendingStart = null;
+    _emit(const NarrationSessionState());
   }
 
   /// Ends the session, stopping speech and persisting where it stopped.

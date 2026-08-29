@@ -455,6 +455,53 @@ void main() {
     });
   });
 
+  group('the book disappears', () {
+    test('deleting the narrated book ends the session', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      await session.discardBook('book');
+
+      expect(session.state, const NarrationSessionState());
+      expect(engine.stopCalls, 1);
+    });
+
+    test('deleting a different book leaves the session alone', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+
+      await session.discardBook('outro');
+
+      expect(session.state.bookId, 'book');
+      expect(engine.stopCalls, 0);
+    });
+
+    test('the discarded session speaks nothing more', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      await session.discardBook('book');
+
+      await session.play();
+
+      expect(engine.spoken, isEmpty);
+    });
+
+    test('an engine that fails to stop still ends the session', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.stopFuture = Future<void>.error(StateError('stop failed'));
+
+      await session.discardBook('book');
+
+      // The book is gone either way; refusing to let go would strand a
+      // notification for something the reader removed.
+      expect(session.state, const NarrationSessionState());
+    });
+  });
+
   group('lifecycle', () {
     test('close stops the engine and persists', () async {
       final session = sessionFor();

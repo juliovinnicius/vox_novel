@@ -8,6 +8,56 @@ import 'package:vox_novel/features/library/domain/services/library_service.dart'
 void main() {
   final now = DateTime.utc(2026, 7, 17);
 
+  test('deleting a book tells narration to let it go', () async {
+    final discarded = <String>[];
+    final service = LibraryService(
+      repository: FakeLibraryRepository(book: fixture()),
+      storage: FakeLibraryStorage(),
+      clock: () => now,
+      onBookDeleted: (bookId) async => discarded.add(bookId),
+    );
+
+    await service.deleteBook(fixture());
+
+    expect(discarded, ['book-1']);
+  });
+
+  test('a failed deletion does not tell narration anything', () async {
+    final discarded = <String>[];
+    final service = LibraryService(
+      repository: FakeLibraryRepository(
+        book: fixture(),
+        failDeleteAfterRemoval: true,
+      ),
+      storage: FakeLibraryStorage(),
+      clock: () => now,
+      onBookDeleted: (bookId) async => discarded.add(bookId),
+    );
+
+    final result = await service.deleteBook(fixture());
+
+    // The book is still there; silencing narration would be a second loss.
+    expect(result.success, isFalse);
+    expect(discarded, isEmpty);
+  });
+
+  test('deleting a web book succeeds although it owns no file', () async {
+    final repository = FakeLibraryRepository(book: webFixture());
+    final storage = FakeLibraryStorage();
+    final service = LibraryService(
+      repository: repository,
+      storage: storage,
+      clock: () => now,
+    );
+
+    final result = await service.deleteBook(webFixture());
+
+    expect(result.success, isTrue);
+    expect(repository.book, isNull);
+    // Nothing to quarantine: the book has no local file to move aside.
+    expect(storage.events, isEmpty);
+  });
+
   test('valid metadata persists exact trimmed values and timestamp', () async {
     final repository = FakeLibraryRepository(book: fixture());
     final service = LibraryService(
@@ -311,6 +361,19 @@ final class FakeLibraryRepository implements BookRepository {
     required DateTime updatedAt,
   }) async {}
 }
+
+/// A web book owns no local file: the three file columns are nullable since
+/// the web source feature landed.
+Book webFixture() => Book(
+  id: 'book-web',
+  title: 'Obra da web',
+  sourceType: BookSourceType.web,
+  sourceRef: 'https://exemplo.com/series/obra/',
+  status: BookStatus.ready,
+  processingProgress: 1,
+  createdAt: DateTime.utc(2026, 7, 1),
+  updatedAt: DateTime.utc(2026, 7, 2),
+);
 
 Book fixture({String storedFilePath = '/books/book.pdf'}) => Book(
   id: 'book-1',
