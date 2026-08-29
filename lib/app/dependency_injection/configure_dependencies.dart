@@ -28,10 +28,12 @@ import 'package:vox_novel/features/narration/data/services/flutter_tts_narration
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/data/services/audio_session_interruptions.dart';
 import 'package:vox_novel/features/narration/data/services/narration_media_session.dart';
+import 'package:vox_novel/features/narration/data/services/permission_handler_notifications.dart';
 import 'package:vox_novel/features/narration/domain/services/audio_focus_monitor.dart';
 import 'package:vox_novel/features/narration/domain/services/audio_interruptions.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
+import 'package:vox_novel/features/narration/domain/services/notification_permission.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/data/services/pdfrx_pdf_text_extractor.dart';
@@ -149,6 +151,7 @@ Future<void> configureDependencies({
   NarrationEngine? narrationEngine,
   NarrationSession? narrationSession,
   AudioInterruptions? audioInterruptions,
+  NotificationPermission? notificationPermission,
   Future<void> Function()? startMediaSession,
   NarrationCubitFactory? narrationCubitFactory,
   SiteRecipeRegistry? siteRecipeRegistry,
@@ -312,6 +315,9 @@ Future<void> configureDependencies({
             repository: locator(),
             engine: locator(),
             clock: now,
+            notifications:
+                notificationPermission ??
+                const PermissionHandlerNotifications(),
           ),
       dispose: (session) => session.close(),
     );

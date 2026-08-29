@@ -6,6 +6,7 @@ import 'package:vox_novel/features/narration/domain/entities/narration_models.da
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
+import 'package:vox_novel/features/narration/domain/services/notification_permission.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 
@@ -21,11 +22,13 @@ void main() {
 
   NarrationSession sessionFor({
     NarrationContentLoader? loadContent,
+    NotificationPermission? notifications,
   }) => NarrationSession(
     repository: repository,
     engine: engine,
     clock: () => DateTime.utc(2026),
     loadContent: loadContent,
+    notifications: notifications,
   );
 
   setUp(() {
@@ -319,6 +322,82 @@ void main() {
     });
   });
 
+  group('notification permission', () {
+    test('is asked for when narration first needs the notification', () async {
+      final notifications = _FakeNotifications();
+      final session = sessionFor(notifications: notifications);
+      await session.load(_content(chapters: 2));
+
+      // Nothing asked yet: a permission dialog before the reader has asked for
+      // anything is a prompt with no context.
+      expect(notifications.calls, 0);
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(notifications.calls, 1);
+    });
+
+    test('a granted permission says nothing', () async {
+      final session = sessionFor(notifications: _FakeNotifications());
+      await session.load(_content(chapters: 1));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(session.state.message, isNull);
+    });
+
+    test('a denial still narrates and warns once', () async {
+      final session = sessionFor(
+        notifications: _FakeNotifications(granted: false),
+      );
+      await session.load(_content(chapters: 1));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(engine.spoken, ['Texto 1']);
+      expect(session.state.message, NarrationSession.notificationsMessage);
+    });
+
+    test('it is asked once per session, not once per block', () async {
+      final notifications = _FakeNotifications(granted: false);
+      final session = sessionFor(notifications: notifications);
+      await session.load(_content(chapters: 3));
+
+      await session.play();
+      await pumpEventQueue();
+
+      // Three blocks played through; one dialog.
+      expect(notifications.calls, 1);
+    });
+
+    test('a permission channel that throws warns like a denial', () async {
+      final session = sessionFor(
+        notifications: _FakeNotifications(fails: true),
+      );
+      await session.load(_content(chapters: 1));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(session.state.message, NarrationSession.notificationsMessage);
+      expect(engine.spoken, ['Texto 1']);
+    });
+
+    test('a session without a permission source narrates unchanged', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+
+      await session.play();
+      await pumpEventQueue();
+
+      expect(engine.spoken, ['Texto 1']);
+      expect(session.state.message, isNull);
+    });
+  });
+
   group('without a media session', () {
     test('reports that outside controls are unavailable', () async {
       final session = sessionFor();
@@ -485,6 +564,21 @@ ReaderBookContent _content({
       ),
   ],
 );
+
+final class _FakeNotifications implements NotificationPermission {
+  _FakeNotifications({this.granted = true, this.fails = false});
+
+  final bool granted;
+  final bool fails;
+  var calls = 0;
+
+  @override
+  Future<bool> ensureGranted() async {
+    calls++;
+    if (fails) throw StateError('permission channel failed');
+    return granted;
+  }
+}
 
 final class _FakeContentLoader {
   _FakeContentLoader(this.responses);

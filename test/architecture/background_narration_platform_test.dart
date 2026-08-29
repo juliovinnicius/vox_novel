@@ -12,6 +12,9 @@ void main() {
   ).readAsStringSync();
 
   for (final permission in [
+    // Android 13+ will not show the media notification without it, and a
+    // media service the reader cannot see or control is worse than none.
+    'android.permission.POST_NOTIFICATIONS',
     'android.permission.WAKE_LOCK',
     'android.permission.FOREGROUND_SERVICE',
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',

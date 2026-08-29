@@ -6,6 +6,7 @@ import 'package:vox_novel/features/narration/domain/services/narration_engine.da
 import 'package:vox_novel/features/narration/domain/services/narration_playback.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_queue.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_settings_resolver.dart';
+import 'package:vox_novel/features/narration/domain/services/notification_permission.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
 
 /// Re-reads a book's reader content — `VisualReaderRepository.loadContent` in
@@ -26,6 +27,7 @@ final class NarrationSession implements NarrationPlayback {
     required DateTime Function() clock,
     NarrationSettingsResolver resolver = const NarrationSettingsResolver(),
     NarrationContentLoader? loadContent,
+    NotificationPermission? notifications,
   }) : // Public dependency names intentionally omit private prefixes.
        // ignore: prefer_initializing_formals
        _repository = repository,
@@ -36,7 +38,9 @@ final class NarrationSession implements NarrationPlayback {
        // ignore: prefer_initializing_formals
        _resolver = resolver,
        // ignore: prefer_initializing_formals
-       _loadContent = loadContent;
+       _loadContent = loadContent,
+       // ignore: prefer_initializing_formals
+       _notifications = notifications;
 
   static const unavailableMessage =
       'Nenhuma voz de narração está disponível neste dispositivo';
@@ -47,6 +51,8 @@ final class NarrationSession implements NarrationPlayback {
   static const progressMessage =
       'Não foi possível salvar o progresso da narração';
   static const previewPhrase = 'Esta é uma amostra da voz selecionada';
+  static const notificationsMessage =
+      'Sem permissão de notificação, os controles fora do app não aparecem';
   static const mediaSessionMessage =
       'A narração funciona no app, mas os controles fora dele não estão '
       'disponíveis';
@@ -56,6 +62,7 @@ final class NarrationSession implements NarrationPlayback {
   final DateTime Function() _clock;
   final NarrationSettingsResolver _resolver;
   final NarrationContentLoader? _loadContent;
+  final NotificationPermission? _notifications;
 
   // Synchronous delivery: a surface must never render a state older than the
   // one the session already holds, or the in-app player and the notification
@@ -71,6 +78,7 @@ final class NarrationSession implements NarrationPlayback {
   var _transitioning = false;
   var _closed = false;
   var _reportedMediaSessionFailure = false;
+  var _askedForNotifications = false;
 
   /// Held until a state can actually carry it. The media session fails at
   /// startup, before any book is open, and loading a book emits a fresh state
@@ -279,6 +287,7 @@ final class NarrationSession implements NarrationPlayback {
   }
 
   Future<void> _start(NarrationQueueEntry entry) async {
+    await _ensureNotifications();
     final generation = ++_generation;
     _emitPlaybackEntry(entry, NarrationStatus.playing);
     try {
@@ -531,6 +540,27 @@ final class NarrationSession implements NarrationPlayback {
   void clearMessage() {
     _pendingMediaSessionMessage = null;
     if (_state.message != null) _emit(_state.copyWith(message: null));
+  }
+
+  /// Asks for the notification permission the first time narration actually
+  /// needs the notification.
+  ///
+  /// Not at startup: a permission dialog before the reader has asked for
+  /// anything is a prompt with no context. Asked once per session, so a
+  /// refusal does not become a dialog on every block.
+  Future<void> _ensureNotifications() async {
+    final notifications = _notifications;
+    if (notifications == null || _askedForNotifications) return;
+    _askedForNotifications = true;
+    try {
+      if (await notifications.ensureGranted()) return;
+    } catch (_) {
+      // A permission channel that fails is a platform that cannot promise the
+      // notification either; say the same thing.
+    }
+    if (_closed) return;
+    _pendingMediaSessionMessage = notificationsMessage;
+    _emit(_state.copyWith(message: notificationsMessage));
   }
 
   /// The platform media session could not be brought up.

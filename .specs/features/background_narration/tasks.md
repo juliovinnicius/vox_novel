@@ -91,7 +91,7 @@ T7 → T8 → T9 → T10 → T11
 ### Phase 4: Edges, P2, and hand verification
 
 ```
-T12 → T13 → T14 → T15
+T12 → T16 → T13 → T14 → T15
 ```
 
 ---
@@ -392,6 +392,38 @@ T12 → T13 → T14 → T15
 
 ---
 
+### T16: Ask for the notification permission
+
+**What**: Declare `POST_NOTIFICATIONS`, request it when narration first needs the notification, and report once if it is denied.
+**Where**: `android/app/src/main/AndroidManifest.xml`, `lib/features/narration/domain/services/notification_permission.dart`, `lib/features/narration/data/services/permission_handler_notifications.dart`, `lib/features/narration/domain/services/narration_session.dart`
+**Depends on**: T12
+**Reuses**: The one-shot message path added in T12; the adapter-behind-a-domain-interface shape used for `AudioInterruptions`
+**Requirement**: BGN-14
+
+**Tools**: MCP: NONE · Skill: NONE
+
+**Origin**: T12 could deliver only half of its card. Neither the project nor
+`audio_service` exposes a permission API, so a denial could not be detected —
+and the manifest did not even declare the permission, which on Android 13+ means
+the media notification may never appear. The user approved adding
+`permission_handler` on 2026-08-29 rather than amending the requirement away.
+
+**Done when**:
+- [ ] The manifest declares `POST_NOTIFICATIONS`, asserted by the platform test
+- [ ] The permission is requested when narration first needs the notification, not at app startup
+- [ ] A denial still lets narration play, and states once that controls outside the app are unavailable
+- [ ] A granted permission produces no message
+- [ ] The permission is requested once per session, not once per block
+- [ ] The platform package stays in `features/narration/data/`, per the T11 scan
+- [ ] Gate check passes: `flutter analyze && flutter test && flutter build apk --debug`
+- [ ] Test count: >=6 tests pass (no silent deletions)
+
+**Tests**: unit
+**Gate**: build
+**Commit**: `feat(narration): ask for the notification permission`
+
+---
+
 ### T13: Pause when the audio output becomes noisy
 
 **What**: Pause narration when wired headphones are unplugged or a Bluetooth device disconnects.
@@ -471,7 +503,7 @@ Phase 1:  T1
 Phase 2:  T3 ──→ T4 ──→ T5 ──→ T6
 Phase 2b: T2   (device-gated stop point)
 Phase 3:  T7 ──→ T8 ──→ T9 ──→ T10 ──→ T11
-Phase 4:  T12 ──→ T13 ──→ T14 ──→ T15
+Phase 4:  T12 ──→ T16 ──→ T13 ──→ T14 ──→ T15
 ```
 
 Execution is strictly sequential — there is no intra-phase parallelism.
@@ -482,8 +514,8 @@ Execution is strictly sequential — there is no intra-phase parallelism.
 | --- | --- | --- | --- | --- |
 | 1 | Phase 1 + Phase 2 | T1, T3–T6 | 5 | Complete |
 | — | Phase 2b | T2 | 1 | Complete — spike answered on device 2026-08-28 |
-| 2 | Phase 3 | T7–T11 | 5 | Pending — unblocked, T2 cleared the stop point |
-| 3 | Phase 4 | T12–T15 | 4 | Pending |
+| 2 | Phase 3 | T7–T11 | 5 | Complete |
+| 3 | Phase 4 | T12, T16, T13–T15 | 5 | In progress |
 
 Batch 1 fits a single worker budget, so it runs inline. Batch 2 must not be
 dispatched until T2 reports.
