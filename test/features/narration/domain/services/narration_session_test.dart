@@ -319,6 +319,63 @@ void main() {
     });
   });
 
+  group('without a media session', () {
+    test('reports that outside controls are unavailable', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+
+      session.reportMediaSessionUnavailable();
+
+      expect(session.state.message, NarrationSession.mediaSessionMessage);
+    });
+
+    test('narration still plays', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 1));
+      session.reportMediaSessionUnavailable();
+
+      await session.play();
+      await pumpEventQueue();
+
+      // Refusing to speak would punish the reader for a platform capability
+      // the core feature does not need.
+      expect(engine.spoken, ['Texto 1']);
+    });
+
+    test('reporting twice does not repeat the message', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      session.reportMediaSessionUnavailable();
+      session.clearMessage();
+
+      session.reportMediaSessionUnavailable();
+
+      // One failure at startup must not become a message on every block.
+      expect(session.state.message, isNull);
+    });
+
+    test('the report leaves playback state untouched', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      final before = session.state.status;
+
+      session.reportMediaSessionUnavailable();
+
+      expect(session.state.status, before);
+      expect(session.state.current?.blockId, 'block-1');
+    });
+
+    test('a closed session reports nothing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      await session.close();
+
+      session.reportMediaSessionUnavailable();
+
+      expect(session.state.message, isNull);
+    });
+  });
+
   group('lifecycle', () {
     test('close stops the engine and persists', () async {
       final session = sessionFor();

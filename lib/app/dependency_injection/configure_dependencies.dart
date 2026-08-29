@@ -424,7 +424,10 @@ Future<void> configureDependencies({
   // Fire and forget, for the same reason the resume above is: awaiting real
   // platform initialisation during composition never completes under a widget
   // test's fake clock.
-  (startMediaSession ?? () => _startNarrationMediaSession(locator))().ignore();
+  _bringUpMediaSession(
+    locator,
+    startMediaSession ?? () => _startNarrationMediaSession(locator),
+  ).ignore();
 
   if (!locator.isRegistered<GoRouter>()) {
     locator.registerSingleton<GoRouter>(
@@ -465,6 +468,20 @@ Future<void> configureDependencies({
 Future<void> _resumeWebDownloads(GetIt locator) async {
   await locator.allReady();
   await locator<WebNovelDownloadService>().resumePending();
+}
+
+/// Starts the media session, and reports rather than crashes when the platform
+/// refuses. A device that cannot host a foreground service must still narrate
+/// inside the app (BGN-10).
+Future<void> _bringUpMediaSession(
+  GetIt locator,
+  Future<void> Function() start,
+) async {
+  try {
+    await start();
+  } catch (_) {
+    locator<NarrationSession>().reportMediaSessionUnavailable();
+  }
 }
 
 /// Resolved here rather than at the call site so a test that opts out never

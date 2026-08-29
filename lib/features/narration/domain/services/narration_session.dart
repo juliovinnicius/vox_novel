@@ -47,6 +47,9 @@ final class NarrationSession implements NarrationPlayback {
   static const progressMessage =
       'Não foi possível salvar o progresso da narração';
   static const previewPhrase = 'Esta é uma amostra da voz selecionada';
+  static const mediaSessionMessage =
+      'A narração funciona no app, mas os controles fora dele não estão '
+      'disponíveis';
 
   final NarrationRepository _repository;
   final NarrationEngine _engine;
@@ -67,6 +70,12 @@ final class NarrationSession implements NarrationPlayback {
   var _generation = 0;
   var _transitioning = false;
   var _closed = false;
+  var _reportedMediaSessionFailure = false;
+
+  /// Held until a state can actually carry it. The media session fails at
+  /// startup, before any book is open, and loading a book emits a fresh state
+  /// — without this the reader would never see the warning.
+  String? _pendingMediaSessionMessage;
   NarrationSessionState _state = const NarrationSessionState();
 
   /// The current value, so a surface attaching mid-playback starts correct
@@ -520,7 +529,20 @@ final class NarrationSession implements NarrationPlayback {
   }
 
   void clearMessage() {
+    _pendingMediaSessionMessage = null;
     if (_state.message != null) _emit(_state.copyWith(message: null));
+  }
+
+  /// The platform media session could not be brought up.
+  ///
+  /// Narration still plays: refusing to speak would punish the reader for a
+  /// platform capability the core feature does not need. Reported once, not
+  /// once per play, so a failure at startup is not a message on every block.
+  void reportMediaSessionUnavailable() {
+    if (_reportedMediaSessionFailure || _closed) return;
+    _reportedMediaSessionFailure = true;
+    _pendingMediaSessionMessage = mediaSessionMessage;
+    _emit(_state.copyWith(message: mediaSessionMessage));
   }
 
   /// Ends the session, stopping speech and persisting where it stopped.
@@ -588,6 +610,10 @@ final class NarrationSession implements NarrationPlayback {
   }
 
   void _emit(NarrationSessionState next) {
+    final pending = _pendingMediaSessionMessage;
+    if (pending != null && next.message == null) {
+      next = next.copyWith(message: pending);
+    }
     _state = next;
     if (!_states.isClosed) _states.add(next);
   }

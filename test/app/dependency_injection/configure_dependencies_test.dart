@@ -343,6 +343,29 @@ void main() {
       expect(interruptions.closed, isTrue);
     });
 
+    test('a platform that refuses the service still narrates', () async {
+      final engine = _NarrationEngine();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: engine,
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: _Interruptions(),
+        startMediaSession: () async => throw StateError('no foreground service'),
+      );
+      await pumpEventQueue();
+      final session = locator<NarrationSession>();
+      await session.load(_ReaderRepository().content);
+
+      expect(session.state.message, NarrationSession.mediaSessionMessage);
+      // The reader can still listen; only the controls outside the app are
+      // missing.
+      unawaited(session.play());
+      await pumpEventQueue();
+      expect(session.state.status, NarrationStatus.playing);
+    });
+
     test('a supplied interruptions source replaces the platform one', () async {
       final interruptions = _Interruptions();
       await configureDependencies(
