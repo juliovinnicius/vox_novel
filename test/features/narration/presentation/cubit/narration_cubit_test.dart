@@ -5,6 +5,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
@@ -442,38 +443,43 @@ void main() {
     },
   );
 
-  test(
-    'close with no current block stops safely without progress writes',
-    () async {
-      final repository = _FakeRepository();
-      final engine = _FakeEngine(voices: [ana]);
-      final cubit = _cubit(repository, engine);
-      await cubit.load(_content(empty: true));
-
-      await expectLater(cubit.close(), completes);
-      expect(engine.stopCalls, 1);
-      expect(repository.progressSaves, isEmpty);
-    },
-  );
-
-  test('close awaits stop before persisting current block', () async {
-    final stop = Completer<void>();
+  test('closing the cubit detaches without stopping playback', () async {
     final repository = _FakeRepository();
-    final engine = _FakeEngine(voices: [ana], stopFuture: stop.future);
-    final cubit = _cubit(repository, engine);
-    await cubit.load(_content());
-    var closed = false;
-
-    final closing = cubit.close().then((_) => closed = true);
-    await Future<void>.delayed(Duration.zero);
-    expect([closed, repository.progressSaves], [false, isEmpty]);
-    stop.complete();
-    await closing;
-
-    expect(
-      [closed, repository.progressSaves.single.blockId],
-      [true, 'block-1'],
+    final engine = _FakeEngine(voices: [ana]);
+    final session = NarrationSession(
+      repository: repository,
+      engine: engine,
+      clock: () => DateTime.utc(2026),
     );
+    final cubit = NarrationCubit(session: session);
+    await session.load(_content());
+
+    await cubit.close();
+
+    // Playback is owned by the application-scoped session (AD-013): leaving
+    // the reader must not silence narration that is meant to keep going in
+    // the background. Stopping and persisting on close is the session's
+    // contract now, asserted in narration_session_test.dart.
+    expect(engine.stopCalls, 0);
+    expect(repository.progressSaves, isEmpty);
+    expect(session.state.current?.blockId, 'block-1');
+  });
+
+  test('a cubit attaching mid-playback adopts the live session state', () async {
+    final repository = _FakeRepository();
+    final engine = _FakeEngine(voices: [ana]);
+    final session = NarrationSession(
+      repository: repository,
+      engine: engine,
+      clock: () => DateTime.utc(2026),
+    );
+    await session.load(_content());
+
+    final cubit = NarrationCubit(session: session);
+    addTearDown(cubit.close);
+
+    expect(cubit.state.status, session.state.status);
+    expect(cubit.state.blockId, 'block-1');
   });
 
   test('lifecycle pauses synchronously and awaits stop and progress', () async {
@@ -665,15 +671,19 @@ void main() {
   });
 }
 
+/// The Cubit is a client of the session now, so the fakes are wired into a
+/// real session and the assertions below stay exactly as they were.
 NarrationCubit _cubit(
   _FakeRepository repository,
   _FakeEngine engine, {
   NarrationContentLoader? loadContent,
 }) => NarrationCubit(
-  repository: repository,
-  engine: engine,
-  clock: () => DateTime.utc(2026),
-  loadContent: loadContent,
+  session: NarrationSession(
+    repository: repository,
+    engine: engine,
+    clock: () => DateTime.utc(2026),
+    loadContent: loadContent,
+  ),
 );
 
 /// A web book whose queue holds [chapters] chapters of one block each, still

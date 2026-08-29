@@ -53,8 +53,12 @@ final class NarrationSession {
   final NarrationSettingsResolver _resolver;
   final NarrationContentLoader? _loadContent;
 
+  // Synchronous delivery: a surface must never render a state older than the
+  // one the session already holds, or the in-app player and the notification
+  // disagree for a frame. Listeners only project the value, so re-entrancy is
+  // not a concern here.
   final StreamController<NarrationSessionState> _states =
-      StreamController<NarrationSessionState>.broadcast();
+      StreamController<NarrationSessionState>.broadcast(sync: true);
 
   ReaderBookContent? _content;
   NarrationQueue? _queue;
@@ -169,7 +173,6 @@ final class NarrationSession {
       _applySettings(NarrationSettings(voice: _state.settings!.voice, rate: rate));
 
   Future<void> _applySettings(NarrationSettings settings) async {
-    final previous = _state.settings;
     _emit(_state.copyWith(settings: settings, message: null));
     try {
       if (_state.usesBookOverride) {
@@ -184,42 +187,47 @@ final class NarrationSession {
         await _repository.saveGlobalSettings(settings);
       }
     } catch (_) {
-      _emit(_state.copyWith(settings: previous, message: settingsMessage));
+      // The selection stands even when it could not be stored: reverting it
+      // under the reader would be a second surprise on top of the failure.
+      if (!_closed) _emit(_state.copyWith(message: settingsMessage));
     }
   }
 
   Future<void> enableBookOverride() async {
-    if (_state.usesBookOverride || _state.settings == null) return;
+    final settings = _state.settings;
+    if (settings == null || _state.usesBookOverride) return;
     _emit(_state.copyWith(usesBookOverride: true, message: null));
     try {
       await _repository.saveBookOverride(
         BookNarrationOverride(
           bookId: _state.bookId!,
-          settings: _state.settings!,
+          settings: settings,
           updatedAt: _clock().toUtc(),
         ),
       );
     } catch (_) {
-      _emit(_state.copyWith(usesBookOverride: false, message: settingsMessage));
+      if (!_closed) _emit(_state.copyWith(message: settingsMessage));
     }
   }
 
   Future<void> removeBookOverride() async {
     if (!_state.usesBookOverride) return;
-    final previous = _state.settings;
-    _emit(_state.copyWith(usesBookOverride: false, message: null));
     try {
       await _repository.deleteBookOverride(_state.bookId!);
       final global = await _repository.loadGlobalSettings();
-      _emit(_state.copyWith(settings: global));
-    } catch (_) {
+      final resolved = _resolver.resolve(voices: _state.voices, global: global)!;
       _emit(
         _state.copyWith(
-          usesBookOverride: true,
-          settings: previous,
-          message: settingsMessage,
+          settings: resolved.settings,
+          usesBookOverride: false,
+          message: null,
         ),
       );
+      if (resolved.repairedVoice) {
+        await _repository.saveGlobalSettings(resolved.settings);
+      }
+    } catch (_) {
+      if (!_closed) _emit(_state.copyWith(message: settingsMessage));
     }
   }
 

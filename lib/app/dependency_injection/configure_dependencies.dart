@@ -27,6 +27,7 @@ import 'package:vox_novel/features/narration/data/repositories/drift_narration_r
 import 'package:vox_novel/features/narration/data/services/flutter_tts_narration_engine.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/data/services/pdfrx_pdf_text_extractor.dart';
@@ -56,12 +57,7 @@ typedef VisualReaderCubitFactory =
       DateTime Function() clock,
     );
 
-typedef NarrationCubitFactory =
-    NarrationCubit Function(
-      NarrationRepository repository,
-      NarrationEngine engine,
-      DateTime Function() clock,
-    );
+typedef NarrationCubitFactory = NarrationCubit Function(NarrationSession);
 
 final class ReaderCubitRegistry {
   ReaderCubitRegistry(this._repository, this._clock, this._factory);
@@ -94,63 +90,41 @@ final class ReaderCubitRegistry {
   }
 }
 
+/// Hands out Cubits attached to the one application-scoped session.
+///
+/// This used to arbitrate ownership — closing the previous Cubit before
+/// activating the next — because each one owned an engine. Under AD-013 there
+/// is a single session, so "only one narration at a time" is structural and
+/// this is just an attach point that tracks what to detach on reset.
 final class NarrationCubitRegistry {
-  NarrationCubitRegistry(
-    this._repository,
-    this._engine,
-    this._clock,
-    this._factory,
-  );
+  NarrationCubitRegistry(this._session, this._factory);
 
-  final NarrationRepository _repository;
-  final NarrationEngine _engine;
-  final DateTime Function() _clock;
+  final NarrationSession _session;
   final NarrationCubitFactory _factory;
-  final Map<NarrationCubit, Future<void>> _activations = {};
-  final Map<NarrationCubit, Future<void>> _closures = {};
-  Future<void> _ownershipTail = Future.value();
-  NarrationCubit? _owner;
+  final Set<NarrationCubit> _attached = {};
 
-  Iterable<NarrationCubit> get activeCubits =>
-      List.unmodifiable(_activations.keys);
+  Iterable<NarrationCubit> get activeCubits => List.unmodifiable(_attached);
 
   NarrationCubit create() {
-    final cubit = _factory(_repository, _engine, _clock);
-    final activation = _ownershipTail.then((_) async {
-      final previous = _owner;
-      if (previous != null && !identical(previous, cubit)) {
-        await close(previous);
-      }
-      if (_activations.containsKey(cubit)) _owner = cubit;
-    });
-    _activations[cubit] = activation;
-    _ownershipTail = activation.then<void>((_) {}, onError: (_) {});
+    final cubit = _factory(_session);
+    _attached.add(cubit);
     return cubit;
   }
 
-  Future<void> activationFor(NarrationCubit cubit) =>
-      _activations[cubit] ?? Future.value();
+  /// Kept so callers need not know that attaching is now synchronous.
+  Future<void> activationFor(NarrationCubit cubit) => Future.value();
 
-  Future<void> close(NarrationCubit cubit) {
-    final existing = _closures[cubit];
-    if (existing != null) return existing;
-    final activation = _activations[cubit];
-    if (activation == null) return Future.value();
-    final closure = () async {
-      await activation;
-      await cubit.close();
-      if (identical(_owner, cubit)) _owner = null;
-      _activations.remove(cubit);
-      _closures.remove(cubit);
-    }();
-    _closures[cubit] = closure;
-    return closure;
+  /// Detaches [cubit]. Playback is unaffected: it belongs to the session.
+  Future<void> close(NarrationCubit cubit) async {
+    if (!_attached.remove(cubit)) return;
+    await cubit.close();
   }
 
   Future<void> closeAll() async {
-    await Future.wait([..._activations.keys].map(close));
+    await Future.wait([..._attached].map(close));
   }
 }
+
 
 Future<void> configureDependencies({
   GetIt? instance,
@@ -169,6 +143,7 @@ Future<void> configureDependencies({
   VisualReaderCubitFactory? visualReaderCubitFactory,
   NarrationRepository? narrationRepository,
   NarrationEngine? narrationEngine,
+  NarrationSession? narrationSession,
   NarrationCubitFactory? narrationCubitFactory,
   SiteRecipeRegistry? siteRecipeRegistry,
   WebFetcher? webFetcher,
@@ -324,18 +299,23 @@ Future<void> configureDependencies({
       );
     }
   }
+  if (!locator.isRegistered<NarrationSession>()) {
+    locator.registerLazySingleton<NarrationSession>(
+      () => narrationSession ??
+          NarrationSession(
+            repository: locator(),
+            engine: locator(),
+            clock: now,
+          ),
+      dispose: (session) => session.close(),
+    );
+  }
   if (!locator.isRegistered<NarrationCubitRegistry>()) {
     locator.registerLazySingleton(
       () => NarrationCubitRegistry(
         locator(),
-        locator(),
-        now,
         narrationCubitFactory ??
-            (repository, engine, clock) => NarrationCubit(
-              repository: repository,
-              engine: engine,
-              clock: clock,
-            ),
+            (session) => NarrationCubit(session: session),
       ),
       dispose: (registry) => registry.closeAll(),
     );

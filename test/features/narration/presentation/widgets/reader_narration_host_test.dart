@@ -6,6 +6,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/narration/presentation/widgets/reader_narration_host.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
@@ -125,9 +126,11 @@ final class _Fixture {
       engine = _Engine(),
       content = _content() {
     cubit = NarrationCubit(
-      repository: repository,
-      engine: engine,
-      clock: () => DateTime.utc(2025),
+      session: NarrationSession(
+        repository: repository,
+        engine: engine,
+        clock: () => DateTime.utc(2025),
+      ),
     );
   }
 

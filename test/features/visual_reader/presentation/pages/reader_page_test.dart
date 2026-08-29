@@ -6,6 +6,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
@@ -308,9 +309,11 @@ void main() {
       final narrationRepository = _NarrationRepository();
       final engine = _NarrationEngine();
       final narrationCubit = NarrationCubit(
-        repository: narrationRepository,
-        engine: engine,
-        clock: () => DateTime.utc(2025),
+        session: NarrationSession(
+          repository: narrationRepository,
+          engine: engine,
+          clock: () => DateTime.utc(2025),
+        ),
       );
       final cubit = await pumpPage(
         tester,

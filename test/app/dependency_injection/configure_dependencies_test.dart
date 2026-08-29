@@ -223,12 +223,8 @@ void main() {
         pdfTextExtractor: _Extractor(),
         narrationEngine: engine,
         narrationRepository: repository,
-        narrationCubitFactory: (repository, engine, clock) {
-          final cubit = NarrationCubit(
-            repository: repository,
-            engine: engine,
-            clock: clock,
-          );
+        narrationCubitFactory: (session) {
+          final cubit = NarrationCubit(session: session);
           created.add(cubit);
           return cubit;
         },
@@ -244,48 +240,39 @@ void main() {
       expect(locator<NarrationRepository>(), same(repository));
       expect(created, [same(first), same(second)]);
       expect(first, isNot(same(second)));
-      expect(first.isClosed, isTrue);
-      expect(registry.activeCubits, [same(second)]);
-    },
-  );
-
-  test(
-    'narration ownership waits prior stop and progress before activation',
-    () async {
-      final stop = Completer<void>();
-      final engine = _NarrationEngine(stopGate: stop);
-      final repository = _NarrationRepository();
-      await configureDependencies(
-        instance: locator,
-        databaseExecutor: NativeDatabase.memory(),
-        pdfTextExtractor: _Extractor(),
-        narrationEngine: engine,
-        narrationRepository: repository,
-      );
-      final registry = locator<NarrationCubitRegistry>();
-      final first = registry.create();
-      await registry.activationFor(first);
-      await first.load(_ReaderRepository().content);
-      unawaited(first.play());
-      await Future<void>.delayed(Duration.zero);
-
-      final second = registry.create();
-      var activated = false;
-      final activation = registry
-          .activationFor(second)
-          .then((_) => activated = true);
-      await Future<void>.delayed(Duration.zero);
-      expect(engine.stopCalls, 1);
-      expect(activated, isFalse);
+      // Both stay attached: the registry hands out views of one session
+      // rather than transferring ownership of an engine (AD-013).
       expect(first.isClosed, isFalse);
-
-      stop.complete();
-      await activation;
-      expect(first.isClosed, isTrue);
-      expect(repository.progress?.blockId, 'one-block');
-      expect(activated, isTrue);
+      expect(registry.activeCubits, [same(first), same(second)]);
     },
   );
+
+  test('every reader route attaches to the one narration session', () async {
+    final engine = _NarrationEngine();
+    final repository = _NarrationRepository();
+    await configureDependencies(
+      instance: locator,
+      databaseExecutor: NativeDatabase.memory(),
+      pdfTextExtractor: _Extractor(),
+      narrationEngine: engine,
+      narrationRepository: repository,
+    );
+    final registry = locator<NarrationCubitRegistry>();
+    final first = registry.create();
+    await first.load(_ReaderRepository().content);
+    unawaited(first.play());
+    await Future<void>.delayed(Duration.zero);
+
+    final second = registry.create();
+
+    // Under AD-013 a second reader route does not hand playback over — there
+    // is one session, so opening another view must not stop the speech that
+    // is already running.
+    expect(engine.stopCalls, 0);
+    expect(second.state.status, first.state.status);
+    expect(second.state.blockId, first.state.blockId);
+    expect(first.isClosed, isFalse);
+  });
 
   test(
     'reset awaits narration save before engine and database close',
@@ -890,9 +877,6 @@ final class _ReaderRepository implements VisualReaderRepository {
 }
 
 final class _NarrationEngine implements NarrationEngine {
-  _NarrationEngine({this.stopGate});
-
-  final Completer<void>? stopGate;
   final pendingSpeech = Completer<void>();
   var stopCalls = 0;
   var closed = false;
@@ -906,10 +890,7 @@ final class _NarrationEngine implements NarrationEngine {
   @override
   Future<void> speak(String text) => pendingSpeech.future;
   @override
-  Future<void> stop() {
-    stopCalls++;
-    return stopGate?.future ?? Future.value();
-  }
+  Future<void> stop() async => stopCalls++;
 
   @override
   Future<void> close() async {

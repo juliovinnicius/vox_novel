@@ -333,6 +333,28 @@ void main() {
       expect(repository.progressSaves.last.blockId, 'block-1');
     });
 
+    test('close awaits the engine stopping before it persists', () async {
+      final stop = Completer<void>();
+      engine.stopFuture = stop.future;
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      var closed = false;
+
+      final closing = session.close().then((_) => closed = true);
+      await Future<void>.delayed(Duration.zero);
+      // Persisting before the engine has stopped would record a position the
+      // reader has already spoken past.
+      expect([closed, repository.progressSaves], [false, isEmpty]);
+
+      stop.complete();
+      await closing;
+
+      expect([closed, repository.progressSaves.single.blockId], [
+        true,
+        'block-1',
+      ]);
+    });
+
     test('close on an empty session persists nothing', () async {
       final session = sessionFor();
 
@@ -427,6 +449,7 @@ final class _FakeEngine implements NarrationEngine {
 
   List<NarrationVoice> voices;
   Future<void>? speakFuture;
+  Future<void>? stopFuture;
   Object? speakError;
   int configureFailures = 0;
   final spoken = <String>[];
@@ -451,7 +474,10 @@ final class _FakeEngine implements NarrationEngine {
   }
 
   @override
-  Future<void> stop() async => stopCalls++;
+  Future<void> stop() async {
+    stopCalls++;
+    await stopFuture;
+  }
 
   @override
   Future<void> close() async {}
