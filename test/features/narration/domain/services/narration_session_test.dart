@@ -223,6 +223,70 @@ void main() {
       expect(session.state.current?.blockId, 'block-3');
     });
 
+    test('three rapid skips land three blocks on', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 4));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      unawaited(session.next());
+      unawaited(session.next());
+      unawaited(session.next());
+      await pumpEventQueue();
+
+      expect(session.state.current?.blockId, 'block-4');
+      expect(engine.spoken, ['Texto 1', 'Texto 4']);
+    });
+
+    test('play, pause and play in quick succession ends playing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      engine.speakFuture = Completer<void>().future;
+
+      unawaited(session.play());
+      unawaited(session.pause());
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.playing);
+    });
+
+    test('a skip whose progress save fails pauses and speaks nothing',
+        () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 3));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+      engine.spoken.clear();
+      repository.failProgressSave = true;
+
+      await session.next();
+      await pumpEventQueue();
+
+      expect(session.state.status, NarrationStatus.paused);
+      expect(session.state.message, NarrationSession.progressMessage);
+      expect(engine.spoken, isEmpty);
+    });
+
+    test('reaching the end clears the intent to keep playing', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 2));
+      await session.play();
+      await pumpEventQueue();
+      expect(session.state.status, NarrationStatus.completed);
+      engine.spoken.clear();
+
+      // A stale intent would make the next skip resume speech on a book the
+      // reader already finished.
+      await session.previous();
+      await pumpEventQueue();
+
+      expect(engine.spoken, isEmpty);
+      expect(session.state.status, isNot(NarrationStatus.playing));
+    });
+
     test('a pause during the permission dialog is not swallowed', () async {
       final permission = Completer<bool>();
       final session = sessionFor(
