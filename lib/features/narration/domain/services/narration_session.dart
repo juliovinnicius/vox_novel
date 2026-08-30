@@ -79,6 +79,15 @@ final class NarrationSession implements NarrationPlayback {
   /// same moment. They queue behind each other rather than being dropped, so
   /// every surface ends on the state the last one asked for (BGN-12).
   Future<void> _commands = Future.value();
+
+  /// A play is between its first await and its first spoken word. A pause
+  /// arriving now must still count.
+  var _starting = false;
+
+  /// Whether the reader wants narration running. A skip pauses briefly while
+  /// it moves, so the transient status cannot answer "was it playing?" for a
+  /// second skip arriving right behind the first.
+  var _playIntent = false;
   var _closed = false;
   var _reportedMediaSessionFailure = false;
   var _askedForNotifications = false;
@@ -102,9 +111,12 @@ final class NarrationSession implements NarrationPlayback {
     // Re-entering the reader for the book already loaded must not disturb it.
     // The host loads on every mount, so without this, leaving the library and
     // opening the book being narrated killed the live session (BGN-16).
+    // The run id is reused across a web book's download passes, so it is not
+    // content identity on its own: a chapter that landed since must still
+    // reach the queue.
     if (_state.bookId == content.book.id &&
         _content?.book.activeContentRunId == content.book.activeContentRunId &&
-        _state.status != NarrationStatus.initial) {
+        _content?.chapters.length == content.chapters.length) {
       return;
     }
     // A different book replaces this one: stop the speech that is running
@@ -299,7 +311,16 @@ final class NarrationSession implements NarrationPlayback {
 
   @override
   Future<void> pause() {
-    if (_state.status != NarrationStatus.playing) return _commands;
+    if (_state.status != NarrationStatus.playing && !_starting) {
+      _playIntent = false;
+      return Future.value();
+    }
+    _playIntent = false;
+    if (_starting && _state.status != NarrationStatus.playing) {
+      // Cancels the start that has not spoken yet.
+      ++_generation;
+      return Future.value();
+    }
     // The status flips synchronously so the button never lags, and the
     // generation bump invalidates the speech already in flight. Only the
     // engine stop and the progress write go through the queue.
@@ -309,13 +330,30 @@ final class NarrationSession implements NarrationPlayback {
   }
 
   @override
-  Future<void> previous() => _serialize(() => _navigate(-1));
+  Future<void> previous() => _move(-1);
 
   @override
-  Future<void> next() => _serialize(() => _navigate(1));
+  Future<void> next() => _move(1);
 
-  Future<void> _serialize(Future<void> Function() command) {
+  /// Moves one block, then speaks **outside** the queue.
+  ///
+  /// Speaking runs for the length of a paragraph. Holding the queue for that
+  /// long would make pause unable to interrupt a skip, and two quick presses
+  /// would advance only one block — the same reason `play` stays outside it.
+  Future<void> _move(int offset) async {
+    final target = await _serialize(() => _navigate(offset));
+    if (target == null) return;
+    // Re-checked inside the queue, not beside it: a skip queued behind this
+    // one has already moved past, and speaking now would drag the reader back
+    // to the block they skipped.
+    final stillThere = await _serialize(() async => _state.current == target);
+    if (stillThere) await _start(target);
+  }
+
+  Future<T> _serialize<T>(Future<T> Function() command) {
     final queued = _commands.then((_) => command());
+    // The tail swallows errors so one failed command cannot poison the ones
+    // queued behind it; the caller still sees its own failure.
     _commands = queued.then<void>((_) {}, onError: (_) {});
     return queued;
   }
@@ -338,8 +376,18 @@ final class NarrationSession implements NarrationPlayback {
   }
 
   Future<void> _start(NarrationQueueEntry entry) async {
-    await _ensureNotifications();
+    // The generation is claimed before the permission dialog, which on first
+    // play is a system prompt seconds wide: a pause arriving during it has to
+    // be able to cancel the start rather than be swallowed by it.
     final generation = ++_generation;
+    _playIntent = true;
+    _starting = true;
+    try {
+      await _ensureNotifications();
+    } finally {
+      _starting = false;
+    }
+    if (!_active(generation)) return;
     _emitPlaybackEntry(entry, NarrationStatus.playing);
     try {
       await _speakWithVoiceRepair(entry, generation);
@@ -421,6 +469,7 @@ final class NarrationSession implements NarrationPlayback {
     }
     if (!_active(generation)) return;
     if (next == null) {
+      _playIntent = false;
       _emitPlaybackEntry(
         entry,
         awaiting ? NarrationStatus.awaitingDownload : NarrationStatus.completed,
@@ -467,22 +516,23 @@ final class NarrationSession implements NarrationPlayback {
       status == NarrationStatus.completed ||
       status == NarrationStatus.awaitingDownload;
 
-  Future<void> _navigate(int offset) async {
-    if (_state.settings == null) return;
+  /// Returns the block to speak next, or null when nothing should be spoken.
+  Future<NarrationQueueEntry?> _navigate(int offset) async {
+    if (_state.settings == null) return null;
     final current = _state.current;
-    if (current == null) return;
+    if (current == null) return null;
     final target = offset < 0
         ? _queue!.previous(current)
         : _queue!.next(current);
-    if (target == null) return;
-    final wasPlaying = _state.status == NarrationStatus.playing;
+    if (target == null) return null;
+    final wasPlaying = _playIntent;
     final generation = ++_generation;
     if (wasPlaying) {
       try {
         await _engine.stop();
       } catch (_) {
         await _speechFailure(current, generation);
-        return;
+        return null;
       }
     }
     if (_active(generation)) {
@@ -504,15 +554,14 @@ final class NarrationSession implements NarrationPlayback {
           ),
         );
       }
-      return;
+      return null;
     }
-    if (wasPlaying && _active(generation)) await _start(target);
+    return wasPlaying && _active(generation) ? target : null;
   }
 
   Future<void> reloadContent(ReaderBookContent content) async {
     // `load` stops the running speech before replacing the queue, so this no
     // longer stops it too — doing both silenced the engine twice.
-    ++_generation;
     await load(content);
   }
 
@@ -611,13 +660,16 @@ final class NarrationSession implements NarrationPlayback {
   /// exist would keep a notification alive for a book the reader removed.
   Future<void> discardBook(String bookId) async {
     if (_state.bookId != bookId) return;
-    final generation = ++_generation;
+    _playIntent = false;
+    ++_generation;
     try {
       await _engine.stop();
     } catch (_) {
       // The book is gone either way; there is nothing left to persist.
     }
-    if (!_active(generation)) return;
+    // No generation guard: ending is terminal. Skipping the emit because a
+    // command arrived meanwhile would leave a session — and a notification —
+    // pointing at a book that no longer exists.
     _content = null;
     _queue = null;
     _pendingStart = null;
@@ -627,9 +679,9 @@ final class NarrationSession implements NarrationPlayback {
   /// Ends the session, stopping speech and persisting where it stopped.
   @override
   Future<void> stop() async {
+    _playIntent = false;
     final generation = ++_generation;
     await _stopAndPersist(generation);
-    if (!_active(generation)) return;
     // Ending the session has to be visible. Persisting silently left every
     // surface — the notification included — still reporting playing, so a
     // MEDIA_STOP from a headset produced a notification that lied.

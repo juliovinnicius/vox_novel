@@ -128,6 +128,22 @@ void main() {
       expect(session.state.bookId, 'outro');
     });
 
+    test('stop still ends the session when a skip lands first', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 3));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      unawaited(session.next());
+      await session.stop();
+      await pumpEventQueue();
+
+      // Ending is terminal: losing the race must not leave a session, and a
+      // notification, for a book nobody is listening to.
+      expect(session.state, const NarrationSessionState());
+    });
+
     test('stop ends the session visibly, not just quietly', () async {
       final session = sessionFor();
       await session.load(_content(chapters: 2));
@@ -146,33 +162,84 @@ void main() {
   });
 
   group('commands arriving together', () {
-    test('a pause then a play ends playing', () async {
+    test('a play waits for the pause queued before it', () async {
       final session = sessionFor();
       await session.load(_content(chapters: 2));
       engine.speakFuture = Completer<void>().future;
       unawaited(session.play());
       await pumpEventQueue();
+      // Holds the pause's engine stop open, so a play that ignored the queue
+      // would speak while the previous stop is still in flight.
+      final stopping = Completer<void>();
+      engine.stopFuture = stopping.future;
+      engine.spoken.clear();
 
       unawaited(session.pause());
       unawaited(session.play());
       await pumpEventQueue();
 
-      // Arrival order wins (BGN-12). Dropping the second command instead of
-      // queueing it left the surfaces disagreeing.
+      // The queue is the only thing holding play back here.
+      expect(engine.spoken, isEmpty);
+
+      stopping.complete();
+      engine.stopFuture = null;
+      await pumpEventQueue();
+
+      // Arrival order wins: the play that came last is the state that stands.
+      expect(engine.spoken, ['Texto 1']);
       expect(session.state.status, NarrationStatus.playing);
     });
 
-    test('a play then a pause ends paused', () async {
+    test('a skip does not hold the queue while it speaks', () async {
       final session = sessionFor();
-      await session.load(_content(chapters: 2));
+      await session.load(_content(chapters: 3));
       engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      unawaited(session.next());
+      await pumpEventQueue();
+      // A pause arriving while the skipped-to block is speaking has to reach
+      // the engine; holding the queue for a paragraph would swallow it.
+      await session.pause();
+
+      expect(session.state.status, NarrationStatus.paused);
+      expect(engine.stopCalls, 2);
+    });
+
+    test('two quick skips advance two blocks', () async {
+      final session = sessionFor();
+      await session.load(_content(chapters: 3));
+      engine.speakFuture = Completer<void>().future;
+      unawaited(session.play());
+      await pumpEventQueue();
+
+      unawaited(session.next());
+      unawaited(session.next());
+      await pumpEventQueue();
+
+      // The skipped block is never spoken, and the second press is not lost.
+      expect(engine.spoken, ['Texto 1', 'Texto 3']);
+      expect(session.state.current?.blockId, 'block-3');
+    });
+
+    test('a pause during the permission dialog is not swallowed', () async {
+      final permission = Completer<bool>();
+      final session = sessionFor(
+        notifications: _GatedNotifications(permission.future),
+      );
+      await session.load(_content(chapters: 2));
 
       unawaited(session.play());
       await pumpEventQueue();
-      unawaited(session.pause());
+      // The dialog is open: the reader can still press pause, and on first
+      // play that window is seconds wide.
+      await session.pause();
+      permission.complete(true);
       await pumpEventQueue();
 
-      expect(session.state.status, NarrationStatus.paused);
+      expect(engine.spoken, isEmpty);
+      expect(session.state.status, isNot(NarrationStatus.playing));
     });
 
     test('pause reaches the surfaces without waiting for the engine', () async {
@@ -735,6 +802,16 @@ ReaderBookContent _content({
       ),
   ],
 );
+
+/// Holds the permission answer open, so a test can act while the dialog is up.
+final class _GatedNotifications implements NotificationPermission {
+  _GatedNotifications(this._answer);
+
+  final Future<bool> _answer;
+
+  @override
+  Future<bool> ensureGranted() => _answer;
+}
 
 final class _FakeNotifications implements NotificationPermission {
   _FakeNotifications({this.granted = true, this.fails = false});
