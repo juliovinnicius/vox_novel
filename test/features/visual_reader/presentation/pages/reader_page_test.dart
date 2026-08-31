@@ -343,6 +343,34 @@ void main() {
       expect(repository.savedPositions.length, savesBeforePlay);
     },
   );
+
+  testWidgets('play starts at the chapter the drawer opened', (tester) async {
+    final repository = _Repository(load: () async => content());
+    final engine = _NarrationEngine();
+    final narrationCubit = NarrationCubit(
+      session: NarrationSession(
+        repository: _NarrationRepository(),
+        engine: engine,
+        clock: () => DateTime.utc(2025),
+      ),
+    );
+    await pumpPage(tester, repository, narrationCubit: narrationCubit);
+    await tester.pumpAndSettle();
+
+    // Straight from the drawer, without tapping a paragraph — the path a
+    // reader takes to jump to chapter 236 of a long novel.
+    await tester.tap(find.byTooltip('Capítulos'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Segundo'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
+    await tester.pump();
+
+    // Used to speak 'Texto um': only tapping a paragraph ever told narration
+    // where the reader had gone.
+    expect(engine.spoken, ['Texto dois']);
+  });
 }
 
 final class _Repository implements VisualReaderRepository {

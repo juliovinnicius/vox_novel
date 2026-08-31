@@ -129,7 +129,7 @@ final class _ReaderPageState extends State<ReaderPage> {
       endDrawer: ChapterDrawer(
         chapters: content.chapters,
         currentChapterId: state.chapterId,
-        onChapterSelected: widget.cubit.selectChapter,
+        onChapterSelected: _selectChapter,
       ),
       appBar: AppBar(
         title: Semantics(header: true, child: Text(content.book.title)),
@@ -184,8 +184,8 @@ final class _ReaderPageState extends State<ReaderPage> {
                 selectedBlockId: state.blockId,
                 onBlockSelected: (blockId) =>
                     _selectBlock(chapter.chapter.id, blockId),
-                onPreviousChapter: widget.cubit.previousChapter,
-                onNextChapter: widget.cubit.nextChapter,
+                onPreviousChapter: _previousChapter,
+                onNextChapter: _nextChapter,
                 hasPreviousChapter: position > 0,
                 hasNextChapter: position < content.chapters.length - 1,
                 controller: _scrollControllers.putIfAbsent(
@@ -212,6 +212,38 @@ final class _ReaderPageState extends State<ReaderPage> {
   void _selectBlock(String chapterId, String blockId) {
     widget.cubit.selectBlock(chapterId, blockId);
     widget.narrationCubit?.setPendingStart(chapterId, blockId);
+  }
+
+  void _selectChapter(String chapterId) {
+    widget.cubit.selectChapter(chapterId);
+    _startNarrationWhereTheReaderIs();
+  }
+
+  void _previousChapter() {
+    widget.cubit.previousChapter();
+    _startNarrationWhereTheReaderIs();
+  }
+
+  void _nextChapter() {
+    widget.cubit.nextChapter();
+    _startNarrationWhereTheReaderIs();
+  }
+
+  /// Play starts from the chapter the reader is showing.
+  ///
+  /// AD-007 keeps the visual position and narration progress separate, and
+  /// that still holds — nothing durable is written here. What changes is only
+  /// where the *next* play begins: jumping to chapter 236 and pressing play
+  /// used to narrate chapter 1, because only tapping a paragraph ever told
+  /// narration where the reader had gone.
+  void _startNarrationWhereTheReaderIs() {
+    final narration = widget.narrationCubit;
+    if (narration == null) return;
+    final state = widget.cubit.state;
+    final chapterId = state.chapterId;
+    final blockId = state.blockId;
+    if (chapterId == null || blockId == null) return;
+    narration.setPendingStart(chapterId, blockId);
   }
 
   void _showSettings(BuildContext context) {
