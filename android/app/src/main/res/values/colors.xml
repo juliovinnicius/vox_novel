@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors AppTheme's dark surface, so the launch window and the Flutter
+         UI are the same colour and a cold start no longer flashes white. -->
+    <color name="app_background">#14120F</color>
+    <color name="ic_launcher_background">#1A1712</color>
+</resources>
