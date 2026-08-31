@@ -15,16 +15,38 @@ class ChapterDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Drawer(
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
-              child: Text(
-                'Capítulos',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.menu_book_rounded,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Capítulos', style: theme.textTheme.titleMedium),
+                        Text(
+                          chapters.length == 1
+                              ? '1 capítulo'
+                              : '${chapters.length} capítulos',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             const Divider(height: 1),
@@ -32,6 +54,10 @@ class ChapterDrawer extends StatelessWidget {
               child: chapters.isEmpty
                   ? const Center(child: Text('Nenhum capítulo disponível'))
                   : ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
                       itemCount: chapters.length,
                       itemBuilder: (context, index) {
                         final chapter = chapters[index].chapter;
@@ -48,12 +74,36 @@ class ChapterDrawer extends StatelessWidget {
                           child: ListTile(
                             key: ValueKey('chapter-${chapter.id}'),
                             selected: current,
-                            leading: const Icon(Icons.menu_book_outlined),
-                            title: Text(label),
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
+                            leading: Icon(
+                              current
+                                  ? Icons.play_circle_fill_rounded
+                                  : Icons.article_outlined,
+                              size: 20,
+                              color: current
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                            title: Text(
+                              label,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: current
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: current
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
                             trailing: current
-                                ? const Icon(
+                                ? Icon(
                                     Icons.check,
+                                    size: 18,
                                     semanticLabel: 'Capítulo atual',
+                                    color: theme.colorScheme.primary,
                                   )
                                 : null,
                             onTap: () {

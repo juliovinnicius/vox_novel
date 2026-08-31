@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/library/presentation/widgets/book_list_item.dart';
+import 'package:vox_novel/features/library/presentation/widgets/book_visuals.dart';
 
 final class BookGridItem extends StatelessWidget {
   const BookGridItem({
@@ -16,59 +17,89 @@ final class BookGridItem extends StatelessWidget {
   final ValueChanged<Book> onDelete;
   final ValueChanged<Book>? onOpen;
   final ValueChanged<Book>? onCancelProcessing;
+
   @override
-  Widget build(BuildContext context) => Card(
-    key: ValueKey(book.id),
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(book.title, style: Theme.of(context).textTheme.titleMedium),
-          if (book.author?.isNotEmpty ?? false) Text(book.author!),
-          Text(bookStatusLabel(book.status)),
-          if (bookDownloadLabel(book) case final download?) ...[
-            Text(download),
-            LinearProgressIndicator(value: book.processingProgress),
-          ] else if (book.status == BookStatus.processing &&
-              book.processingStage != null) ...[
-            Text(
-              '${book.processingStage!.label} • '
-              '${(book.processingProgress * 100).round()}%',
-            ),
-            LinearProgressIndicator(value: book.processingProgress),
-          ],
-          const Spacer(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final progress = bookProgress(book);
+    final openable = bookCanOpen(book) && onOpen != null;
+    return Card(
+      key: ValueKey(book.id),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: openable ? () => onOpen!(book) : null,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (bookCanOpen(book) && onOpen != null)
-                IconButton(
-                  tooltip: 'Abrir ${book.title}',
-                  onPressed: () => onOpen!(book),
-                  icon: const Icon(Icons.chrome_reader_mode),
+              Expanded(
+                child: Stack(
+                  children: [
+                    // The cover shrinks instead of overflowing when a long
+                    // title or a large system font eats the card's height.
+                    Center(
+                      child: FittedBox(child: BookCover(book: book, size: 72)),
+                    ),
+                    if (openable)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: BookAction(
+                          tooltip: 'Abrir ${book.title}',
+                          icon: Icons.play_arrow_rounded,
+                          emphasized: true,
+                          onPressed: () => onOpen!(book),
+                        ),
+                      ),
+                  ],
                 ),
-              if (book.status == BookStatus.processing &&
-                  onCancelProcessing != null)
-                IconButton(
-                  tooltip: 'Cancelar processamento de ${book.title}',
-                  onPressed: () => onCancelProcessing!(book),
-                  icon: const Icon(Icons.cancel),
-                ),
-              IconButton(
-                tooltip: 'Editar ${book.title}',
-                onPressed: () => onEdit(book),
-                icon: const Icon(Icons.edit),
               ),
-              IconButton(
-                tooltip: 'Excluir ${book.title}',
-                onPressed: () => onDelete(book),
-                icon: const Icon(Icons.delete),
+              const SizedBox(height: 10),
+              Text(
+                book.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (book.author?.isNotEmpty ?? false)
+                Text(
+                  book.author!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              if (progress == null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: BookStatusChip(
+                    status: book.status,
+                    label: bookStatusLabel(book.status),
+                  ),
+                )
+              else
+                BookProgressLine(
+                  label: progress.label,
+                  progress: progress.progress,
+                ),
+              const SizedBox(height: 4),
+              BookActions(
+                book: book,
+                showOpen: false,
+                onEdit: onEdit,
+                onDelete: onDelete,
+                onOpen: onOpen,
+                onCancelProcessing: onCancelProcessing,
               ),
             ],
           ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

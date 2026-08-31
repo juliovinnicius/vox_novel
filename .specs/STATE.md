@@ -109,6 +109,14 @@
 - **Supersedes**: AD-008
 
 
+### AD-014
+- **Decision**: The app owns one central `ThemeData` pair in `lib/app/theme/app_theme.dart` (dark-first, warm amber accent), and the reader repaints that same theme through its paper palette via `ReaderVisualTheme.chrome`; screens never hardcode colours or text styles.
+- **Reason**: The shell shipped with `ThemeData(useMaterial3: true)`, so every screen inherited the default Material baseline and the reader's sepia/light pages sat inside dark chrome that clashed with them.
+- **Trade-off**: A palette change now happens in one file and affects every screen, so a screen that needs to deviate has to justify it locally; the light scheme exists but is unreachable until a user-facing app-theme setting is added.
+- **Scope**: All presentation layers.
+- **Date**: 2026-08-31
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: background_narration / `.specs/features/background_narration`
