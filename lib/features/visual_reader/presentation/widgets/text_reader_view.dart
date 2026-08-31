@@ -58,9 +58,15 @@ class TextReaderView extends StatelessWidget {
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                           ),
+                          // SelectableText owns the pointer for text
+                          // selection, so a tap never reached the InkWell
+                          // above and choosing a paragraph did nothing. Its
+                          // own onTap restores that without giving up
+                          // copyable text.
                           child: SelectableText(
                             block.originalText,
                             style: textStyle,
+                            onTap: () => onBlockSelected(block.id),
                           ),
                         ),
                       ),
