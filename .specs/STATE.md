@@ -117,6 +117,14 @@
 - **Date**: 2026-08-31
 - **Status**: active
 
+### AD-015
+- **Decision**: The reader's chrome yields screen space to the page: the narration bar ships collapsed (chapter + play/pause + a handle, full transport one tap away), chapter navigation scrolls inline at the end of the chapter instead of holding a fixed footer, and the app bar collapses while scrolling down and returns on the first scroll up.
+- **Reason**: In text mode with narration active the chrome took ~242dp — about 30% of a phone screen — from an app whose primary activity is reading. It is now ~112dp with everything still one gesture away.
+- **Trade-off**: The queue and voice controls, and the app bar actions, cost one extra tap or a scroll up; the collapsed/expanded choice is per reader session and not persisted, so it resets to collapsed every time the reader opens.
+- **Scope**: `visual_reader` and `narration` presentation.
+- **Date**: 2026-08-31
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: background_narration / `.specs/features/background_narration`

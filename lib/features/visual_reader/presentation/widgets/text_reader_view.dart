@@ -28,78 +28,109 @@ class TextReaderView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final blocks = chapter.blocks;
-    return Column(
+    if (blocks.isEmpty) {
+      return Column(
+        children: [
+          const Expanded(
+            child: Center(child: Text('Este capítulo não possui texto')),
+          ),
+          SafeArea(top: false, child: _navigation(context)),
+        ],
+      );
+    }
+    // A measure this wide stays readable on a tablet; without it the
+    // paragraphs stretch the full width of the screen.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: ListView.builder(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          // Chapter navigation scrolls with the text instead of holding a
+          // fixed strip at the bottom: it is only needed once per chapter,
+          // and reading gets those ~68dp back.
+          itemCount: blocks.length + 1,
+          itemBuilder: (context, index) {
+            if (index == blocks.length) {
+              return SafeArea(top: false, child: _navigation(context));
+            }
+            final block = blocks[index];
+            final selected = block.id == selectedBlockId;
+            return Semantics(
+              button: true,
+              selected: selected,
+              label: 'Bloco ${index + 1}',
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: InkWell(
+                  key: ValueKey('reader-block-${block.id}'),
+                  onTap: () => onBlockSelected(block.id),
+                  borderRadius: BorderRadius.circular(14),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    // SelectableText owns the pointer for text selection, so a
+                    // tap never reached the InkWell above and choosing a
+                    // paragraph did nothing. Its own onTap restores that
+                    // without giving up copyable text.
+                    child: SelectableText(
+                      block.originalText,
+                      style: selected
+                          ? textStyle?.copyWith(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                            )
+                          : textStyle,
+                      onTap: () => onBlockSelected(block.id),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _navigation(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
+    child: Row(
       children: [
         Expanded(
-          child: blocks.isEmpty
-              ? const Center(child: Text('Este capítulo não possui texto'))
-              : ListView.builder(
-                  controller: controller,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: blocks.length,
-                  itemBuilder: (context, index) {
-                    final block = blocks[index];
-                    final selected = block.id == selectedBlockId;
-                    return Semantics(
-                      button: true,
-                      selected: selected,
-                      label: 'Bloco ${index + 1}',
-                      child: InkWell(
-                        key: ValueKey('reader-block-${block.id}'),
-                        onTap: () => onBlockSelected(block.id),
-                        borderRadius: BorderRadius.circular(8),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          // SelectableText owns the pointer for text
-                          // selection, so a tap never reached the InkWell
-                          // above and choosing a paragraph did nothing. Its
-                          // own onTap restores that without giving up
-                          // copyable text.
-                          child: SelectableText(
-                            block.originalText,
-                            style: textStyle,
-                            onTap: () => onBlockSelected(block.id),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          child: OutlinedButton.icon(
+            onPressed: hasPreviousChapter ? onPreviousChapter : null,
+            icon: const Icon(Icons.chevron_left, size: 20),
+            label: const Text(
+              'Capítulo anterior',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: hasPreviousChapter ? onPreviousChapter : null,
-                    icon: const Icon(Icons.chevron_left),
-                    label: const Text('Capítulo anterior'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: hasNextChapter ? onNextChapter : null,
-                    icon: const Icon(Icons.chevron_right),
-                    label: const Text('Próximo capítulo'),
-                  ),
-                ),
-              ],
+        const SizedBox(width: 10),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: hasNextChapter ? onNextChapter : null,
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(Icons.chevron_right, size: 20),
+            label: const Text(
+              'Próximo capítulo',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
 }

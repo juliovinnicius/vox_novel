@@ -371,6 +371,67 @@ void main() {
     // where the reader had gone.
     expect(engine.spoken, ['Texto dois']);
   });
+
+  testWidgets('the app bar steps aside while scrolling into the chapter', (
+    tester,
+  ) async {
+    final long = ReaderBookContent(
+      book: Book(
+        id: 'book',
+        title: 'Minha Novel',
+        originalFileName: 'novel.pdf',
+        storedFilePath: '/books/novel.pdf',
+        fileHash: 'hash',
+        status: BookStatus.ready,
+        processingProgress: 1,
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+        pageCount: 1,
+        chapterCount: 1,
+        blockCount: 40,
+        activeContentRunId: 'run',
+      ),
+      chapters: [
+        ReaderChapter(
+          chapter: ChapterDraft(
+            id: 'one',
+            title: 'Primeiro',
+            sortOrder: 0,
+            startPage: 1,
+            endPage: 1,
+            cleanText: 'longo',
+          ),
+          blocks: [
+            for (var index = 0; index < 40; index++)
+              NarrationBlockDraft(
+                id: 'block-$index',
+                chapterId: 'one',
+                sortOrder: index,
+                originalText: 'Parágrafo $index',
+                normalizedText: 'Parágrafo $index',
+                characterCount: 'Parágrafo $index'.runes.length,
+                startPage: 1,
+                endPage: 1,
+              ),
+          ],
+        ),
+      ],
+    );
+    await pumpPage(tester, _Repository(load: () async => long));
+    await tester.pumpAndSettle();
+    final withChrome = tester.getRect(find.byType(TextReaderView)).top;
+
+    await tester.drag(find.byType(TextReaderView), const Offset(0, -240));
+    await tester.pumpAndSettle();
+    final scrolled = tester.getRect(find.byType(TextReaderView)).top;
+    expect(scrolled, lessThan(withChrome));
+    expect(find.byTooltip('Capítulos'), findsOneWidget);
+
+    // Scrolling back up hands the actions straight back.
+    await tester.drag(find.byType(TextReaderView), const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.byType(TextReaderView)).top, withChrome);
+  });
 }
 
 final class _Repository implements VisualReaderRepository {

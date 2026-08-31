@@ -14,10 +14,14 @@ void main() {
     VoidCallback? onNext,
     VoidCallback? onSettings,
     VoidCallback? onRetry,
+    // The bar ships collapsed to leave the page more room; the transport
+    // assertions below are about its expanded state.
+    bool expanded = true,
   }) => tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         bottomNavigationBar: NarrationPlayerBar(
+          initiallyExpanded: expanded,
           state: state,
           onPlay: onPlay ?? () {},
           onPause: onPause ?? () {},
@@ -219,6 +223,92 @@ void main() {
       expect(_button(tester, 'previous-narration-block').onPressed, isNotNull);
     },
   );
+
+  testWidgets('collapsed by default it keeps the chapter and play only', (
+    tester,
+  ) async {
+    var plays = 0;
+    await pumpBar(
+      tester,
+      expanded: false,
+      state: _state(NarrationStatus.ready, canPrevious: true, canNext: true),
+      onPlay: () => plays++,
+    );
+
+    expect(find.text('Capítulo 1'), findsOneWidget);
+    expect(find.bySemanticsLabel('Reproduzir narração'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('previous-narration-block')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('next-narration-block')), findsNothing);
+    expect(find.byKey(const ValueKey('narration-settings')), findsNothing);
+    await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
+    expect(plays, 1);
+  });
+
+  testWidgets('the handle reveals and hides the full transport', (
+    tester,
+  ) async {
+    await pumpBar(
+      tester,
+      expanded: false,
+      state: _state(NarrationStatus.playing, canPrevious: true, canNext: true),
+    );
+
+    expect(
+      find.bySemanticsLabel('Mostrar controles de narração'),
+      findsWidgets,
+    );
+    await tester.tap(find.byKey(const ValueKey('toggle-narration-controls')));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Trecho anterior'), findsOneWidget);
+    expect(find.bySemanticsLabel('Próximo trecho'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Configurações de voz e velocidade'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('toggle-narration-controls')));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Trecho anterior'), findsNothing);
+  });
+
+  testWidgets('collapsed it still offers the retry of a failed narration', (
+    tester,
+  ) async {
+    var retries = 0;
+    await pumpBar(
+      tester,
+      expanded: false,
+      state: const NarrationState(
+        status: NarrationStatus.error,
+        message: 'Não foi possível iniciar a narração',
+      ),
+      onRetry: () => retries++,
+    );
+
+    await tester.tap(
+      find.bySemanticsLabel('Tentar iniciar a narração novamente'),
+    );
+    expect(retries, 1);
+  });
+
+  testWidgets('tapping the headline is a second handle for the transport', (
+    tester,
+  ) async {
+    await pumpBar(
+      tester,
+      expanded: false,
+      state: _state(NarrationStatus.playing, canNext: true),
+    );
+
+    await tester.tap(find.text('Capítulo 1'));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Próximo trecho'), findsOneWidget);
+  });
 }
 
 NarrationState _state(

@@ -50,6 +50,9 @@ void main() {
     await _pumpHost(tester, fixture);
     await tester.pumpAndSettle();
 
+    // The player bar starts collapsed, so the voice controls are one tap away.
+    await tester.tap(find.byKey(const ValueKey('toggle-narration-controls')));
+    await tester.pumpAndSettle();
     await tester.tap(
       find.bySemanticsLabel('Configurações de voz e velocidade'),
     );
