@@ -36,16 +36,20 @@ class ChapterDrawer extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final chapter = chapters[index].chapter;
                         final current = chapter.id == currentChapterId;
+                        // The chapter's own number, not its position in the
+                        // list: a web chapter that failed to download leaves a
+                        // hole, and numbering by position would quietly shift
+                        // every chapter after it.
+                        final number = chapter.sortOrder + 1;
+                        final label = '$number - ${chapter.title}';
                         return Semantics(
                           selected: current,
-                          label: current
-                              ? '${chapter.title}, capítulo atual'
-                              : chapter.title,
+                          label: current ? '$label, capítulo atual' : label,
                           child: ListTile(
                             key: ValueKey('chapter-${chapter.id}'),
                             selected: current,
                             leading: const Icon(Icons.menu_book_outlined),
-                            title: Text(chapter.title),
+                            title: Text(label),
                             trailing: current
                                 ? const Icon(
                                     Icons.check,

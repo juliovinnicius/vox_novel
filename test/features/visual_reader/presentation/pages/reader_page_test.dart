@@ -169,7 +169,7 @@ void main() {
     expect(find.text('Texto um'), findsOneWidget);
     await tester.tap(find.byTooltip('Capítulos'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Segundo'));
+    await tester.tap(find.textContaining('Segundo'));
     await tester.pumpAndSettle();
     expect(cubit.state.chapterId, 'two');
     expect(find.text('Texto dois'), findsOneWidget);
@@ -324,7 +324,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Capítulos'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Segundo'));
+      await tester.tap(find.textContaining('Segundo'));
       await tester.pumpAndSettle();
       tester
           .widget<InkWell>(find.byKey(const ValueKey('reader-block-two-block')))
@@ -361,7 +361,7 @@ void main() {
     // reader takes to jump to chapter 236 of a long novel.
     await tester.tap(find.byTooltip('Capítulos'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Segundo'));
+    await tester.tap(find.textContaining('Segundo'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
