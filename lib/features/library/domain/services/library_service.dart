@@ -29,6 +29,7 @@ final class LibraryService {
     required this.repository,
     required this.storage,
     required this.clock,
+    this.onBookDeleted,
   });
 
   static const saveError = 'Não foi possível salvar as alterações';
@@ -37,6 +38,10 @@ final class LibraryService {
   final BookRepository repository;
   final BookFileStorage storage;
   final DateTime Function() clock;
+
+  /// Notified once a book is gone. A callback rather than a dependency so the
+  /// library keeps knowing nothing about narration.
+  final Future<void> Function(String bookId)? onBookDeleted;
 
   Future<MetadataEditResult> updateMetadata({
     required String id,
@@ -66,11 +71,18 @@ final class LibraryService {
   Future<DeleteBookResult> deleteBook(Book book) async {
     QuarantinedBookFiles? quarantine;
     BookDeletionSnapshot? snapshot;
+    final storedFilePath = book.storedFilePath;
     try {
-      quarantine = await storage.quarantineOwnedFiles(
-        pdfPath: book.storedFilePath!,
-        coverPath: book.coverPath,
-      );
+      // A web book owns no local file. The three file columns became nullable
+      // when web sources landed, and this path still assumed a PDF: deleting a
+      // web book threw here, the failure was swallowed, and the reader was
+      // told the book could not be deleted.
+      quarantine = storedFilePath == null
+          ? null
+          : await storage.quarantineOwnedFiles(
+              pdfPath: storedFilePath,
+              coverPath: book.coverPath,
+            );
       if (repository is CompensatingBookRepository) {
         final compensating = repository as CompensatingBookRepository;
         snapshot = await compensating.deleteForCompensation(book);
@@ -84,6 +96,12 @@ final class LibraryService {
       }
       return const DeleteBookResult.failure(deleteError);
     }
+
+    // The book is gone: a narration session still pointing at it would keep a
+    // notification alive for something the reader removed.
+    await onBookDeleted?.call(book.id);
+
+    if (quarantine == null) return const DeleteBookResult.success();
 
     try {
       await storage.discardQuarantine(quarantine);

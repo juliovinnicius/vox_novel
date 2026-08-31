@@ -5,6 +5,15 @@ import 'package:vox_novel/features/narration/data/services/flutter_tts_narration
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 
 void main() {
+  test('closing tolerates an engine that cannot stop', () async {
+    final facade = _FakeFacade(result: 0);
+    final engine = FlutterTtsNarrationEngine(facade: facade);
+
+    // Disposal must not fail: throwing here takes the whole dependency reset
+    // down with it, including on a device where narration was never used.
+    await expectLater(engine.close(), completes);
+  });
+
   test(
     'initializes once and strictly maps deduplicated sorted voices',
     () async {

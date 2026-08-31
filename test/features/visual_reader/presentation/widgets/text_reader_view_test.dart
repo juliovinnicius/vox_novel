@@ -94,6 +94,25 @@ void main() {
     expect(selected, 'block-0');
   });
 
+  testWidgets('a real tap on a paragraph selects it', (tester) async {
+    String? selected;
+    await pumpReader(
+      tester,
+      chapter: chapter(const ['Um', 'Dois']),
+      selectedBlockId: 'block-1',
+      onSelected: (value) => selected = value,
+    );
+
+    // Through hit-testing, the way a finger does it. Calling onTap directly
+    // proves the callback is wired but not that the target is reachable.
+    await tester.tap(
+      find.byKey(const ValueKey('reader-block-block-0')),
+    );
+    await tester.pump();
+
+    expect(selected, 'block-0');
+  });
+
   testWidgets('shows the exact empty-state message', (tester) async {
     await pumpReader(tester, chapter: chapter(const []));
     expect(find.text('Este capítulo não possui texto'), findsOneWidget);

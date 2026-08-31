@@ -6,6 +6,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
@@ -168,7 +169,7 @@ void main() {
     expect(find.text('Texto um'), findsOneWidget);
     await tester.tap(find.byTooltip('Capítulos'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Segundo'));
+    await tester.tap(find.textContaining('Segundo'));
     await tester.pumpAndSettle();
     expect(cubit.state.chapterId, 'two');
     expect(find.text('Texto dois'), findsOneWidget);
@@ -308,9 +309,11 @@ void main() {
       final narrationRepository = _NarrationRepository();
       final engine = _NarrationEngine();
       final narrationCubit = NarrationCubit(
-        repository: narrationRepository,
-        engine: engine,
-        clock: () => DateTime.utc(2025),
+        session: NarrationSession(
+          repository: narrationRepository,
+          engine: engine,
+          clock: () => DateTime.utc(2025),
+        ),
       );
       final cubit = await pumpPage(
         tester,
@@ -321,7 +324,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Capítulos'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Segundo'));
+      await tester.tap(find.textContaining('Segundo'));
       await tester.pumpAndSettle();
       tester
           .widget<InkWell>(find.byKey(const ValueKey('reader-block-two-block')))
@@ -340,6 +343,95 @@ void main() {
       expect(repository.savedPositions.length, savesBeforePlay);
     },
   );
+
+  testWidgets('play starts at the chapter the drawer opened', (tester) async {
+    final repository = _Repository(load: () async => content());
+    final engine = _NarrationEngine();
+    final narrationCubit = NarrationCubit(
+      session: NarrationSession(
+        repository: _NarrationRepository(),
+        engine: engine,
+        clock: () => DateTime.utc(2025),
+      ),
+    );
+    await pumpPage(tester, repository, narrationCubit: narrationCubit);
+    await tester.pumpAndSettle();
+
+    // Straight from the drawer, without tapping a paragraph — the path a
+    // reader takes to jump to chapter 236 of a long novel.
+    await tester.tap(find.byTooltip('Capítulos'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Segundo'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Reproduzir narração'));
+    await tester.pump();
+
+    // Used to speak 'Texto um': only tapping a paragraph ever told narration
+    // where the reader had gone.
+    expect(engine.spoken, ['Texto dois']);
+  });
+
+  testWidgets('the app bar steps aside while scrolling into the chapter', (
+    tester,
+  ) async {
+    final long = ReaderBookContent(
+      book: Book(
+        id: 'book',
+        title: 'Minha Novel',
+        originalFileName: 'novel.pdf',
+        storedFilePath: '/books/novel.pdf',
+        fileHash: 'hash',
+        status: BookStatus.ready,
+        processingProgress: 1,
+        createdAt: DateTime(2025),
+        updatedAt: DateTime(2025),
+        pageCount: 1,
+        chapterCount: 1,
+        blockCount: 40,
+        activeContentRunId: 'run',
+      ),
+      chapters: [
+        ReaderChapter(
+          chapter: ChapterDraft(
+            id: 'one',
+            title: 'Primeiro',
+            sortOrder: 0,
+            startPage: 1,
+            endPage: 1,
+            cleanText: 'longo',
+          ),
+          blocks: [
+            for (var index = 0; index < 40; index++)
+              NarrationBlockDraft(
+                id: 'block-$index',
+                chapterId: 'one',
+                sortOrder: index,
+                originalText: 'Parágrafo $index',
+                normalizedText: 'Parágrafo $index',
+                characterCount: 'Parágrafo $index'.runes.length,
+                startPage: 1,
+                endPage: 1,
+              ),
+          ],
+        ),
+      ],
+    );
+    await pumpPage(tester, _Repository(load: () async => long));
+    await tester.pumpAndSettle();
+    final withChrome = tester.getRect(find.byType(TextReaderView)).top;
+
+    await tester.drag(find.byType(TextReaderView), const Offset(0, -240));
+    await tester.pumpAndSettle();
+    final scrolled = tester.getRect(find.byType(TextReaderView)).top;
+    expect(scrolled, lessThan(withChrome));
+    expect(find.byTooltip('Capítulos'), findsOneWidget);
+
+    // Scrolling back up hands the actions straight back.
+    await tester.drag(find.byType(TextReaderView), const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.byType(TextReaderView)).top, withChrome);
+  });
 }
 
 final class _Repository implements VisualReaderRepository {

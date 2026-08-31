@@ -20,8 +20,8 @@ abstract final class ReaderVisualTheme {
   static const light = ReaderPalette(
     background: Color(0xFFFFFFFF),
     foreground: Color(0xFF1B1B1B),
-    selectedBackground: Color(0xFFD7E3FF),
-    selectedForeground: Color(0xFF001B3F),
+    selectedBackground: Color(0xFFFFE7C2),
+    selectedForeground: Color(0xFF3A2506),
   );
 
   static const sepia = ReaderPalette(
@@ -32,10 +32,10 @@ abstract final class ReaderVisualTheme {
   );
 
   static const dark = ReaderPalette(
-    background: Color(0xFF151515),
-    foreground: Color(0xFFF2F2F2),
-    selectedBackground: Color(0xFF31475E),
-    selectedForeground: Color(0xFFFFFFFF),
+    background: Color(0xFF14120F),
+    foreground: Color(0xFFEDE5D8),
+    selectedBackground: Color(0xFF4A3A22),
+    selectedForeground: Color(0xFFFFF3DF),
   );
 
   static ReaderPalette palette(ReaderTheme theme) => switch (theme) {
@@ -43,6 +43,53 @@ abstract final class ReaderVisualTheme {
     ReaderTheme.sepia => sepia,
     ReaderTheme.dark => dark,
   };
+
+  /// The reader's chrome — app bar, drawer, sheets, player bar — repainted in
+  /// the paper palette the reader chose.
+  ///
+  /// Without this the app's dark chrome framed a sepia or white page, and the
+  /// two never looked like the same screen.
+  static ThemeData chrome(ThemeData base, ReaderPalette palette) {
+    final onPaper = ThemeData.estimateBrightnessForColor(palette.background);
+    Color ink(double amount) =>
+        Color.lerp(palette.background, palette.foreground, amount)!;
+    final scheme = base.colorScheme.copyWith(
+      brightness: onPaper,
+      surface: palette.background,
+      onSurface: palette.foreground,
+      onSurfaceVariant: ink(0.68),
+      surfaceContainerLowest: ink(0.02),
+      surfaceContainerLow: ink(0.04),
+      surfaceContainer: ink(0.06),
+      surfaceContainerHigh: ink(0.09),
+      surfaceContainerHighest: ink(0.12),
+      outline: ink(0.35),
+      outlineVariant: ink(0.14),
+      primaryContainer: palette.selectedBackground,
+      onPrimaryContainer: palette.selectedForeground,
+    );
+    return base.copyWith(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: palette.background,
+      canvasColor: palette.background,
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: palette.background,
+        foregroundColor: palette.foreground,
+      ),
+      dividerTheme: base.dividerTheme.copyWith(color: scheme.outlineVariant),
+      iconTheme: base.iconTheme.copyWith(color: scheme.onSurfaceVariant),
+      drawerTheme: base.drawerTheme.copyWith(
+        backgroundColor: scheme.surfaceContainerLow,
+      ),
+      bottomSheetTheme: base.bottomSheetTheme.copyWith(
+        backgroundColor: scheme.surfaceContainerLow,
+      ),
+      textTheme: base.textTheme.apply(
+        bodyColor: palette.foreground,
+        displayColor: palette.foreground,
+      ),
+    );
+  }
 
   static TextStyle textStyle(ReaderSettings settings) => TextStyle(
     color: palette(settings.theme).foreground,

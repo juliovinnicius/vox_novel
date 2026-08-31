@@ -34,14 +34,13 @@ class ReaderNarrationHost extends StatefulWidget {
   State<ReaderNarrationHost> createState() => _ReaderNarrationHostState();
 }
 
-class _ReaderNarrationHostState extends State<ReaderNarrationHost>
-    with WidgetsBindingObserver {
-  Future<void> _lifecycleTail = Future.value();
-
+// No lifecycle observer any more: leaving the app must not stop narration.
+// Playback belongs to the application-scoped session and keeps running in the
+// background media service (BGN-01).
+class _ReaderNarrationHostState extends State<ReaderNarrationHost> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     unawaited(_activate());
   }
 
@@ -60,26 +59,9 @@ class _ReaderNarrationHostState extends State<ReaderNarrationHost>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.inactive &&
-        state != AppLifecycleState.paused &&
-        state != AppLifecycleState.detached) {
-      return;
-    }
-    final pause = widget.cubit.onAppLifecyclePause();
-    _lifecycleTail = Future.wait([_lifecycleTail, pause]);
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    unawaited(_close());
+    unawaited(widget.closeCubit?.call(widget.cubit) ?? widget.cubit.close());
     super.dispose();
-  }
-
-  Future<void> _close() async {
-    await _lifecycleTail;
-    await (widget.closeCubit?.call(widget.cubit) ?? widget.cubit.close());
   }
 
   @override

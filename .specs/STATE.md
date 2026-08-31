@@ -64,7 +64,7 @@
 - **Trade-off**: Reader composition coordinates two Cubits and an engine registry instead of one combined state object.
 - **Scope**: Narration, reader integration, application lifecycle, and future background media playback.
 - **Date**: 2026-07-18
-- **Status**: active
+- **Status**: superseded by AD-013
 
 ### AD-009
 - **Decision**: Split content sources by shape — paged sources (PDF) stay batch-processed, chaptered sources (web) are ingested incrementally — and route both through one shared `ChapterIngest` collaborator that owns clean-text-to-blocks persistence.
@@ -99,14 +99,40 @@
 - **Status**: active
 
 
+### AD-013
+- **Decision**: Narration playback is owned by an application-scoped `NarrationSession`; the media handler and the route Cubit are both clients that drive it and render one shared state stream. Platform media packages (`audio_service`, `audio_session`) stay confined to `features/narration/data/`.
+- **Reason**: A background session outlives any route, so route-scoped ownership cannot survive Milestone 5. AD-008 anticipated exactly this replacement. Deriving the notification and the in-app player from one value makes "every surface agrees" structural instead of something tests must chase.
+- **Trade-off**: The 565-line `NarrationCubit` must be split before any platform work, which is the feature's largest regression risk; the existing narration suite is the parity gate.
+- **Scope**: All narration playback, media session integration, and audio focus.
+- **Date**: 2026-08-26
+- **Status**: active
+- **Supersedes**: AD-008
+
+
+### AD-014
+- **Decision**: The app owns one central `ThemeData` pair in `lib/app/theme/app_theme.dart` (dark-first, warm amber accent), and the reader repaints that same theme through its paper palette via `ReaderVisualTheme.chrome`; screens never hardcode colours or text styles.
+- **Reason**: The shell shipped with `ThemeData(useMaterial3: true)`, so every screen inherited the default Material baseline and the reader's sepia/light pages sat inside dark chrome that clashed with them.
+- **Trade-off**: A palette change now happens in one file and affects every screen, so a screen that needs to deviate has to justify it locally; the light scheme exists but is unreachable until a user-facing app-theme setting is added.
+- **Scope**: All presentation layers.
+- **Date**: 2026-08-31
+- **Status**: active
+
+### AD-015
+- **Decision**: The reader's chrome yields screen space to the page: the narration bar ships collapsed (chapter + play/pause + a handle, full transport one tap away), chapter navigation scrolls inline at the end of the chapter instead of holding a fixed footer, and the app bar collapses while scrolling down and returns on the first scroll up.
+- **Reason**: In text mode with narration active the chrome took ~242dp — about 30% of a phone screen — from an app whose primary activity is reading. It is now ~112dp with everything still one gesture away.
+- **Trade-off**: The queue and voice controls, and the app bar actions, cost one extra tap or a scroll up; the collapsed/expanded choice is per reader session and not persisted, so it resets to collapsed every time the reader opens.
+- **Scope**: `visual_reader` and `narration` presentation.
+- **Date**: 2026-08-31
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: web_source_import / `.specs/features/web_source_import`
-- **Phase / Task**: Validate — Verifier iteration 3 returned PASS; feature complete on its branch
-- **Completed**: T1–T24, T27–T28, fixes F1–F5, hardening V1–V2; 613 tests, analyze clean, debug APK builds
+- **Feature**: background_narration / `.specs/features/background_narration`
+- **Phase / Task**: Phase 1, 2 and 2b complete (T1–T6). Phase 3 (T7–T11) is next and unblocked.
+- **Completed**: manifest and packages; the device spike; NarrationSessionState; NarrationSession owning playback; the Cubit as a client; the registry reduced to an attach point. 657 tests, analyze clean.
 - **In-progress** (file:line): none
-- **Next step**: merge `feat/web-source-import` into `main`; decide whether a cancelled web book stays cancelled across a restart (`resumePending` re-enqueues it today; WEB-11 AC5/AC6 are silent); no UAT script exists for this feature
+- **Next step**: T7, the media audio handler. It must call `AudioService.androidForceEnableMediaButtons()` — the spike proved media keys never reach the session without it.
 - **Blockers**: none
 - **Uncommitted files**: none
-- **Branch**: `feat/web-source-import` (42 commits ahead of `main`)
-- **Note**: `validation.md` covers `69ad930..c58d705`; the later `f531da5` (ingest-core import scan) postdates the report
+- **Branch**: `feat/background-narration`
+- **Note**: `main` is 43 commits ahead of `origin/main` and unpushed

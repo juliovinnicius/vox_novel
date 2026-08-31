@@ -22,7 +22,10 @@ import 'package:vox_novel/features/library/presentation/pages/library_page.dart'
 import 'package:vox_novel/features/library/presentation/cubit/library_cubit.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/repositories/narration_repository.dart';
+import 'package:vox_novel/features/narration/domain/services/audio_focus_monitor.dart';
+import 'package:vox_novel/features/narration/domain/services/audio_interruptions.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/repositories/text_processing_repository.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
@@ -63,6 +66,7 @@ void main() {
   test('registers one database, Cubit, and router', () async {
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       pdfTextExtractor: _Extractor(),
     );
@@ -107,6 +111,7 @@ void main() {
 
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         databaseExecutor: NativeDatabase.memory(),
         initializePdfEngine: () async {
           initializationCalls++;
@@ -116,6 +121,7 @@ void main() {
       final extractor = locator<PdfTextExtractor>();
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         initializePdfEngine: () async => initializationCalls++,
       );
 
@@ -127,6 +133,7 @@ void main() {
   test('repeated setup reuses the registered instances', () async {
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       pdfTextExtractor: _Extractor(),
     );
@@ -139,6 +146,7 @@ void main() {
 
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       pdfTextExtractor: _Extractor(),
     );
 
@@ -157,6 +165,7 @@ void main() {
       final created = <VisualReaderCubit>[];
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         databaseExecutor: NativeDatabase.memory(),
         pdfTextExtractor: _Extractor(),
         visualReaderRepository: repository,
@@ -188,6 +197,7 @@ void main() {
     final repository = _ReaderRepository(pendingSave: Completer<void>());
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       pdfTextExtractor: _Extractor(),
       visualReaderRepository: repository,
@@ -219,16 +229,13 @@ void main() {
       final created = <NarrationCubit>[];
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         databaseExecutor: NativeDatabase.memory(),
         pdfTextExtractor: _Extractor(),
         narrationEngine: engine,
         narrationRepository: repository,
-        narrationCubitFactory: (repository, engine, clock) {
-          final cubit = NarrationCubit(
-            repository: repository,
-            engine: engine,
-            clock: clock,
-          );
+        narrationCubitFactory: (session) {
+          final cubit = NarrationCubit(session: session);
           created.add(cubit);
           return cubit;
         },
@@ -244,48 +251,202 @@ void main() {
       expect(locator<NarrationRepository>(), same(repository));
       expect(created, [same(first), same(second)]);
       expect(first, isNot(same(second)));
-      expect(first.isClosed, isTrue);
-      expect(registry.activeCubits, [same(second)]);
+      // Both stay attached: the registry hands out views of one session
+      // rather than transferring ownership of an engine (AD-013).
+      expect(first.isClosed, isFalse);
+      expect(registry.activeCubits, [same(first), same(second)]);
     },
   );
 
-  test(
-    'narration ownership waits prior stop and progress before activation',
-    () async {
-      final stop = Completer<void>();
-      final engine = _NarrationEngine(stopGate: stop);
-      final repository = _NarrationRepository();
+  group('media session', () {
+    test('composition returns before the platform is up', () async {
+      final gate = Completer<void>();
+      var finished = false;
+
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: _NarrationEngine(),
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: _Interruptions(),
+        startMediaSession: () async {
+          await gate.future;
+          finished = true;
+        },
+      );
+
+      // Awaiting real platform initialisation here never completes under a
+      // widget test's fake clock, which is why this is fire and forget.
+      expect(finished, isFalse);
+      gate.complete();
+    });
+
+    test('composition asks for the media session exactly once', () async {
+      var starts = 0;
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: _NarrationEngine(),
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: _Interruptions(),
+        startMediaSession: () async => starts++,
+      );
+      await pumpEventQueue();
+
+      expect(starts, 1);
+    });
+
+    test('an interruption reaches the app-scoped session', () async {
+      final engine = _NarrationEngine();
+      final interruptions = _Interruptions();
       await configureDependencies(
         instance: locator,
         databaseExecutor: NativeDatabase.memory(),
         pdfTextExtractor: _Extractor(),
         narrationEngine: engine,
-        narrationRepository: repository,
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: interruptions,
+        startMediaSession: () => locator<AudioFocusMonitor>().start(),
       );
-      final registry = locator<NarrationCubitRegistry>();
-      final first = registry.create();
-      await registry.activationFor(first);
-      await first.load(_ReaderRepository().content);
-      unawaited(first.play());
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
+      final session = locator<NarrationSession>();
+      await session.load(_ReaderRepository().content);
+      unawaited(session.play());
+      await pumpEventQueue();
 
-      final second = registry.create();
-      var activated = false;
-      final activation = registry
-          .activationFor(second)
-          .then((_) => activated = true);
-      await Future<void>.delayed(Duration.zero);
+      interruptions.emit(AudioInterruption.permanentLoss);
+      await pumpEventQueue();
+
+      // Proves the monitor the container built is wired to the very session
+      // the reader plays through, not to a second one.
+      expect(session.state.status, NarrationStatus.paused);
       expect(engine.stopCalls, 1);
-      expect(activated, isFalse);
-      expect(first.isClosed, isFalse);
+    });
 
-      stop.complete();
-      await activation;
-      expect(first.isClosed, isTrue);
-      expect(repository.progress?.blockId, 'one-block');
-      expect(activated, isTrue);
-    },
-  );
+    test('reset releases the interruptions source', () async {
+      final interruptions = _Interruptions();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: _NarrationEngine(),
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: interruptions,
+        startMediaSession: () => locator<AudioFocusMonitor>().start(),
+      );
+      await pumpEventQueue();
+
+      await resetDependencies(instance: locator);
+
+      expect(interruptions.closed, isTrue);
+    });
+
+    test('a platform that refuses the service still narrates', () async {
+      final engine = _NarrationEngine();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: engine,
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: _Interruptions(),
+        startMediaSession: () async => throw StateError('no foreground service'),
+      );
+      await pumpEventQueue();
+      final session = locator<NarrationSession>();
+      await session.load(_ReaderRepository().content);
+
+      expect(session.state.message, NarrationSession.mediaSessionMessage);
+      // The reader can still listen; only the controls outside the app are
+      // missing.
+      unawaited(session.play());
+      await pumpEventQueue();
+      expect(session.state.status, NarrationStatus.playing);
+    });
+
+    test('deleting the narrated book reaches the session', () async {
+      final engine = _NarrationEngine();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: engine,
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: _Interruptions(),
+        startMediaSession: _noMediaSession,
+      );
+      final session = locator<NarrationSession>();
+      final content = _ReaderRepository().content;
+      await session.load(content);
+
+      // A fileless book so the deletion has no local file to quarantine; the
+      // wiring under test is the callback, not the storage path.
+      final web = domain.Book(
+        id: content.book.id,
+        title: content.book.title,
+        sourceType: domain.BookSourceType.web,
+        sourceRef: 'https://exemplo.com/series/obra/',
+        status: domain.BookStatus.ready,
+        processingProgress: 1,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      );
+      await locator<BookRepository>().insert(web);
+
+      final deleted = await locator<LibraryService>().deleteBook(web);
+
+      expect(deleted.success, isTrue);
+      // Without the wiring the library deletes the row and leaves a session —
+      // and a notification — pointing at a book that no longer exists.
+      expect(session.state.bookId, isNull);
+      expect(session.state.status, NarrationStatus.initial);
+    });
+
+    test('a supplied interruptions source replaces the platform one', () async {
+      final interruptions = _Interruptions();
+      await configureDependencies(
+        instance: locator,
+        databaseExecutor: NativeDatabase.memory(),
+        pdfTextExtractor: _Extractor(),
+        narrationEngine: _NarrationEngine(),
+        narrationRepository: _NarrationRepository(),
+        audioInterruptions: interruptions,
+        startMediaSession: _noMediaSession,
+      );
+
+      expect(locator<AudioInterruptions>(), same(interruptions));
+    });
+  });
+
+  test('every reader route attaches to the one narration session', () async {
+    final engine = _NarrationEngine();
+    final repository = _NarrationRepository();
+    await configureDependencies(
+      instance: locator,
+      startMediaSession: _noMediaSession,
+      databaseExecutor: NativeDatabase.memory(),
+      pdfTextExtractor: _Extractor(),
+      narrationEngine: engine,
+      narrationRepository: repository,
+    );
+    final registry = locator<NarrationCubitRegistry>();
+    final first = registry.create();
+    await first.load(_ReaderRepository().content);
+    unawaited(first.play());
+    await Future<void>.delayed(Duration.zero);
+
+    final second = registry.create();
+
+    // Under AD-013 a second reader route does not hand playback over — there
+    // is one session, so opening another view must not stop the speech that
+    // is already running.
+    expect(engine.stopCalls, 0);
+    expect(second.state.status, first.state.status);
+    expect(second.state.blockId, first.state.blockId);
+    expect(first.isClosed, isFalse);
+  });
 
   test(
     'reset awaits narration save before engine and database close',
@@ -296,6 +457,7 @@ void main() {
       final executor = NativeDatabase.memory();
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         databaseExecutor: executor,
         pdfTextExtractor: _Extractor(),
         narrationEngine: engine,
@@ -329,6 +491,7 @@ void main() {
     final executor = NativeDatabase.memory();
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: executor,
       pdfTextExtractor: _Extractor(),
     );
@@ -355,6 +518,7 @@ void main() {
   test('resolved database uses the injected in-memory executor', () async {
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       pdfTextExtractor: _Extractor(),
     );
@@ -373,6 +537,7 @@ void main() {
       final workers = <int>[];
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         databaseExecutor: NativeDatabase.memory(),
         pdfTextExtractor: _SelectableTextExtractor(),
         onCpuWorkerIsolate: workers.add,
@@ -417,6 +582,7 @@ void main() {
       for (final testCase in cases) {
         await configureDependencies(
           instance: locator,
+          startMediaSession: _noMediaSession,
           databaseExecutor: NativeDatabase.memory(),
           pdfTextExtractor: testCase.extractor,
           generateId: () => 'run-id',
@@ -440,6 +606,7 @@ void main() {
       final pending = _PendingExtractor();
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         databaseExecutor: NativeDatabase.memory(),
         pdfTextExtractor: pending,
         generateId: () => 'run-id',
@@ -480,6 +647,7 @@ void main() {
       });
       await configureDependencies(
         instance: locator,
+        startMediaSession: _noMediaSession,
         databaseExecutor: NativeDatabase(databaseFile),
         supportDirectory: root,
         pdfTextExtractor: pending,
@@ -509,6 +677,7 @@ void main() {
   test('the shipped recipe is loaded from the bundled asset', () async {
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       pdfTextExtractor: _Extractor(),
     );
@@ -523,6 +692,7 @@ void main() {
     final fetcher = _RecordingFetcher();
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       pdfTextExtractor: _Extractor(),
       webFetcher: fetcher,
@@ -549,6 +719,7 @@ void main() {
   test('the composed import cubit reports the rejection it resolved', () async {
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       pdfTextExtractor: _Extractor(),
       webFetcher: _RecordingFetcher(),
@@ -574,6 +745,7 @@ void main() {
 
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       supportDirectory: Directory.systemTemp,
       pdfTextExtractor: _Extractor(),
       webFetcher: fetcher,
@@ -615,6 +787,7 @@ void main() {
 
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       supportDirectory: Directory.systemTemp,
       pdfTextExtractor: _Extractor(),
       webFetcher: fetcher,
@@ -652,6 +825,7 @@ void main() {
   ) async {
     await configureDependencies(
       instance: locator,
+      startMediaSession: _noMediaSession,
       databaseExecutor: NativeDatabase.memory(),
       // A widget test's fake clock never completes real file I/O, so the
       // support directory is supplied instead of created.
@@ -889,10 +1063,31 @@ final class _ReaderRepository implements VisualReaderRepository {
   Future<void> saveSettings(ReaderSettings settings) async {}
 }
 
-final class _NarrationEngine implements NarrationEngine {
-  _NarrationEngine({this.stopGate});
+/// Composing the container brings the platform media session up, which a unit
+/// test has no platform for. Tests that care about it supply their own.
+Future<void> _noMediaSession() async {}
 
-  final Completer<void>? stopGate;
+final class _Interruptions implements AudioInterruptions {
+  final _controller = StreamController<AudioInterruption>.broadcast(sync: true);
+  var started = false;
+  var closed = false;
+
+  @override
+  Stream<AudioInterruption> get events => _controller.stream;
+
+  @override
+  Future<void> start() async => started = true;
+
+  void emit(AudioInterruption interruption) => _controller.add(interruption);
+
+  @override
+  Future<void> close() async {
+    closed = true;
+    await _controller.close();
+  }
+}
+
+final class _NarrationEngine implements NarrationEngine {
   final pendingSpeech = Completer<void>();
   var stopCalls = 0;
   var closed = false;
@@ -906,10 +1101,7 @@ final class _NarrationEngine implements NarrationEngine {
   @override
   Future<void> speak(String text) => pendingSpeech.future;
   @override
-  Future<void> stop() {
-    stopCalls++;
-    return stopGate?.future ?? Future.value();
-  }
+  Future<void> stop() async => stopCalls++;
 
   @override
   Future<void> close() async {

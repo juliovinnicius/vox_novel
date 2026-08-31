@@ -9,6 +9,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart';
 import 'package:vox_novel/features/narration/data/repositories/drift_narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/data/repositories/drift_text_processing_repository.dart';
 import 'package:vox_novel/features/visual_reader/data/repositories/drift_visual_reader_repository.dart';
@@ -152,10 +153,12 @@ final class Harness {
   DateTime _clock() => DateTime.utc(2026, 8, 18, 9);
 
   NarrationCubit narration(FakeEngine engine) => NarrationCubit(
-    repository: DriftNarrationRepository(database),
-    engine: engine,
-    clock: _clock,
-    loadContent: reader.loadContent,
+    session: NarrationSession(
+      repository: DriftNarrationRepository(database),
+      engine: engine,
+      clock: _clock,
+      loadContent: reader.loadContent,
+    ),
   );
 }
 

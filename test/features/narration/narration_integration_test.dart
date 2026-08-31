@@ -9,6 +9,7 @@ import 'package:vox_novel/features/library/domain/entities/book.dart' as domain;
 import 'package:vox_novel/features/narration/data/repositories/drift_narration_repository.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/domain/services/narration_engine.dart';
+import 'package:vox_novel/features/narration/domain/services/narration_session.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/pdf_processing/domain/entities/text_processing_models.dart';
 import 'package:vox_novel/features/visual_reader/domain/entities/reader_models.dart';
@@ -117,7 +118,7 @@ void main() {
         ['run-1', 'chapter-2', 'block-2', false],
       );
 
-      final pause = cubit.onAppLifecyclePause();
+      final pause = cubit.pause();
       expect(cubit.state.status, NarrationStatus.paused);
       await pause;
       expect(engine.stopCalls, 1);
@@ -199,9 +200,11 @@ void main() {
 
 NarrationCubit _cubit(DriftNarrationRepository repository, _Engine engine) =>
     NarrationCubit(
-      repository: repository,
-      engine: engine,
-      clock: () => DateTime.utc(2026, 7, 19),
+      session: NarrationSession(
+        repository: repository,
+        engine: engine,
+        clock: () => DateTime.utc(2026, 7, 19),
+      ),
     );
 
 ReaderBookContent _content({String runId = 'run-1'}) {

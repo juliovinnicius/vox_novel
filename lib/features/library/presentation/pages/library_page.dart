@@ -126,43 +126,92 @@ final class _LibraryView extends StatelessWidget {
       appBar: AppBar(
         title: Semantics(header: true, child: const Text('Biblioteca')),
         actions: [
-          IconButton(
-            tooltip: 'Visualização em lista',
-            isSelected: state.layout == LibraryLayout.list,
-            onPressed: context.read<LibraryCubit>().showList,
-            icon: const Icon(Icons.view_list),
-          ),
-          IconButton(
-            tooltip: 'Visualização em grade',
-            isSelected: state.layout == LibraryLayout.grid,
-            onPressed: context.read<LibraryCubit>().showGrid,
-            icon: const Icon(Icons.grid_view),
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              children: [
+                _layoutToggle(
+                  context,
+                  tooltip: 'Visualização em lista',
+                  icon: Icons.view_agenda_outlined,
+                  selected: state.layout == LibraryLayout.list,
+                  onPressed: context.read<LibraryCubit>().showList,
+                ),
+                _layoutToggle(
+                  context,
+                  tooltip: 'Visualização em grade',
+                  icon: Icons.grid_view_rounded,
+                  selected: state.layout == LibraryLayout.grid,
+                  onPressed: context.read<LibraryCubit>().showGrid,
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: Stack(
+      body: Column(
         children: [
-          if (state.books.isEmpty && !state.loading)
-            const Center(child: Text('Sua biblioteca está vazia'))
-          else if (state.layout == LibraryLayout.list)
-            ListView.builder(
-              itemCount: state.books.length,
-              itemBuilder: (context, index) =>
-                  _listItem(context, state.books[index]),
-            )
-          else
-            GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-              ),
-              itemCount: state.books.length,
-              itemBuilder: (context, index) =>
-                  _gridItem(context, state.books[index]),
-            ),
-          if (busy) const LinearProgressIndicator(),
+          if (busy) const LinearProgressIndicator(minHeight: 3),
+          Expanded(child: _books(context, state)),
         ],
       ),
       floatingActionButton: _importActions(context, busy: busy),
+    );
+  }
+
+  Widget _layoutToggle(
+    BuildContext context, {
+    required String tooltip,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onPressed,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return IconButton(
+      tooltip: tooltip,
+      isSelected: selected,
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      style: IconButton.styleFrom(
+        backgroundColor: selected
+            ? scheme.primary.withValues(alpha: 0.18)
+            : null,
+        foregroundColor: selected ? scheme.primary : scheme.onSurfaceVariant,
+      ),
+      icon: Icon(icon, size: 20),
+    );
+  }
+
+  Widget _books(BuildContext context, LibraryState state) {
+    if (state.books.isEmpty && !state.loading) return const _EmptyLibrary();
+    // Room for the floating import actions to hover over the last card.
+    const padding = EdgeInsets.fromLTRB(16, 12, 16, 140);
+    if (state.layout == LibraryLayout.list) {
+      return ListView.separated(
+        padding: padding,
+        itemCount: state.books.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, index) => _listItem(context, state.books[index]),
+      );
+    }
+    return GridView.builder(
+      padding: padding,
+      // A fixed card height, not an aspect ratio: on a wide screen two
+      // columns of a 0.6 ratio grow taller than the viewport.
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        mainAxisExtent: 300,
+      ),
+      itemCount: state.books.length,
+      itemBuilder: (context, index) => _gridItem(context, state.books[index]),
     );
   }
 
@@ -181,6 +230,9 @@ final class _LibraryView extends StatelessWidget {
       children: [
         FloatingActionButton.extended(
           heroTag: 'import-web',
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          elevation: 1,
           onPressed: busy
               ? null
               : () => showImportWebBookDialog(context, webCubit),
@@ -207,6 +259,7 @@ final class _LibraryView extends StatelessWidget {
     onOpen: (book) => _open(context, book),
     onCancelProcessing: _cancelProcessing,
   );
+
   /// A web book's queue lives in `WebNovelDownloadService`; only a PDF book has
   /// a processing run to cancel.
   ValueChanged<Book>? get _cancelProcessing {
@@ -246,5 +299,51 @@ final class _LibraryView extends StatelessWidget {
     if (await showDeleteBookDialog(context, book) && context.mounted) {
       await context.read<LibraryCubit>().deleteBook(book);
     }
+  }
+}
+
+final class _EmptyLibrary extends StatelessWidget {
+  const _EmptyLibrary();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(32, 0, 32, 96),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.surfaceContainerHigh,
+              ),
+              child: Icon(
+                Icons.auto_stories_outlined,
+                size: 38,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Sua biblioteca está vazia',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Importe um PDF ou cole o link de uma novel para começar a ouvir.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

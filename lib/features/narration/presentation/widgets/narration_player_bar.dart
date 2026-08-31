@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:vox_novel/features/narration/domain/entities/narration_models.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_state.dart';
 
-class NarrationPlayerBar extends StatelessWidget {
+/// The narration controls at the bottom of the reader.
+///
+/// The bar has two heights. Collapsed — the default — is a single strip with
+/// the chapter, play/pause and a handle; the queue and voice controls live one
+/// tap away. Expanded is the full transport. Reading is the primary activity,
+/// so the bar gives the page back ~60dp until the reader asks for more.
+class NarrationPlayerBar extends StatefulWidget {
   const NarrationPlayerBar({
     required this.state,
     required this.onPlay,
@@ -11,6 +17,7 @@ class NarrationPlayerBar extends StatelessWidget {
     required this.onNext,
     required this.onSettings,
     required this.onRetry,
+    this.initiallyExpanded = false,
     super.key,
   });
 
@@ -21,108 +28,223 @@ class NarrationPlayerBar extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onSettings;
   final VoidCallback onRetry;
+  final bool initiallyExpanded;
+
+  @override
+  State<NarrationPlayerBar> createState() => _NarrationPlayerBarState();
+}
+
+class _NarrationPlayerBarState extends State<NarrationPlayerBar> {
+  late bool _expanded = widget.initiallyExpanded;
+
+  NarrationState get state => widget.state;
 
   @override
   Widget build(BuildContext context) {
-    final status = state.status;
-    final canNavigate = switch (status) {
-      NarrationStatus.ready ||
-      NarrationStatus.playing ||
-      NarrationStatus.paused ||
-      NarrationStatus.completed ||
-      NarrationStatus.awaitingDownload => true,
-      _ => false,
-    };
-    final canOpenSettings = canNavigate;
-
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      elevation: 8,
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      child: SafeArea(
-        top: false,
+      color: scheme.surfaceContainerLow,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _expanded ? _expandedBar(context) : _collapsedBar(context),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// One strip: what is playing, one control to stop it, one handle to get the
+  /// rest. An error keeps its retry here too — it is the only way forward.
+  Widget _collapsedBar(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
+    child: Row(
+      children: [
+        _StatusDot(status: state.status),
+        const SizedBox(width: 10),
+        Expanded(child: _headlineBlock(context, dense: true)),
+        if (state.status == NarrationStatus.error)
+          _retryButton()
+        else
+          _playButton(context, size: 48, iconSize: 24),
+        _toggle(),
+      ],
+    ),
+  );
+
+  Widget _expandedBar(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 4, 8, 6),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            _StatusDot(status: state.status),
+            const SizedBox(width: 10),
+            Expanded(child: _headlineBlock(context, dense: false)),
+            _control(
+              key: const ValueKey('narration-settings'),
+              label: 'Configurações de voz e velocidade',
+              onPressed: _canNavigate ? widget.onSettings : null,
+              icon: Icons.tune_rounded,
+            ),
+            _toggle(),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _control(
+              key: const ValueKey('previous-narration-block'),
+              label: 'Trecho anterior',
+              onPressed: _canNavigate && state.canPrevious
+                  ? widget.onPrevious
+                  : null,
+              icon: Icons.skip_previous_rounded,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            _playButton(context, size: 56, iconSize: 30),
+            const SizedBox(width: 12),
+            _control(
+              key: const ValueKey('next-narration-block'),
+              label: 'Próximo trecho',
+              onPressed:
+                  _canNavigate &&
+                      state.status != NarrationStatus.completed &&
+                      state.status != NarrationStatus.awaitingDownload &&
+                      state.canNext
+                  ? widget.onNext
+                  : null,
+              icon: Icons.skip_next_rounded,
+              size: 28,
+            ),
+            if (state.status == NarrationStatus.error) ...[
+              const SizedBox(width: 12),
+              _retryButton(),
+            ],
+          ],
+        ),
+      ],
+    ),
+  );
+
+  /// Tapping the headline is a second, larger target for the same toggle.
+  Widget _headlineBlock(BuildContext context, {required bool dense}) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: _toggleLabel,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: _toggleExpanded,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _headline,
-                  maxLines: 1,
+              Text(
+                _headline,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (state.message case final message?)
+                Text(
+                  message,
+                  maxLines: dense ? 1 : 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-              if (state.message case final message?) ...[
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    message,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: state.status == NarrationStatus.error
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ],
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _control(
-                    key: const ValueKey('previous-narration-block'),
-                    label: 'Trecho anterior',
-                    onPressed: canNavigate && state.canPrevious
-                        ? onPrevious
-                        : null,
-                    icon: Icons.skip_previous,
-                  ),
-                  _control(
-                    key: const ValueKey('play-pause-narration'),
-                    label: _playLabel,
-                    onPressed: _playAction,
-                    icon: _playIcon,
-                  ),
-                  _control(
-                    key: const ValueKey('next-narration-block'),
-                    label: 'Próximo trecho',
-                    onPressed:
-                        canNavigate &&
-                            status != NarrationStatus.completed &&
-                            status != NarrationStatus.awaitingDownload &&
-                            state.canNext
-                        ? onNext
-                        : null,
-                    icon: Icons.skip_next,
-                  ),
-                  _control(
-                    key: const ValueKey('narration-settings'),
-                    label: 'Configurações de voz e velocidade',
-                    onPressed: canOpenSettings ? onSettings : null,
-                    icon: Icons.record_voice_over_outlined,
-                  ),
-                  if (status == NarrationStatus.error)
-                    Semantics(
-                      button: true,
-                      label: 'Tentar iniciar a narração novamente',
-                      excludeSemantics: true,
-                      child: ConstrainedBox(
-                        constraints: _targetConstraints,
-                        child: FilledButton(
-                          onPressed: onRetry,
-                          child: const Text('Tentar novamente'),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _toggle() => _control(
+    key: const ValueKey('toggle-narration-controls'),
+    label: _toggleLabel,
+    onPressed: _toggleExpanded,
+    icon: _expanded
+        ? Icons.keyboard_arrow_down_rounded
+        : Icons.keyboard_arrow_up_rounded,
+    size: 24,
+  );
+
+  Widget _playButton(
+    BuildContext context, {
+    required double size,
+    required double iconSize,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: _playLabel,
+      button: true,
+      enabled: _playAction != null,
+      excludeSemantics: true,
+      child: IconButton.filled(
+        key: const ValueKey('play-pause-narration'),
+        tooltip: _playLabel,
+        constraints: BoxConstraints(minWidth: size, minHeight: size),
+        iconSize: iconSize,
+        style: IconButton.styleFrom(
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
+          disabledBackgroundColor: scheme.onSurfaceVariant.withValues(
+            alpha: 0.14,
+          ),
+          disabledForegroundColor: scheme.onSurfaceVariant,
+          shape: const CircleBorder(),
+        ),
+        onPressed: _playAction,
+        icon: Icon(_playIcon),
+      ),
+    );
+  }
+
+  Widget _retryButton() => Semantics(
+    button: true,
+    label: 'Tentar iniciar a narração novamente',
+    excludeSemantics: true,
+    child: ConstrainedBox(
+      constraints: _targetConstraints,
+      child: FilledButton(
+        onPressed: widget.onRetry,
+        child: const Text('Tentar novamente'),
+      ),
+    ),
+  );
+
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
+
+  String get _toggleLabel => _expanded
+      ? 'Ocultar controles de narração'
+      : 'Mostrar controles de narração';
+
+  bool get _canNavigate => switch (state.status) {
+    NarrationStatus.ready ||
+    NarrationStatus.playing ||
+    NarrationStatus.paused ||
+    NarrationStatus.completed ||
+    NarrationStatus.awaitingDownload => true,
+    _ => false,
+  };
 
   String get _headline => switch (state.status) {
     NarrationStatus.initial => 'Narração',
@@ -147,8 +269,8 @@ class NarrationPlayerBar extends StatelessWidget {
   };
 
   VoidCallback? get _playAction => switch (state.status) {
-    NarrationStatus.ready || NarrationStatus.paused => onPlay,
-    NarrationStatus.playing => onPause,
+    NarrationStatus.ready || NarrationStatus.paused => widget.onPlay,
+    NarrationStatus.playing => widget.onPause,
     _ => null,
   };
 
@@ -164,6 +286,7 @@ class NarrationPlayerBar extends StatelessWidget {
     required String label,
     required VoidCallback? onPressed,
     required IconData icon,
+    double size = 22,
   }) => Semantics(
     label: label,
     button: true,
@@ -173,6 +296,7 @@ class NarrationPlayerBar extends StatelessWidget {
       key: key,
       tooltip: label,
       constraints: _targetConstraints,
+      iconSize: size,
       onPressed: onPressed,
       icon: Icon(icon),
     ),
@@ -180,3 +304,36 @@ class NarrationPlayerBar extends StatelessWidget {
 }
 
 const _targetConstraints = BoxConstraints(minWidth: 48, minHeight: 48);
+
+/// A quiet colour cue for the narration's state, so the bar reads at a glance
+/// without another line of text.
+final class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.status});
+
+  final NarrationStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = switch (status) {
+      NarrationStatus.playing => scheme.primary,
+      NarrationStatus.paused || NarrationStatus.ready =>
+        scheme.onSurfaceVariant,
+      NarrationStatus.error || NarrationStatus.unavailable => scheme.error,
+      NarrationStatus.completed => scheme.primary.withValues(alpha: 0.5),
+      _ => scheme.outline,
+    };
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        boxShadow: status == NarrationStatus.playing
+            ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6)]
+            : null,
+      ),
+    );
+  }
+}

@@ -47,6 +47,30 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('each row carries its chapter number', (tester) async {
+    await pumpHost(
+      tester,
+      chapters: [chapter('a', 'Começo', 0), chapter('b', 'Depois', 1)],
+    );
+
+    expect(find.text('1 - Começo'), findsOneWidget);
+    expect(find.text('2 - Depois'), findsOneWidget);
+  });
+
+  testWidgets('a missing chapter does not renumber the ones after it', (
+    tester,
+  ) async {
+    // A web chapter that failed to download leaves a hole in sortOrder.
+    // Numbering by list position would show 2 for what the site calls 3.
+    await pumpHost(
+      tester,
+      chapters: [chapter('a', 'Começo', 0), chapter('c', 'Terceiro', 2)],
+    );
+
+    expect(find.text('3 - Terceiro'), findsOneWidget);
+    expect(find.text('2 - Terceiro'), findsNothing);
+  });
+
   testWidgets('renders chapters in the supplied exact order', (tester) async {
     final chapters = [
       chapter('intro', 'Introdução', 0),
@@ -56,7 +80,15 @@ void main() {
     await pumpHost(tester, chapters: chapters);
 
     final positions = chapters
-        .map((item) => tester.getTopLeft(find.text(item.chapter.title)).dy)
+        .map(
+          (item) => tester
+              .getTopLeft(
+                find.text(
+                  '${item.chapter.sortOrder + 1} - ${item.chapter.title}',
+                ),
+              )
+              .dy,
+        )
         .toList();
     expect(positions, orderedEquals([...positions]..sort()));
   });
@@ -83,7 +115,7 @@ void main() {
       onSelected: (value) => selected = value,
     );
 
-    await tester.tap(find.text('Especial'));
+    await tester.tap(find.textContaining('Especial'));
     await tester.pumpAndSettle();
 
     expect(selected, 'id/with spaces');

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vox_novel/features/narration/presentation/cubit/narration_cubit.dart';
 import 'package:vox_novel/features/narration/presentation/widgets/reader_narration_host.dart';
@@ -41,6 +42,10 @@ final class _ReaderPageState extends State<ReaderPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _scrollControllers = <String, ScrollController>{};
   String? _lastScrolledBlock;
+
+  /// The app bar steps aside while the reader scrolls into the chapter and
+  /// comes back on the first scroll upwards.
+  bool _chromeVisible = true;
 
   @override
   void initState() {
@@ -93,16 +98,29 @@ final class _ReaderPageState extends State<ReaderPage> {
       return Scaffold(
         appBar: AppBar(title: const Text('Leitor')),
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Conteúdo do livro indisponível'),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.of(context).maybePop(),
-                child: const Text('Voltar à biblioteca'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 40,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Conteúdo do livro indisponível',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: const Text('Voltar à biblioteca'),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -122,45 +140,57 @@ final class _ReaderPageState extends State<ReaderPage> {
     final palette = ReaderVisualTheme.palette(settings.theme);
     _scheduleScroll(chapter, state.blockId);
 
-    Widget buildReader(Widget? playerBar) => Scaffold(
+    Widget scaffold(BuildContext context, Widget? playerBar) => Scaffold(
       key: _scaffoldKey,
       backgroundColor: palette.background,
       bottomNavigationBar: playerBar,
       endDrawer: ChapterDrawer(
         chapters: content.chapters,
         currentChapterId: state.chapterId,
-        onChapterSelected: widget.cubit.selectChapter,
+        onChapterSelected: _selectChapter,
       ),
-      appBar: AppBar(
-        title: Semantics(header: true, child: Text(content.book.title)),
-        actions: [
-          if (hasOriginal)
-            IconButton(
-              tooltip: state.mode == ReaderMode.text
-                  ? 'Ver PDF original'
-                  : 'Ver texto reformatado',
-              onPressed: state.mode == ReaderMode.text
-                  ? widget.cubit.showPdf
-                  : widget.cubit.showText,
-              icon: Icon(
-                state.mode == ReaderMode.text
-                    ? Icons.picture_as_pdf_outlined
-                    : Icons.notes,
-              ),
+      appBar: _CollapsingAppBar(
+        // The PDF surface has its own gestures, so only the text view earns
+        // the extra height.
+        visible: _chromeVisible || state.mode == ReaderMode.pdf,
+        child: AppBar(
+          title: Semantics(
+            header: true,
+            child: Text(
+              content.book.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          IconButton(
-            tooltip: 'Capítulos',
-            onPressed: content.chapters.isEmpty
-                ? null
-                : () => _scaffoldKey.currentState?.openEndDrawer(),
-            icon: const Icon(Icons.menu_book),
           ),
-          IconButton(
-            tooltip: 'Configurações do leitor',
-            onPressed: () => _showSettings(context),
-            icon: const Icon(Icons.text_format),
-          ),
-        ],
+          actions: [
+            if (hasOriginal)
+              IconButton(
+                tooltip: state.mode == ReaderMode.text
+                    ? 'Ver PDF original'
+                    : 'Ver texto reformatado',
+                onPressed: state.mode == ReaderMode.text
+                    ? widget.cubit.showPdf
+                    : widget.cubit.showText,
+                icon: Icon(
+                  state.mode == ReaderMode.text
+                      ? Icons.picture_as_pdf_outlined
+                      : Icons.notes,
+                ),
+              ),
+            IconButton(
+              tooltip: 'Capítulos',
+              onPressed: content.chapters.isEmpty
+                  ? null
+                  : () => _scaffoldKey.currentState?.openEndDrawer(),
+              icon: const Icon(Icons.menu_book),
+            ),
+            IconButton(
+              tooltip: 'Configurações do leitor',
+              onPressed: () => _showSettings(context),
+              icon: const Icon(Icons.text_format),
+            ),
+          ],
+        ),
       ),
       body: state.mode == ReaderMode.pdf && hasOriginal
           ? OriginalPdfView(
@@ -172,20 +202,15 @@ final class _ReaderPageState extends State<ReaderPage> {
             )
           : chapter == null
           ? const Center(child: Text('Este capítulo não possui texto'))
-          : Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primaryContainer: palette.selectedBackground,
-                  onPrimaryContainer: palette.selectedForeground,
-                ),
-              ),
+          : NotificationListener<UserScrollNotification>(
+              onNotification: _followScroll,
               child: TextReaderView(
                 chapter: chapter,
                 selectedBlockId: state.blockId,
                 onBlockSelected: (blockId) =>
                     _selectBlock(chapter.chapter.id, blockId),
-                onPreviousChapter: widget.cubit.previousChapter,
-                onNextChapter: widget.cubit.nextChapter,
+                onPreviousChapter: _previousChapter,
+                onNextChapter: _nextChapter,
                 hasPreviousChapter: position > 0,
                 hasNextChapter: position < content.chapters.length - 1,
                 controller: _scrollControllers.putIfAbsent(
@@ -195,6 +220,11 @@ final class _ReaderPageState extends State<ReaderPage> {
                 textStyle: ReaderVisualTheme.textStyle(settings),
               ),
             ),
+    );
+
+    Widget buildReader(Widget? playerBar) => Theme(
+      data: ReaderVisualTheme.chrome(Theme.of(context), palette),
+      child: Builder(builder: (inner) => scaffold(inner, playerBar)),
     );
 
     final narrationCubit = widget.narrationCubit;
@@ -209,9 +239,54 @@ final class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
+  bool _followScroll(UserScrollNotification notification) {
+    if (notification.depth != 0) return false;
+    final hide = notification.direction == ScrollDirection.reverse;
+    final show = notification.direction == ScrollDirection.forward;
+    if (hide && _chromeVisible) {
+      setState(() => _chromeVisible = false);
+    } else if (show && !_chromeVisible) {
+      setState(() => _chromeVisible = true);
+    }
+    return false;
+  }
+
   void _selectBlock(String chapterId, String blockId) {
     widget.cubit.selectBlock(chapterId, blockId);
     widget.narrationCubit?.setPendingStart(chapterId, blockId);
+  }
+
+  void _selectChapter(String chapterId) {
+    setState(() => _chromeVisible = true);
+    widget.cubit.selectChapter(chapterId);
+    _startNarrationWhereTheReaderIs();
+  }
+
+  void _previousChapter() {
+    widget.cubit.previousChapter();
+    _startNarrationWhereTheReaderIs();
+  }
+
+  void _nextChapter() {
+    widget.cubit.nextChapter();
+    _startNarrationWhereTheReaderIs();
+  }
+
+  /// Play starts from the chapter the reader is showing.
+  ///
+  /// AD-007 keeps the visual position and narration progress separate, and
+  /// that still holds — nothing durable is written here. What changes is only
+  /// where the *next* play begins: jumping to chapter 236 and pressing play
+  /// used to narrate chapter 1, because only tapping a paragraph ever told
+  /// narration where the reader had gone.
+  void _startNarrationWhereTheReaderIs() {
+    final narration = widget.narrationCubit;
+    if (narration == null) return;
+    final state = widget.cubit.state;
+    final chapterId = state.chapterId;
+    final blockId = state.blockId;
+    if (chapterId == null || blockId == null) return;
+    narration.setPendingStart(chapterId, blockId);
   }
 
   void _showSettings(BuildContext context) {
@@ -269,4 +344,33 @@ class _ReaderLoadingAppBar extends StatelessWidget
 
   @override
   Widget build(BuildContext context) => AppBar(title: const Text('Leitor'));
+}
+
+/// Gives the app bar's height back to the page while keeping the widget — and
+/// its actions — mounted.
+///
+/// `Scaffold` adds the status bar inset itself, so only the toolbar part
+/// collapses and the text never slides under the system clock.
+final class _CollapsingAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _CollapsingAppBar({required this.visible, required this.child});
+
+  final bool visible;
+  final AppBar child;
+
+  @override
+  Size get preferredSize => Size.fromHeight(visible ? kToolbarHeight : 0);
+
+  @override
+  Widget build(BuildContext context) {
+    final full = kToolbarHeight + MediaQuery.viewPaddingOf(context).top;
+    return ClipRect(
+      child: OverflowBox(
+        alignment: Alignment.topCenter,
+        minHeight: full,
+        maxHeight: full,
+        child: child,
+      ),
+    );
+  }
 }
